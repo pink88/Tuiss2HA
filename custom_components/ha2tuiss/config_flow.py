@@ -37,7 +37,7 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     if not result:
         raise CannotConnect
 
-    return {"title": data["host"]}
+    return {"title": data["name"]}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

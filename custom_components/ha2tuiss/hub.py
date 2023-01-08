@@ -54,7 +54,7 @@ class TuissBlind:
         self._client = BleakClient(self._mac)
         self._callbacks = set()
         self._retry_count = 0
-        
+
 
     @property
     def blind_id(self) -> str:

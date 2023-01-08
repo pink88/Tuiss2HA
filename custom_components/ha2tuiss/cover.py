@@ -17,6 +17,8 @@ from homeassistant.const import (
     SERVICE_SET_COVER_POSITION,
     STATE_CLOSED,
     STATE_OPEN,
+    STATE_OPENING,
+    STATE_CLOSING
 )
 
 
@@ -46,13 +48,16 @@ class Tuiss(CoverEntity):
         self._attr_unique_id = f"{self._roller._id}_cover"
         self._attr_name = self._roller.name
         self._state = None 
-        self._current_cover_position = None
+        self._current_cover_position = 0
+        self._moving = 0
 
 
     @property
     def state(self):
-        if self._current_cover_position is None:
-            return None
+        if self._moving > 0:
+            self._state = STATE_OPENING
+        elif self._moving < 0:
+            self._state = STATE_CLOSING
         elif self._current_cover_position == 100:
             self._state = STATE_OPEN
         else:
@@ -126,22 +131,50 @@ class Tuiss(CoverEntity):
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
+        if 0  < self._current_cover_position:
+            self._moving = -50
+        else:
+            self._moving = 0
+        self.schedule_update_ha_state()
         await self._roller.set_position(0)
         self._current_cover_position = 100
         self.schedule_update_ha_state()
 
+
+
+
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
+        if 100  > self._current_cover_position:
+            self._moving = 50
+        else:
+            self._moving = 0
+        self.schedule_update_ha_state()
         await self._roller.set_position(100)
         self._current_cover_position = 0
+        self._moving = 0
         self.schedule_update_ha_state()
+
+
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover."""
         await self._roller.stop()
+        self._moving = 0
+        self.schedule_update_ha_state()
+
+
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
+        if  kwargs[ATTR_POSITION] < self._current_cover_position:
+            self._moving = -50
+        elif kwargs[ATTR_POSITION] > self._current_cover_position:
+            self._moving = 50
+        else:
+            self._moving = 0
+        self.schedule_update_ha_state()
         await self._roller.set_position(100 - kwargs[ATTR_POSITION])
+        self._moving = 0
         self._current_cover_position = kwargs[ATTR_POSITION]
         self.schedule_update_ha_state()
