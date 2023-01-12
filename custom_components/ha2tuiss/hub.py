@@ -54,6 +54,7 @@ class TuissBlind:
         self._client = BleakClient(self._mac)
         self._callbacks = set()
         self._retry_count = 0
+        self._max_retries = 4
 
 
     @property
@@ -70,11 +71,24 @@ class TuissBlind:
         return True
 
 
+
+
+    #Attempt Connections
+    async def attempt_connection(self):
+        while ((not self._client.is_connected) and self._retry_count <= self._max_retries):
+            _LOGGER.info("Attempting Connection to blind. Rety count: %s", self._retry_count)
+            await self.blind_connect()
+        
+        if self._retry_count >self._max_retries:
+            _LOGGER.info("Connection Failed too many times")
+            self._retry_count = 0
+
+
+
     #Connect
     async def blind_connect(self):
         try:
-            _LOGGER.info("Attempting Connection to blind. Rety count: %s", self._retry_count)
-            await self._client.connect(timeout=20)
+            await self._client.connect(timeout=30)
             if (self._client.is_connected):
                     _LOGGER.info("BleakClient Connected")
         except Exception as err:
@@ -116,14 +130,6 @@ class TuissBlind:
     async def send_command(self, UUID, command):
 
         _LOGGER.info("BleakClient connected state is %s",self._client.is_connected)
-
-        while ((not self._client.is_connected) and self._retry_count <= 2):
-                await self.blind_connect()
-        
-        if self._retry_count >2:
-            _LOGGER.info("Connection Failed too many times")
-            self._retry_count = 0
-        
         if self._client.is_connected:
             try:
                 _LOGGER.info("Sending the command")

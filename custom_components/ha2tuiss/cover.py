@@ -131,50 +131,56 @@ class Tuiss(CoverEntity):
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        if 0  < self._current_cover_position:
-            self._moving = -50
-        else:
-            self._moving = 0
-        self.schedule_update_ha_state()
-        await self._roller.set_position(0)
-        self._current_cover_position = 100
-        self.schedule_update_ha_state()
+        await self._roller.attempt_connection()
+        if self._roller._client.is_connected:
+            # if 0  < self._current_cover_position:
+            #     self._moving = -50
+            # else:
+            #     self._moving = 0
+            #self.schedule_update_ha_state()
+            await self._roller.set_position(0)
+            self._current_cover_position = 100
+            self.schedule_update_ha_state()
 
 
 
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        if 100  > self._current_cover_position:
-            self._moving = 50
-        else:
-            self._moving = 0
-        self.schedule_update_ha_state()
-        await self._roller.set_position(100)
-        self._current_cover_position = 0
-        self._moving = 0
-        self.schedule_update_ha_state()
+        await self._roller.attempt_connection()
+        if self._roller._client.is_connected:
+            # if 100  > self._current_cover_position:
+            #     self._moving = 50
+            # else:
+            #     self._moving = 0
+            #self.schedule_update_ha_state()
+            await self._roller.set_position(100)
+            self._current_cover_position = 0
+            #self._moving = 0
+            self.schedule_update_ha_state()
 
 
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover."""
         await self._roller.stop()
-        self._moving = 0
+        #self._moving = 0
         self.schedule_update_ha_state()
 
 
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
-        if  kwargs[ATTR_POSITION] < self._current_cover_position:
-            self._moving = -50
-        elif kwargs[ATTR_POSITION] > self._current_cover_position:
-            self._moving = 50
-        else:
-            self._moving = 0
-        self.schedule_update_ha_state()
-        await self._roller.set_position(100 - kwargs[ATTR_POSITION])
-        self._moving = 0
-        self._current_cover_position = kwargs[ATTR_POSITION]
-        self.schedule_update_ha_state()
+        await self._roller.attempt_connection()
+        if self._roller._client.is_connected:  
+            # if  kwargs[ATTR_POSITION] < self._current_cover_position:
+            #     self._moving = -50
+            # elif kwargs[ATTR_POSITION] > self._current_cover_position:
+            #     self._moving = 50
+            # else:
+            #     self._moving = 0
+            # self.schedule_update_ha_state()
+            await self._roller.set_position(100 - kwargs[ATTR_POSITION])
+            #self._moving = 0
+            self._current_cover_position = kwargs[ATTR_POSITION]
+            self.schedule_update_ha_state()
