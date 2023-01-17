@@ -17,27 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required("host", default="XX:XX:XX:XX:XX:XX"): str,
-        vol.Required("name", default="Name for entity"): str
+        vol.Required("name", default="Name for device"): str
     }
 )
-
-
-async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from DATA_SCHEMA with values provided by the user.
-    """
-    
-    if len(data["host"]) < 3:
-        raise InvalidHost
-
-    hub = Hub(hass, data["host"], data["name"])
-    
-    result = await hub.test_connection()
-    if not result:
-        raise CannotConnect
-
-    return {"title": data["name"]}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -51,13 +33,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                info = await validate_input(self.hass, user_input)
+                await validate_input(self.hass, user_input)
 
-                return self.async_create_entry(title=info["title"], data=user_input)
+                return self.async_create_entry(title="Tuiss Smartview Blinds", data=user_input)
             except CannotConnect:
-                errors["base"] = "cannot_connect"
+                errors["name"] = "Your name must be longer than 0 characters"
             except InvalidHost:
-                errors["host"] = "cannot_connect"
+                errors["host"] = "Your host should be a valid MAC address in the format XX:XX:XX:XX:XX:XX"
             except Exception:  
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
@@ -65,6 +47,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors
         )
+
+
+async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
+    """Validate the user input allows us to connect."""
+    
+    if len(data["host"]) < 29:
+        raise InvalidHost
+
+    if len(data["name"]) == 0 :
+        raise InvalidName
+
+
 
 
 class CannotConnect(exceptions.HomeAssistantError):
