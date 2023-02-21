@@ -33,9 +33,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                await validate_input(self.hass, user_input)
+                _title = await validate_input(self.hass, user_input)
 
-                return self.async_create_entry(title="Tuiss Smartview Blinds", data=user_input)
+                return self.async_create_entry(title=_title, data=user_input)
             except CannotConnect:
                 errors["name"] = "Your name must be longer than 0 characters"
             except InvalidHost:
@@ -52,11 +52,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     
-    if len(data["host"]) < 29:
+    if len(data["host"]) < 17:
         raise InvalidHost
 
     if len(data["name"]) == 0 :
         raise InvalidName
+
+    return data["name"]
 
 
 

@@ -1,8 +1,8 @@
 {
   "domain": "ha2tuiss",
-  "name": "Tuiss Smartview and Blinds2go",
+  "name": "Tuiss Smartview",
   "documentation": "https://github.com/pink88/",
-  "requirements": ["bleak==0.19.2"],
+  "requirements": ["bleak==0.19.5"],
   "iot_class": "assumed_state",
   "code_owner" : "pink88",
   "version": "1.0.0",
