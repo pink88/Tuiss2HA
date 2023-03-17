@@ -51,7 +51,8 @@ class TuissBlind:
         self.model = "Tuiss"
         #self._scanner = bluetooth.async_get_scanner(self.hub._hass)
         #self.ble_device = bluetooth.async_ble_device_from_address(self._mac)
-        self._client = BleakClient(self._mac)
+        self._ble_device = bluetooth.async_ble_device_from_address(self.hub._hass, self._mac, connectable=True)
+        self._client = BleakClient(self._ble_device)
         self._callbacks = set()
         self._retry_count = 0
         self._max_retries = 4
