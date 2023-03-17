@@ -3,6 +3,7 @@
   "name": "Tuiss Smartview",
   "documentation": "https://github.com/pink88/",
   "requirements": ["bleak==0.19.5"],
+  "dependencies": ["bluetooth_adapters"],
   "iot_class": "assumed_state",
   "code_owner" : "pink88",
   "version": "1.0.0",
