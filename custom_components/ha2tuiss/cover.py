@@ -142,8 +142,6 @@ class Tuiss(CoverEntity):
             self.schedule_update_ha_state()
 
 
-
-
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         await self._roller.attempt_connection()
