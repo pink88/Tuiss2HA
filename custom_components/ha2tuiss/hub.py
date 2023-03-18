@@ -159,8 +159,8 @@ class TuissBlind:
         command = bytes.fromhex(self.hex_convert(userPercent))
         await self.send_command(UUID, command)
 
-    async def stop(self):
-        UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
-        command = bytes.fromhex("ff78ea415f0301")
-        await self.send_command(UUID, command)
+   # async def stop(self):
+   #     UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
+   #     command = bytes.fromhex("ff78ea415f0301")
+   #     await self.send_command(UUID, command)
 
