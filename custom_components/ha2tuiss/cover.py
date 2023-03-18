@@ -100,7 +100,6 @@ class Tuiss(CoverEntity):
         CoverEntityFeature.OPEN
         | CoverEntityFeature.CLOSE
         | CoverEntityFeature.SET_POSITION
-        | CoverEntityFeature.STOP
     )
 
 
@@ -158,14 +157,6 @@ class Tuiss(CoverEntity):
             self._current_cover_position = 0
             #self._moving = 0
             self.schedule_update_ha_state()
-
-
-
-    async def async_stop_cover(self, **kwargs):
-        """Stop the cover."""
-        await self._roller.stop()
-        #self._moving = 0
-        self.schedule_update_ha_state()
 
 
 
