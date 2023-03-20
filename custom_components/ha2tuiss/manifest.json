@@ -1,7 +1,7 @@
 {
-  "domain": "ha2tuiss",
+  "domain": "tuiss2ha",
   "name": "Tuiss Smartview",
-  "documentation": "https://github.com/pink88/",
+  "documentation": "https://github.com/pink88/Tuiss2HA",
   "requirements": ["bleak==0.19.5"],
   "dependencies": ["bluetooth_adapters"],
   "iot_class": "assumed_state",
