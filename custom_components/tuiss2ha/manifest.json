@@ -2,7 +2,7 @@
   "domain": "tuiss2ha",
   "name": "Tuiss Smartview",
   "documentation": "https://github.com/pink88/Tuiss2HA",
-  "requirements": ["bleak==0.19.5"],
+  "requirements": ["bleak-retry-connector>=3.0.2"],
   "dependencies": ["bluetooth_adapters"],
   "iot_class": "assumed_state",
   "code_owner" : "pink88",
