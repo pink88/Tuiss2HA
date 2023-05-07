@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import random
-import bleak_retry_connector
 from homeassistant.components import bluetooth
 from bleak import BleakClient
 import logging
