@@ -5,6 +5,7 @@ import asyncio
 import random
 import bleak_retry_connector
 from homeassistant.components import bluetooth
+from bleak import BleakClient
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class TuissBlind:
         _LOGGER.info("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
         self._retry_count = 0
-        self._max_retries = 4
+        self._max_retries = 10
 
 
     @property
