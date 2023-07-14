@@ -1,4 +1,4 @@
-# HA2Tuiss
+# Tuiss2HA
 
 This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform. These blinds use bluetoth low energy and are controlled through a simple cover interface.
 
@@ -7,11 +7,11 @@ This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartvie
 To get started you need to download and use the Tuiss Smartview app to set the upper and bottom limits of the blinds.
 
 ## Installation ##
-1. Add the integration from the HACs marketplace (see here for instructions on how)
+1. Add the integration from the HACs marketplace ([instructions here](https://hacs.xyz/docs/configuration/basic))
 2. Restart Home Assistant if required
 3. Click Settings
 4. Click Integration
-5. Click te + icon
+5. Click the + icon
 6. Select Tuiss SmartView from the dropdown
 7. Enter the MAC address from the tag including in your blind, or written within the top bracket of the blind, close to where the battery is plugged in
 8. Give the blind a name
@@ -31,7 +31,5 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 
 
 ## Troubleshooting ##
-- The Bluetooth module built into a Raspberry Pi 4B does not work, I use a couple ESP32 devices with Bluetooth proxy software installed (See here)
-- Sometimes the devices take a few attempts to connect, so expect some delay to commmands
-- Sometimes a device will fair to opperate, this is a known bug and I am trying to debug, though It appears to be caused by the EPS32 software or the HomeAssistant bluetooth integration
-
+- The Bluetooth module built into a Raspberry Pi 4B does not work, I use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
+- Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards)
