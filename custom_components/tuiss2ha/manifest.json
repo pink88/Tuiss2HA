@@ -1,12 +1,12 @@
 {
   "domain": "tuiss2ha",
   "name": "Tuiss Smartview",
+  "codeowners" : ["@pink88"],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
   "documentation": "https://github.com/pink88/Tuiss2HA",
+  "iot_class": "assumed_state",
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
   "requirements": ["bleak>=0.20.2"],
-  "dependencies": ["bluetooth_adapters"],
-  "iot_class": "assumed_state",
-  "codeowners" : ["@pink88"],
-  "version": "1.0.0",
-  "config_flow": true
+  "version": "1.0.0"
 }
