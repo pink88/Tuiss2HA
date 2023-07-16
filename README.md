@@ -1,6 +1,6 @@
 # Tuiss2HA
 
-This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform. These blinds use bluetoth low energy and are controlled through a simple cover interface.
+This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetoth low energy and are controlled through a simple cover interface.
 
 
 ## Before Integration to Home Assistant ##
@@ -26,8 +26,9 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 ### Planned Featuresure ###
 - *Battery status* - this is not yet included, but being looked into
 
+
 ## Limitations ##
-= *Open and Close status* - currently the opening and closing status of the blind is not included, it will only report on if the blind is Open and Closed, not while it is moving
+- *Open and Close status* - currently the opening and closing status of the blind is not included, it will only report on if the blind is Open and Closed, not while it is moving
 
 
 ## Troubleshooting ##

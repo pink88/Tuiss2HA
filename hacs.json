@@ -1,4 +1,5 @@
 {
-  "name": "My awesome thing",
-  "render_readme": true
+  "name": "Tuiss Smartview Blinds (Blinds2go)",
+  "render_readme": true,
+  "homeassistant": "2022.8.0"
 }
