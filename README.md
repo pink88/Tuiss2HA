@@ -32,5 +32,5 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 
 
 ## Troubleshooting ##
-- The Bluetooth module built into a Raspberry Pi 4B does not work, I use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
-- Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards)
+- I've only testing with HAOS installed on a raspberry pi4b and the  Bluetooth module built in did not work, so I had to use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
+- Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards if using ESPhome)
