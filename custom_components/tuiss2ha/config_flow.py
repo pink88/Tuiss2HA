@@ -36,7 +36,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _title = await validate_input(self.hass, user_input)
 
                 return self.async_create_entry(title=_title, data=user_input)
-            except CannotConnect:
+            except InvalidName:
                 errors["name"] = "Your name must be longer than 0 characters"
             except InvalidHost:
                 errors["host"] = "Your host should be a valid MAC address in the format XX:XX:XX:XX:XX:XX"
@@ -61,11 +61,8 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     return data["name"]
 
 
-
-
-class CannotConnect(exceptions.HomeAssistantError):
+class InvalidName(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
-
 
 class InvalidHost(exceptions.HomeAssistantError):
     """Error to indicate there is an invalid hostname."""

@@ -1,4 +1,4 @@
-"""Platform for sensor integration."""
+"""Platform for cover integration."""
 from __future__ import annotations
 
 from typing import Any

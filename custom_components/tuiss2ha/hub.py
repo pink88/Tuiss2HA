@@ -1,10 +1,14 @@
-"""Tuiss Smartview and Blinds2go BLE Home, for connecting more than 1 blind"""
+"""Tuiss Smartview and Blinds2go"""
 from __future__ import annotations
 
 import asyncio
 import random
 from homeassistant.components import bluetooth
 from bleak import BleakClient
+from bleak_retry_connector import (
+    BLEAK_RETRY_EXCEPTIONS,
+    BleakClientWithServiceCache,
+    establish_connection)
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,10 +37,6 @@ class Hub:
         """ID for dummy hub."""
         return self._id
 
-    async def test_connection(self) -> bool:
-        """Test connectivity to the Dummy hub is OK."""
-        await asyncio.sleep(1)
-        return True
 
 
 class TuissBlind:
@@ -50,7 +50,7 @@ class TuissBlind:
         self.hub = hub
         self.model = "Tuiss"
         self._ble_device = bluetooth.async_ble_device_from_address(self.hub._hass, self._mac, connectable=True)
-        self._client = BleakClient(self._ble_device)
+        self._client: BleakClientWithServiceCache | None = None 
         _LOGGER.info("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
         self._retry_count = 0
@@ -59,14 +59,14 @@ class TuissBlind:
 
     @property
     def blind_id(self) -> str:
-        """Return ID for roller."""
+        """Return ID for blind."""
         return self._id
 
 
     @property
     def online(self) -> float:
-        """Roller is online."""
-        # The dummy roller is offline about 10% of the time. Returns True if online,
+        """Blind is online."""
+        # Returns True if online,
         # False if offline.
         return True
 
@@ -75,8 +75,8 @@ class TuissBlind:
 
     #Attempt Connections
     async def attempt_connection(self):
-        while ((not self._client.is_connected) and self._retry_count <= self._max_retries):
-            _LOGGER.info("Attempting Connection to blind. Rety count: %s", self._retry_count)
+        while ((self._client == None or not self._client.is_connected) and self._retry_count <= self._max_retries):
+            _LOGGER.info("%s: Attempting Connection to blind. Rety count: %s", self.name, self._retry_count)
             await self.blind_connect()
         
         if self._retry_count >self._max_retries:
@@ -87,22 +87,37 @@ class TuissBlind:
 
     #Connect
     async def blind_connect(self):
-        try:
-            await self._client.connect(timeout=30)
-            if (self._client.is_connected):
-                    _LOGGER.info("BleakClient Connected")
-        except Exception as err:
-            self._retry_count += 1
-            _LOGGER.info("Connection Failed: %s",err)
-            
+        client: BleakClientWithServiceCache = await establish_connection(
+            client_class = BleakClientWithServiceCache,
+            device = self._ble_device,
+            name = self._mac,
+            use_services_cache=True,
+            max_attempts=self._max_retries,
+            ble_device_callback=lambda: self._device,
+        )
+        _LOGGER.info("%s: Connected to blind.", self.name)
+        #await self._client.connect(timeout=30)
+        self._client = client
+        
 
 
     # Disconnect
     async def blind_disconnect(self):
-        if self._client.is_connected:
-            _LOGGER.info("BleakClient Disconnected")
-            self._retry_count = 0
-            await self._client.disconnect()
+        client = self._client
+        if not client:
+            _LOGGER.debug("%s: Already disconnected", self.name)
+            return
+        _LOGGER.debug("%s: Disconnecting", self.name)
+        try:
+            await client.disconnect()
+        except BLEAK_RETRY_EXCEPTIONS as ex:
+            _LOGGER.warning(
+            "%s: Error disconnecting: %s",
+            self.name,
+            ex,
+            )
+        else:
+            _LOGGER.debug("%s: Disconnect completed successfully", self.name)
 
 
 
