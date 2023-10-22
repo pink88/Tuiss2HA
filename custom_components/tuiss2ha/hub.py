@@ -1,4 +1,4 @@
-"""Tuiss Smartview and Blinds2go"""
+"""Tuiss Smartview and Blinds2go BLE Home"""
 from __future__ import annotations
 
 import asyncio
@@ -59,14 +59,14 @@ class TuissBlind:
 
     @property
     def blind_id(self) -> str:
-        """Return ID for blind."""
+        """Return ID for roller."""
         return self._id
 
 
     @property
     def online(self) -> float:
-        """Blind is online."""
-        # Returns True if online,
+        """Roller is online."""
+        # The dummy roller is offline about 10% of the time. Returns True if online,
         # False if offline.
         return True
 
@@ -80,7 +80,7 @@ class TuissBlind:
             await self.blind_connect()
         
         if self._retry_count >self._max_retries:
-            _LOGGER.info("Connection Failed too many times")
+            _LOGGER.info("%s: Connection Failed too many times", self.name)
             self._retry_count = 0
 
 
@@ -144,7 +144,7 @@ class TuissBlind:
     # Send the data
     async def send_command(self, UUID, command):
 
-        _LOGGER.info("BleakClient connected state is %s",self._client.is_connected)
+        _LOGGER.info("%s connected state is %s",self._ble_device,self._client.is_connected)
         if self._client.is_connected:
             try:
                 _LOGGER.info("Sending the command")

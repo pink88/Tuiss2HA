@@ -1,4 +1,4 @@
-"""Config flow for Hello World integration."""
+"""Config flow for Tuiss2ha integration."""
 from __future__ import annotations
 
 import logging
@@ -23,7 +23,7 @@ DATA_SCHEMA = vol.Schema(
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Hello World."""
+    """Handle a config flow for Tuiss2ha."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_ASSUMED
