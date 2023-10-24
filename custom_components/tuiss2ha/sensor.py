@@ -1,6 +1,3 @@
-Copy from switchbot 
-
-
 """Support for Battery sensors."""
 from __future__ import annotations
 
@@ -25,11 +22,11 @@ from .entity import SwitchbotEntity
 
 PARALLEL_UPDATES = 0
 
-"battery": SensorEntityDescription(
-        key="battery",
-        native_unit_of_measurement=PERCENTAGE,
-        device_class=SensorDeviceClass.BATTERY,
-        state_class=SensorStateClass.MEASUREMENT,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    )
+# "battery": SensorEntityDescription(
+    #     key="battery",
+    #     native_unit_of_measurement=PERCENTAGE,
+    #     device_class=SensorDeviceClass.BATTERY,
+    #     state_class=SensorStateClass.MEASUREMENT,
+    #     entity_category=EntityCategory.DIAGNOSTIC,
+    # )
 
