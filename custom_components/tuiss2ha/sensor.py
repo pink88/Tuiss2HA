@@ -10,23 +10,29 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    PERCENTAGE,
     EntityCategory,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .coordinator import SwitchbotDataUpdateCoordinator
-from .entity import SwitchbotEntity
 
 PARALLEL_UPDATES = 0
+SENSOR_TYPES= {
+"battery_description": [
+        "Battery Status Description",
+        None,
+        "mdi:battery",
+        None,
+        None,]
+}
 
-# "battery": SensorEntityDescription(
-    #     key="battery",
-    #     native_unit_of_measurement=PERCENTAGE,
-    #     device_class=SensorDeviceClass.BATTERY,
-    #     state_class=SensorStateClass.MEASUREMENT,
-    #     entity_category=EntityCategory.DIAGNOSTIC,
-    # )
 
+async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_add_entities) -> None:
+    """Set up Tuiss2ha Battery sensor"""
+    sensors = []
+    for sensor in SENSOR_TYPES:
+        sensors.append()
+    async_add_entities(sensors, True)
+
+    

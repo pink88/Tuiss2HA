@@ -75,8 +75,18 @@ class TuissBlind:
 
     #Attempt Connections
     async def attempt_connection(self):
+
+        #check if the device not loaded at boot and retry a connection
+        rediscover_attempts = 0
+        while (self._ble_device == None and rediscover_attempts <4):
+            _LOGGER.info("Unable to find device %s. Attempting rediscovery.", self.name)
+            self._ble_device = bluetooth.async_ble_device_from_address(self.hub._hass, self._mac, connectable=True)
+        if self._ble_device == None:
+            _LOGGER.info("Cannot find the device %s. Check your bluetooth adapters and proxies",self.name)
+
+
         while ((self._client == None or not self._client.is_connected) and self._retry_count <= self._max_retries):
-            _LOGGER.info("%s: Attempting Connection to blind. Rety count: %s", self.name, self._retry_count)
+            _LOGGER.info("%s %s: Attempting Connection to blind. Rety count: %s", self.name, self._ble_device, self._retry_count)
             await self.blind_connect()
         
         if self._retry_count >self._max_retries:
@@ -144,13 +154,13 @@ class TuissBlind:
     # Send the data
     async def send_command(self, UUID, command):
 
-        _LOGGER.info("%s connected state is %s",self._ble_device,self._client.is_connected)
+        _LOGGER.info("%s (%s) connected state is %s",self.name, self._ble_device,self._client.is_connected)
         if self._client.is_connected:
             try:
-                _LOGGER.info("Sending the command")
+                _LOGGER.info("%s: Sending the command",self.name)
                 await self._client.write_gatt_char(UUID, command)
             except Exception as e:
-                _LOGGER.error(("Send Command error: %s",e))
+                _LOGGER.error(("%s: Send Command error: %s",self.name,e))
                 
             finally:
                 await self.blind_disconnect()
@@ -169,9 +179,49 @@ class TuissBlind:
     # Set the position and send to be run
     async def set_position(self, userPercent) -> None:
         UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
-        _LOGGER.info("Attempting to set position to: %s", userPercent)
+        _LOGGER.info("%s: Attempting to set position to: %s", self.name,userPercent)
         command = bytes.fromhex(self.hex_convert(userPercent))
         await self.send_command(UUID, command)
+
+
+    # Get information on the battery status good or needs to be charged
+    async def get_battery(self) -> None:
+        UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
+        command = bytes.fromhex("ff78ea41f00301")
+        await client.start_notify(17,battery_callback)
+        await self.send_command(UUID, command)
+        while self._client.is_connected:
+            await asyncio.sleep(1)
+
+
+    # Waits and handles the response code from the battery and records to sensor
+    async def battery_callback(sender: BleakGATTCharacteristic, data: bytearray):
+        
+        _LOGGER.info("%s: Attempting to get battery status", self.name)   
+        
+        customdecode = str(data)
+        customdecodesplit = customdecode.split('\\x')
+        response = ''
+        decimals = []
+
+        x = 1
+        while x < len(customdecodesplit):
+            resp = customdecodesplit[x][0:2]
+            response += resp
+            decimals.append(int(resp,16))
+            x+=1
+
+        _LOGGER.info("As byte:%s", data)
+        _LOGGER.info("As string:%s", response)
+        _LOGGER.info("As decimals:%s", decimals)
+        
+        if decimals[4] == 210:
+            if decimals[5] == 3:
+                _LOGGER.info("%s: Battery is good",self.name)
+            elif decimals[5] == 11:
+                _LOGGER.info("%s: Please charge device",self.name)
+            await blind_disconnect()
+
 
     # async def stop(self):
     #     UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
