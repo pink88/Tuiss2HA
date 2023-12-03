@@ -81,6 +81,7 @@ class TuissBlind:
         while (self._ble_device == None and rediscover_attempts <4):
             _LOGGER.info("Unable to find device %s. Attempting rediscovery.", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(self.hub._hass, self._mac, connectable=True)
+            rediscover_attempts+=1
         if self._ble_device == None:
             _LOGGER.info("Cannot find the device %s. Check your bluetooth adapters and proxies",self.name)
 
