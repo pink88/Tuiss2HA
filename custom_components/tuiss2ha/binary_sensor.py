@@ -32,7 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 async def async_get_battery_status(entity,service_call):
     """Get the battery status when called by service."""
-    await entity._blind.get_battery_status
+    await entity._blind.get_battery_status()
 
 class BatterySensor(BinarySensorEntity):
     """Battery sensor for Tuiss2HA Cover."""
