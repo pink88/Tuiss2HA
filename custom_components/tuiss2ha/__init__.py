@@ -16,8 +16,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    #hass.services.register(DOMAIN,"get_battery_status",hub.TuissBlind.get_battery_status)
-
     return True
 
 

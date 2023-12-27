@@ -7,6 +7,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_platform
 
 from .const import DOMAIN
 
@@ -19,7 +20,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         sensors.append(BatterySensor(blind))
     async_add_entities(sensors, True)
 
+    platform = entity_platform.async_get_current_platform()
 
+    platform.async_register_entity_service(
+        "get_battery_status",
+        {
+        },
+        async_get_battery_status
+    )
+
+
+async def async_get_battery_status(entity,service_call):
+    """Get the battery status when called by service."""
+    await entity._blind.get_battery_status
 
 class BatterySensor(BinarySensorEntity):
     """Battery sensor for Tuiss2HA Cover."""
@@ -52,9 +65,6 @@ class BatterySensor(BinarySensorEntity):
     def device_class(self):
         """Return device class."""
         return self._attr_device_class
-
-    # This property is important to let HA know if this entity is online or not.
-    # If an entity is offline (return False), the UI will refelect this.
 
     async def async_added_to_hass(self):
         """Run when this Entity has been added to HA."""
