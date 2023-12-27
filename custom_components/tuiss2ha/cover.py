@@ -36,24 +36,25 @@ async def async_setup_entry(
 ) -> None:
     """Add cover for passed config_entry in HA."""
     hub = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities(Tuiss(roller) for roller in hub.rollers)
+    async_add_entities(Tuiss(blind) for blind in hub.blinds)
 
 
 class Tuiss(CoverEntity):
-    """Representation of a dummy Cover."""
+    """Create Cover Class."""
 
-    def __init__(self, roller) -> None:
-        """Initialize the sensor."""
-        self._roller = roller
-        self._attr_unique_id = f"{self._roller._id}_cover"
-        self._attr_name = self._roller.name
-        self._state = None 
+    def __init__(self, blind) -> None:
+        """Initialize the cover."""
+        self._blind = blind
+        self._attr_unique_id = f"{self._blind._id}_cover"
+        self._attr_name = self._blind.name
+        self._state = None
         self._current_cover_position = 0
         self._moving = 0
 
 
     @property
     def state(self):
+        """Set state of object."""
         if self._moving > 0:
             self._state = STATE_OPENING
         elif self._moving < 0:
@@ -67,15 +68,17 @@ class Tuiss(CoverEntity):
 
     @property
     def should_poll(self):
+        """Set poll of object."""
         return False
 
     @property
     def device_class(self):
+        """Set class of object."""
         return CoverDeviceClass.SHADE
 
     @property
     def available(self) -> bool:
-        """Return True if roller and hub is available."""
+        """Return True if blind and hub is available."""
         return True
 
     @property
@@ -96,6 +99,7 @@ class Tuiss(CoverEntity):
 
     @property
     def supported_features(self):
+        """Set features of object."""
         return (
         CoverEntityFeature.OPEN
         | CoverEntityFeature.CLOSE
@@ -104,14 +108,14 @@ class Tuiss(CoverEntity):
 
 
     @property
-    def device_info(self) -> DeviceInfo:
+    def device_info(self):
         """Information about this entity/device."""
         return {
-            "identifiers": {(DOMAIN, self._roller._id)},
+            "identifiers": {(DOMAIN, self._blind._id)},
             # If desired, the name for the device could be different to the entity
             "name": self.name,
-            "model": self._roller.model,
-            "manufacturer": self._roller.hub.manufacturer,
+            "model": self._blind.model,
+            "manufacturer": self._blind.hub.manufacturer,
         }
 
     async def async_scheduled_update_request(self, *_):
@@ -121,37 +125,37 @@ class Tuiss(CoverEntity):
 
     async def async_added_to_hass(self) -> None:
         """Run when this Entity has been added to HA."""
-        self._roller.register_callback(self.async_write_ha_state)
+        self._blind.register_callback(self.async_write_ha_state)
 
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
-        self._roller.remove_callback(self.async_write_ha_state)
+        self._blind.remove_callback(self.async_write_ha_state)
 
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        await self._roller.attempt_connection()
-        if self._roller._client.is_connected:
+        await self._blind.attempt_connection()
+        if self._blind._client.is_connected:
             # if 0  < self._current_cover_position:
             #     self._moving = -50
             # else:
             #     self._moving = 0
             #self.schedule_update_ha_state()
-            await self._roller.set_position(0)
+            await self._blind.set_position(0)
             self._current_cover_position = 100
             self.schedule_update_ha_state()
 
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        await self._roller.attempt_connection()
-        if self._roller._client.is_connected:
+        await self._blind.attempt_connection()
+        if self._blind._client.is_connected:
             # if 100  > self._current_cover_position:
             #     self._moving = 50
             # else:
             #     self._moving = 0
             #self.schedule_update_ha_state()
-            await self._roller.set_position(100)
+            await self._blind.set_position(100)
             self._current_cover_position = 0
             #self._moving = 0
             self.schedule_update_ha_state()
@@ -160,8 +164,8 @@ class Tuiss(CoverEntity):
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
-        await self._roller.attempt_connection()
-        if self._roller._client.is_connected:  
+        await self._blind.attempt_connection()
+        if self._blind._client.is_connected:
             # if  kwargs[ATTR_POSITION] < self._current_cover_position:
             #     self._moving = -50
             # elif kwargs[ATTR_POSITION] > self._current_cover_position:
@@ -169,7 +173,7 @@ class Tuiss(CoverEntity):
             # else:
             #     self._moving = 0
             # self.schedule_update_ha_state()
-            await self._roller.set_position(100 - kwargs[ATTR_POSITION])
+            await self._blind.set_position(100 - kwargs[ATTR_POSITION])
             #self._moving = 0
             self._current_cover_position = kwargs[ATTR_POSITION]
             self.schedule_update_ha_state()

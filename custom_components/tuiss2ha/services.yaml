@@ -1,0 +1,10 @@
+# Example services.yaml entry
+
+# Service ID
+get_battery_status:
+  # Gets the status of the battery for the target device. Because the blind has a
+  # specific call for battery and because this does not advertise, nor give an actual %,
+  # use this service instead to return true/false when battery is low
+  target:
+    device:
+      domain: tuiss2ha
