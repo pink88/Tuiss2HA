@@ -151,7 +151,7 @@ class TuissBlind:
         return callStr + hexVal[2:] + groupStr
 
     # Send the data
-    async def send_command(self, UUID, command):
+    async def send_command(self, UUID, command, disconnect = True):
         """Send the command to the blind."""
         _LOGGER.info(
             "%s (%s) connected state is %s",
@@ -167,7 +167,8 @@ class TuissBlind:
                 _LOGGER.error(("%s: Send Command error: %s", self.name, e))
 
             finally:
-                await self.blind_disconnect()
+                if disconnect:
+                    await self.blind_disconnect()
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
@@ -228,7 +229,7 @@ class TuissBlind:
 
         UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
         command = bytes.fromhex("ff78ea41f00301")
-        await self._client.start_notify(17, self.battery_callback)
-        await self.send_command(UUID, command)
+        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.battery_callback)
+        await self.send_command(UUID, command,False)
         while self._client.is_connected:
             await asyncio.sleep(1)
