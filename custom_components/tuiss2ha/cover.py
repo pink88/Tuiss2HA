@@ -18,13 +18,14 @@ from homeassistant.const import (
     STATE_CLOSED,
     STATE_OPEN,
     STATE_OPENING,
-    STATE_CLOSING
+    STATE_CLOSING,
 )
 
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN
 
@@ -39,7 +40,7 @@ async def async_setup_entry(
     async_add_entities(Tuiss(blind) for blind in hub.blinds)
 
 
-class Tuiss(CoverEntity):
+class Tuiss(CoverEntity, RestoreEntity):
     """Create Cover Class."""
 
     def __init__(self, blind) -> None:
@@ -48,9 +49,8 @@ class Tuiss(CoverEntity):
         self._attr_unique_id = f"{self._blind._id}_cover"
         self._attr_name = self._blind.name
         self._state = None
-        self._current_cover_position = 0
+        self._current_cover_position: None
         self._moving = 0
-
 
     @property
     def state(self):
@@ -64,7 +64,6 @@ class Tuiss(CoverEntity):
         else:
             self._state = STATE_CLOSED
         return self._state
-
 
     @property
     def should_poll(self):
@@ -88,7 +87,6 @@ class Tuiss(CoverEntity):
             return None
         return self._current_cover_position
 
-
     @property
     def is_closed(self) -> bool | None:
         """Return if the cover is closed or not."""
@@ -96,16 +94,14 @@ class Tuiss(CoverEntity):
             return None
         return self._current_cover_position == 0
 
-
     @property
     def supported_features(self):
         """Set features of object."""
         return (
-        CoverEntityFeature.OPEN
-        | CoverEntityFeature.CLOSE
-        | CoverEntityFeature.SET_POSITION
-    )
-
+            CoverEntityFeature.OPEN
+            | CoverEntityFeature.CLOSE
+            | CoverEntityFeature.SET_POSITION
+        )
 
     @property
     def device_info(self):
@@ -122,15 +118,21 @@ class Tuiss(CoverEntity):
         """Request a state update from the blind at a scheduled point in time."""
         self.async_write_ha_state()
 
-
     async def async_added_to_hass(self) -> None:
         """Run when this Entity has been added to HA."""
+        last_state = await self.async_get_last_state()
+        if not last_state or ATTR_CURRENT_POSITION not in last_state.attributes:
+            self._current_cover_position = 0
+        else:
+            self._current_cover_position = last_state.attributes.get(
+                ATTR_CURRENT_POSITION
+            )
+
         self._blind.register_callback(self.async_write_ha_state)
 
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
         self._blind.remove_callback(self.async_write_ha_state)
-
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
@@ -140,11 +142,10 @@ class Tuiss(CoverEntity):
             #     self._moving = -50
             # else:
             #     self._moving = 0
-            #self.schedule_update_ha_state()
+            # self.schedule_update_ha_state()
             await self._blind.set_position(0)
             self._current_cover_position = 100
             self.schedule_update_ha_state()
-
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
@@ -154,13 +155,11 @@ class Tuiss(CoverEntity):
             #     self._moving = 50
             # else:
             #     self._moving = 0
-            #self.schedule_update_ha_state()
+            # self.schedule_update_ha_state()
             await self._blind.set_position(100)
             self._current_cover_position = 0
-            #self._moving = 0
+            # self._moving = 0
             self.schedule_update_ha_state()
-
-
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
@@ -174,6 +173,6 @@ class Tuiss(CoverEntity):
             #     self._moving = 0
             # self.schedule_update_ha_state()
             await self._blind.set_position(100 - kwargs[ATTR_POSITION])
-            #self._moving = 0
+            # self._moving = 0
             self._current_cover_position = kwargs[ATTR_POSITION]
             self.schedule_update_ha_state()

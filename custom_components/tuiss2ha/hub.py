@@ -14,10 +14,7 @@ from bleak_retry_connector import (
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 
-from .const import (
-    DOMAIN, 
-    BATTERY_NOTIFY_CHARACTERISTIC,
-)
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 hass = HomeAssistant
@@ -35,7 +32,6 @@ class Hub:
         self._name = name
         self._id = host.lower()
         self.blinds = [TuissBlind(self._host, self._name, self)]
-        self.online = True
 
     @property
     def hub_id(self) -> str:
@@ -67,18 +63,6 @@ class TuissBlind:
     def blind_id(self) -> str:
         """Return ID for blind."""
         return self._id
-
-    @property
-    def online(self) -> float:
-        """Blind is online."""
-        # The dummy blind is offline about 10% of the time. Returns True if online,
-        # False if offline.
-        return True
-
-    @property
-    def battery_status(self) -> int:
-        """Battery level as a percentage."""
-        return self._battery_status
 
     # Attempt Connections
     async def attempt_connection(self):
@@ -125,6 +109,7 @@ class TuissBlind:
             ble_device_callback=lambda: self._device,
         )
         _LOGGER.info("%s: Connected to blind", self.name)
+        # await self._client.connect(timeout=30)
         self._client = client
 
     # Disconnect
@@ -166,7 +151,7 @@ class TuissBlind:
         return callStr + hexVal[2:] + groupStr
 
     # Send the data
-    async def send_command(self, UUID, command, disconnect=True):
+    async def send_command(self, UUID, command):
         """Send the command to the blind."""
         _LOGGER.info(
             "%s (%s) connected state is %s",
@@ -182,19 +167,15 @@ class TuissBlind:
                 _LOGGER.error(("%s: Send Command error: %s", self.name, e))
 
             finally:
-                if disconnect:
-                    await self.blind_disconnect()
-
+                await self.blind_disconnect()
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
         self._callbacks.add(callback)
 
-
     def remove_callback(self, callback) -> None:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
-
 
     # Set the position and send to be run
     async def set_position(self, userPercent) -> None:
@@ -204,11 +185,8 @@ class TuissBlind:
         command = bytes.fromhex(self.hex_convert(userPercent))
         await self.send_command(UUID, command)
 
-
-
-
     # Waits and handles the response code from the battery and records to sensor
-    async def battery_callback(self,sender:BleakGATTCharacteristic, data: bytearray):
+    async def battery_callback(self, data: bytearray):
         """Wait for response from the blind and updates entity status."""
         _LOGGER.info("%s: Attempting to get battery status", self.name)
 
@@ -224,45 +202,33 @@ class TuissBlind:
             decimals.append(int(resp, 16))
             x += 1
 
+        _LOGGER.info("%s: As byte:%s", self.name, data)
+        _LOGGER.info("%s: As string:%s", self.name, response)
+        _LOGGER.info("%s: As decimals:%s", self.name, decimals)
+
         if decimals[4] == 210:
-            _LOGGER.info("%s: As byte:%s", self.name, data)
-            _LOGGER.info("%s: As string:%s", self.name, response)
-            _LOGGER.info("%s: As decimals:%s", self.name, decimals)
-            
-            if len(decimals) == 5:
+            if len(decimals) < 8:
                 _LOGGER.info(
                     "%s: Please charge device", self.name
                 )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
-                self.battery_status = True
-            elif len(decimals) >5 & len(decimals) < 10:
+                self._battery_status = True
+            elif len(decimals) == 8:
                 _LOGGER.info("%s: Battery is good", self.name)
                 self._battery_status = False
             else:
                 _LOGGER.info("%s: Battery logic is wrong", self.name)
-            _LOGGER.info("starting callback disconnect")
             await self.blind_disconnect()
-
-        _LOGGER.info("End of callback")
-
-
-
-
-
 
     # Get information on the battery status good or needs to be charged
     async def get_battery_status(self) -> None:
         """Get the battery state from the blind as good or bad."""
+
         # connect to the blind first
         await self.attempt_connection()
 
         UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
         command = bytes.fromhex("ff78ea41f00301")
-
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.battery_callback)
-        await self.send_command(UUID, command,False)
-        x=1
+        await self._client.start_notify(17, self.battery_callback)
+        await self.send_command(UUID, command)
         while self._client.is_connected:
-            _LOGGER.info("Still connected: ",x)
             await asyncio.sleep(1)
-            x+=1
-        #await self.blind_disconnect()
