@@ -1,6 +1,8 @@
 """Support for Battery sensors."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -11,6 +13,8 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -33,7 +37,7 @@ async def async_setup_entry(
 async def async_get_battery_status(entity, service_call):
     """Get the battery status when called by service."""
     await entity._blind.get_battery_status()
-    entity._state = entity._blind._battery_status
+    entity._attr_is_on = entity._blind._battery_status
     entity.schedule_update_ha_state()
 
 
@@ -59,11 +63,6 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
         return {"identifiers": {(DOMAIN, self._blind.blind_id)}}
 
     @property
-    def is_on(self) -> bool:
-        """Is the battery on or off."""
-        return self._state
-
-    @property
     def device_class(self):
         """Return device class."""
         return self._attr_device_class
@@ -71,10 +70,11 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
     async def async_added_to_hass(self):
         """Run when this Entity has been added to HA."""
         last_state = await self.async_get_last_state()
-        if not last_state:
-            self._state = False
-            return
-        self._state = last_state.state
+        _LOGGER.debug(last_state)
+        if last_state.state == "on":
+            self._attr_is_on = True
+        else:
+            self._attr_is_on = False
 
         # Sensors should also register callbacks to HA when their state changes
         self._blind.register_callback(self.async_write_ha_state)

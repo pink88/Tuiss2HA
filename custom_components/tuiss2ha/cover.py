@@ -4,26 +4,16 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.cover import (
-    ATTR_POSITION,
     ATTR_CURRENT_POSITION,
-    CoverEntityFeature,
+    ATTR_POSITION,
     CoverDeviceClass,
     CoverEntity,
+    CoverEntityFeature,
 )
-
-from homeassistant.const import (
-    SERVICE_CLOSE_COVER,
-    SERVICE_OPEN_COVER,
-    SERVICE_SET_COVER_POSITION,
-    STATE_CLOSED,
-    STATE_OPEN,
-    STATE_OPENING,
-    STATE_CLOSING,
-)
-
-
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_CLOSED, STATE_OPEN
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -38,6 +28,18 @@ async def async_setup_entry(
     """Add cover for passed config_entry in HA."""
     hub = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities(Tuiss(blind) for blind in hub.blinds)
+
+    platform = entity_platform.async_get_current_platform()
+
+    platform.async_register_entity_service(
+        "get_blind_position", {}, async_get_blind_position
+    )
+
+
+async def async_get_blind_position(entity, service_call):
+    """Get the battery status when called by service."""
+    await entity._blind.get_blind_position()
+    entity.schedule_update_ha_state()
 
 
 class Tuiss(CoverEntity, RestoreEntity):
@@ -55,11 +57,7 @@ class Tuiss(CoverEntity, RestoreEntity):
     @property
     def state(self):
         """Set state of object."""
-        if self._moving > 0:
-            self._state = STATE_OPENING
-        elif self._moving < 0:
-            self._state = STATE_CLOSING
-        elif self._current_cover_position == 100:
+        if self._current_cover_position >= 25:
             self._state = STATE_OPEN
         else:
             self._state = STATE_CLOSED
@@ -127,7 +125,6 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._current_cover_position = last_state.attributes.get(
                 ATTR_CURRENT_POSITION
             )
-
         self._blind.register_callback(self.async_write_ha_state)
 
     async def async_will_remove_from_hass(self) -> None:
@@ -138,11 +135,6 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Open the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            # if 0  < self._current_cover_position:
-            #     self._moving = -50
-            # else:
-            #     self._moving = 0
-            # self.schedule_update_ha_state()
             await self._blind.set_position(0)
             self._current_cover_position = 100
             self.schedule_update_ha_state()
@@ -151,28 +143,14 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Close the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            # if 100  > self._current_cover_position:
-            #     self._moving = 50
-            # else:
-            #     self._moving = 0
-            # self.schedule_update_ha_state()
             await self._blind.set_position(100)
             self._current_cover_position = 0
-            # self._moving = 0
             self.schedule_update_ha_state()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            # if  kwargs[ATTR_POSITION] < self._current_cover_position:
-            #     self._moving = -50
-            # elif kwargs[ATTR_POSITION] > self._current_cover_position:
-            #     self._moving = 50
-            # else:
-            #     self._moving = 0
-            # self.schedule_update_ha_state()
             await self._blind.set_position(100 - kwargs[ATTR_POSITION])
-            # self._moving = 0
             self._current_cover_position = kwargs[ATTR_POSITION]
             self.schedule_update_ha_state()

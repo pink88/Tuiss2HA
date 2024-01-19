@@ -7,6 +7,7 @@
   "documentation": "https://github.com/pink88/Tuiss2HA",
   "iot_class": "assumed_state",
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
+  "loggers": ["custom_components.tuiss2ha"],
   "requirements": ["bleak>=0.20.2","bleak-retry-connector>=3.2.1"],
   "version": "1.2.0"
 }

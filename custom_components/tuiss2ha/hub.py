@@ -14,7 +14,11 @@ from bleak_retry_connector import (
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    BATTERY_NOTIFY_CHARACTERISTIC,
+    UUID,
+)
 
 _LOGGER = logging.getLogger(__name__)
 hass = HomeAssistant
@@ -53,7 +57,7 @@ class TuissBlind:
             self.hub._hass, self._mac, connectable=True
         )
         self._client: BleakClientWithServiceCache | None = None
-        _LOGGER.info("BLEDevice: %s", self._ble_device)
+        _LOGGER.debug("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
         self._retry_count = 0
         self._max_retries = 10
@@ -71,13 +75,13 @@ class TuissBlind:
         # check if the device not loaded at boot and retry a connection
         rediscover_attempts = 0
         while self._ble_device is None and rediscover_attempts < 4:
-            _LOGGER.info("Unable to find device %s, attempting rediscovery", self.name)
+            _LOGGER.debug("Unable to find device %s, attempting rediscovery", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(
                 self.hub._hass, self._mac, connectable=True
             )
             rediscover_attempts += 1
         if self._ble_device is None:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
                 self.name,
             )
@@ -85,7 +89,7 @@ class TuissBlind:
         while (
             self._client is None or not self._client.is_connected
         ) and self._retry_count <= self._max_retries:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "%s %s: Attempting Connection to blind. Rety count: %s",
                 self.name,
                 self._ble_device,
@@ -94,7 +98,7 @@ class TuissBlind:
             await self.blind_connect()
 
         if self._retry_count > self._max_retries:
-            _LOGGER.info("%s: Connection Failed too many times", self.name)
+            _LOGGER.debug("%s: Connection Failed too many times", self.name)
             self._retry_count = 0
 
     # Connect
@@ -108,7 +112,7 @@ class TuissBlind:
             max_attempts=self._max_retries,
             ble_device_callback=lambda: self._device,
         )
-        _LOGGER.info("%s: Connected to blind", self.name)
+        _LOGGER.debug("%s: Connected to blind", self.name)
         # await self._client.connect(timeout=30)
         self._client = client
 
@@ -151,9 +155,9 @@ class TuissBlind:
         return callStr + hexVal[2:] + groupStr
 
     # Send the data
-    async def send_command(self, UUID, command, disconnect = True):
+    async def send_command(self, UUID, command, disconnect=True):
         """Send the command to the blind."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "%s (%s) connected state is %s",
             self.name,
             self._ble_device,
@@ -161,7 +165,7 @@ class TuissBlind:
         )
         if self._client.is_connected:
             try:
-                _LOGGER.info("%s: Sending the command", self.name)
+                _LOGGER.debug("%s: Sending the command", self.name)
                 await self._client.write_gatt_char(UUID, command)
             except Exception as e:
                 _LOGGER.error(("%s: Send Command error: %s", self.name, e))
@@ -178,19 +182,45 @@ class TuissBlind:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
 
-    # Set the position and send to be run
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
-        UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
-        _LOGGER.info("%s: Attempting to set position to: %s", self.name, userPercent)
+        _LOGGER.debug("%s: Attempting to set position to: %s", self.name, userPercent)
         command = bytes.fromhex(self.hex_convert(userPercent))
         await self.send_command(UUID, command)
 
-    # Waits and handles the response code from the battery and records to sensor
-    async def battery_callback(self, data: bytearray):
+    async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
-        _LOGGER.info("%s: Attempting to get battery status", self.name)
+        _LOGGER.debug("%s: Attempting to get battery status", self.name)
 
+        decimals = self.split_data(data)
+
+        if decimals[4] == 210:
+            if len(decimals) == 5:
+                _LOGGER.debug(
+                    "%s: Please charge device", self.name
+                )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
+                self._battery_status = True
+            elif len(decimals) < 10:
+                _LOGGER.debug("%s: Battery is good", self.name)
+                self._battery_status = False
+            else:
+                _LOGGER.debug("%s: Battery logic is wrong", self.name)
+            await self.blind_disconnect()
+
+    async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
+        """Wait for response from the blind and updates entity status."""
+        _LOGGER.debug("%s: Attempting to get battery status", self.name)
+
+        decimals = self.split_data(data)
+
+        blindPos = 100 - (decimals[-3] + (decimals[-2] * 256)) / 10
+        _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
+        self._current_cover_position = blindPos
+
+        await self._blind_disconnect()
+
+    def split_data(self, data):
+        """Split the byte response into decimal."""
         customdecode = str(data)
         customdecodesplit = customdecode.split("\\x")
         response = ""
@@ -203,33 +233,27 @@ class TuissBlind:
             decimals.append(int(resp, 16))
             x += 1
 
-        _LOGGER.info("%s: As byte:%s", self.name, data)
-        _LOGGER.info("%s: As string:%s", self.name, response)
-        _LOGGER.info("%s: As decimals:%s", self.name, decimals)
+        _LOGGER.debug("%s: As byte:%s", self.name, data)
+        _LOGGER.debug("%s: As string:%s", self.name, response)
+        _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
+        return decimals
 
-        if decimals[4] == 210:
-            if len(decimals) < 8:
-                _LOGGER.info(
-                    "%s: Please charge device", self.name
-                )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
-                self._battery_status = True
-            elif len(decimals) == 8:
-                _LOGGER.info("%s: Battery is good", self.name)
-                self._battery_status = False
-            else:
-                _LOGGER.info("%s: Battery logic is wrong", self.name)
-            await self.blind_disconnect()
-
-    # Get information on the battery status good or needs to be charged
-    async def get_battery_status(self) -> None:
+    async def get_from_blind(self, command, callback) -> None:
         """Get the battery state from the blind as good or bad."""
 
         # connect to the blind first
         await self.attempt_connection()
-
-        UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
-        command = bytes.fromhex("ff78ea41f00301")
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.battery_callback)
-        await self.send_command(UUID, command,False)
+        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
+        await self.send_command(UUID, command, False)
         while self._client.is_connected:
             await asyncio.sleep(1)
+
+    async def get_battery_status(self) -> None:
+        """Get the battery state from the blind as good or bad."""
+        command = bytes.fromhex("ff78ea41f00301")
+        await self.get_from_blind(command, self.battery_callback)
+
+    async def get_blind_position(self) -> None:
+        """Get the current position of the blind."""
+        command = bytes.fromhex("ff78ea41d10301")
+        await self.get_from_blind(command, self.position_callback)
