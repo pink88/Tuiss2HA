@@ -213,11 +213,12 @@ class TuissBlind:
 
         decimals = self.split_data(data)
 
-        blindPos = 100 - (decimals[-3] + (decimals[-2] * 256)) / 10
+        blindPos = (decimals[-3] + (decimals[-2] * 256)) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
 
-        await self._blind_disconnect()
+        await self.blind_disconnect()
+
 
     def split_data(self, data):
         """Split the byte response into decimal."""

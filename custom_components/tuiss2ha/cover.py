@@ -39,6 +39,7 @@ async def async_setup_entry(
 async def async_get_blind_position(entity, service_call):
     """Get the battery status when called by service."""
     await entity._blind.get_blind_position()
+    entity._current_cover_position = entity._blind._current_cover_position
     entity.schedule_update_ha_state()
 
 
