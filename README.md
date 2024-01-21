@@ -67,7 +67,6 @@ The blind will not update its position within Home Assistant if controlled using
 
 ## Limitations ##
 - Currently the opening and closing status of the blind are not included, it will only report on if the blind is Open and Closed, not while it is moving
-- Positional state of blind and battery state are reset when Home Assistant is restarted
 
 
 ## Troubleshooting ##
