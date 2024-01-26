@@ -200,12 +200,19 @@ class TuissBlind:
                     "%s: Please charge device", self.name
                 )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
                 self._battery_status = True
-            elif len(decimals) < 10:
+            elif decimals[5] > 10:
+                _LOGGER.debug(
+                    "%s: Please charge device", self.name
+                )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
+                self._battery_status = True
+            elif decimals[5] <= 10:
                 _LOGGER.debug("%s: Battery is good", self.name)
                 self._battery_status = False
             else:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
+                self._battery_status = None
             await self.blind_disconnect()
+
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
