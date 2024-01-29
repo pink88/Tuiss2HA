@@ -216,11 +216,11 @@ class TuissBlind:
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
-        _LOGGER.debug("%s: Attempting to get battery status", self.name)
+        _LOGGER.debug("%s: Attempting to get position", self.name)
 
         decimals = self.split_data(data)
 
-        blindPos = (decimals[-3] + (decimals[-2] * 256)) / 10
+        blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
 
