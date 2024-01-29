@@ -224,7 +224,7 @@ class TuissBlind:
 
         decimals = self.split_data(self.return_hex_bytearray(data))
 
-        blindPos = (decimals[-3] + (decimals[-2] * 256)) / 10
+        blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
 
