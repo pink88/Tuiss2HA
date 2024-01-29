@@ -213,11 +213,7 @@ class TuissBlind:
                 self._battery_status = None
             await self.blind_disconnect()
 
-    def return_hex_bytearray(self, x):
-        """make sure we print ascii symbols as hex"""
-        return ''.join([type(x).__name__, "('",
-                    *['\\x'+'{:02x}'.format(i) for i in x], "')"])
-
+            
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get position", self.name)
@@ -230,6 +226,12 @@ class TuissBlind:
 
         await self.blind_disconnect()
 
+
+    def return_hex_bytearray(self, x):
+        """make sure we print ascii symbols as hex"""
+        return ''.join([type(x).__name__, "('",
+                    *['\\x'+'{:02x}'.format(i) for i in x], "')"])
+    
 
     def split_data(self, data):
         """Split the byte response into decimal."""
