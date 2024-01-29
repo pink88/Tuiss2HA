@@ -235,7 +235,8 @@ class TuissBlind:
 
     def split_data(self, data):
         """Split the byte response into decimal."""
-        customdecode = str(self.return_hex_bytearray(data))
+        data_hex = self.return_hex_bytearray(data)
+        customdecode = str(data_hex)
         customdecodesplit = customdecode.split("\\x")
         response = ""
         decimals = []
@@ -247,7 +248,7 @@ class TuissBlind:
             decimals.append(int(resp, 16))
             x += 1
 
-        _LOGGER.debug("%s: As byte:%s", self.name, data)
+        _LOGGER.debug("%s: As byte:%s", self.name, data_hex)
         _LOGGER.debug("%s: As string:%s", self.name, response)
         _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
         return decimals
