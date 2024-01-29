@@ -192,7 +192,7 @@ class TuissBlind:
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get battery status", self.name)
 
-        decimals = self.split_data(data)
+        decimals = self.split_data(self.return_hex_bytearray(data))
 
         if decimals[4] == 210:
             if len(decimals) == 5:
