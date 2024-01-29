@@ -213,7 +213,7 @@ class TuissBlind:
                 self._battery_status = None
             await self.blind_disconnect()
 
-            
+
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get position", self.name)
