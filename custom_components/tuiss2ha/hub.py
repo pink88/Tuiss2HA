@@ -192,7 +192,7 @@ class TuissBlind:
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get battery status", self.name)
 
-        decimals = self.split_data(self.return_hex_bytearray(data))
+        decimals = self.split_data(data)
 
         if decimals[4] == 210:
             if len(decimals) == 5:
@@ -222,7 +222,7 @@ class TuissBlind:
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get position", self.name)
 
-        decimals = self.split_data(self.return_hex_bytearray(data))
+        decimals = self.split_data(data)
 
         blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
@@ -233,7 +233,7 @@ class TuissBlind:
 
     def split_data(self, data):
         """Split the byte response into decimal."""
-        customdecode = str(data)
+        customdecode = str(self.return_hex_bytearray(data))
         customdecodesplit = customdecode.split("\\x")
         response = ""
         decimals = []
