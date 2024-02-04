@@ -195,17 +195,17 @@ class TuissBlind:
         decimals = self.split_data(data)
 
         if decimals[4] == 210:
-            if len(decimals) == 5:
+            if len(decimals) == 7:
                 _LOGGER.debug(
                     "%s: Please charge device", self.name
                 )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
                 self._battery_status = True
-            elif decimals[5] > 10:
+            elif decimals[5] >= 10:
                 _LOGGER.debug(
                     "%s: Please charge device", self.name
                 )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
                 self._battery_status = True
-            elif decimals[5] <= 10:
+            elif decimals[5] < 10:
                 _LOGGER.debug("%s: Battery is good", self.name)
                 self._battery_status = False
             else:
@@ -216,20 +216,27 @@ class TuissBlind:
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
-        _LOGGER.debug("%s: Attempting to get battery status", self.name)
+        _LOGGER.debug("%s: Attempting to get position", self.name)
 
         decimals = self.split_data(data)
 
-        blindPos = (decimals[-3] + (decimals[-2] * 256)) / 10
+        blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
 
         await self.blind_disconnect()
 
 
+    def return_hex_bytearray(self, x):
+        """make sure we print ascii symbols as hex"""
+        return ''.join([type(x).__name__, "('",
+                    *['\\x'+'{:02x}'.format(i) for i in x], "')"])
+    
+
     def split_data(self, data):
         """Split the byte response into decimal."""
-        customdecode = str(data)
+        data_hex = self.return_hex_bytearray(data)
+        customdecode = str(data_hex)
         customdecodesplit = customdecode.split("\\x")
         response = ""
         decimals = []
@@ -241,7 +248,7 @@ class TuissBlind:
             decimals.append(int(resp, 16))
             x += 1
 
-        _LOGGER.debug("%s: As byte:%s", self.name, data)
+        _LOGGER.debug("%s: As byte:%s", self.name, data_hex)
         _LOGGER.debug("%s: As string:%s", self.name, response)
         _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
         return decimals
