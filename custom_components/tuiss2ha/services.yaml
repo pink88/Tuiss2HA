@@ -1,0 +1,21 @@
+get_battery_status:
+  # Gets the status of the battery for the target device. Because the blind has a
+  # specific call for battery and because this does not advertise, nor give an actual %,
+  # use this service instead to return true/false when battery is low
+  name: "Get Battery Status"
+  description: "Get the battery status for the Tuiss blinds selected"
+  target:
+    entity:
+      integration: tuiss2ha
+      domain: binary_sensor
+
+get_blind_position:
+  # Gets the position of the blind for the target device. Useful as the blind does not
+  # advertise its position, so if using the app or a remote the position will be different
+  # to that shown in home assistant
+  name: "Get Blind Position"
+  description: "Get the current position of the blind for the Tuiss blinds selected"
+  target:
+    entity:
+      integration: tuiss2ha
+      domain: cover

@@ -9,21 +9,20 @@ import voluptuous as vol
 from homeassistant import config_entries, exceptions
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN  # pylint:disable=unused-import
-from .hub import Hub
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required("host", default="XX:XX:XX:XX:XX:XX"): str,
-        vol.Required("name", default="Name for device"): str
+        vol.Required("name", default="Name for device"): str,
     }
 )
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Tuiss2ha."""
+    """Handle config flow for Tuiss2HA."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_ASSUMED
@@ -36,11 +35,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _title = await validate_input(self.hass, user_input)
 
                 return self.async_create_entry(title=_title, data=user_input)
+            except CannotConnect:
+                errors["name"] = "Cannot connect"
+            except InvalidHost:
+                errors[
+                    "host"
+                ] = "Your host should be a valid MAC address in the format XX:XX:XX:XX:XX:XX"
             except InvalidName:
                 errors["name"] = "Your name must be longer than 0 characters"
-            except InvalidHost:
-                errors["host"] = "Your host should be a valid MAC address in the format XX:XX:XX:XX:XX:XX"
-            except Exception:  
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
 
@@ -51,18 +54,23 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    
+
     if len(data["host"]) < 17:
         raise InvalidHost
 
-    if len(data["name"]) == 0 :
+    if len(data["name"]) == 0:
         raise InvalidName
 
     return data["name"]
 
 
-class InvalidName(exceptions.HomeAssistantError):
+class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
+
 
 class InvalidHost(exceptions.HomeAssistantError):
     """Error to indicate there is an invalid hostname."""
+
+
+class InvalidName(exceptions.HomeAssistantError):
+    """Error to indicate there is an invalid device name."""
