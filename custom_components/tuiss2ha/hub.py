@@ -169,10 +169,11 @@ class TuissBlind:
                 await self._client.write_gatt_char(UUID, command)
             except Exception as e:
                 _LOGGER.error(("%s: Send Command error: %s", self.name, e))
-
-            finally:
-                if disconnect:
-                    await self.blind_disconnect()
+        
+        # NOW HANDLED IN THE CALL BACK
+            # finally:
+            #     if disconnect:
+            #         await self.blind_disconnect()
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
@@ -186,7 +187,18 @@ class TuissBlind:
         """Set the position of the blind converting from HA to Tuiss first."""
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, userPercent)
         command = bytes.fromhex(self.hex_convert(userPercent))
+        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.position_callback) #start listening for completion message
+        await self.send_command(UUID, command) #send the command
+
+
+    async def stop() -> None:
+        """Stop the blind at current position."""
+        _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
+        command = bytes.fromhex("ff78ea415f0301")
         await self.send_command(UUID, command)
+        if _client.is_connected:
+            await self.blind_disconnect()
+
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
@@ -212,6 +224,7 @@ class TuissBlind:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
                 self._battery_status = None
             await self.blind_disconnect()
+
 
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):

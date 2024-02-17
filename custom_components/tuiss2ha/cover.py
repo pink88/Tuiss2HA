@@ -11,7 +11,7 @@ from homeassistant.components.cover import (
     CoverEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_CLOSED, STATE_OPEN
+from homeassistant.const import STATE_CLOSED, STATE_OPEN, STATE_OPENING, STATE_CLOSING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -53,15 +53,19 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_name = self._blind.name
         self._state = None
         self._current_cover_position: None
-        self._moving = 0
+        self._moving = False
 
     @property
     def state(self):
         """Set state of object."""
-        if self._current_cover_position >= 25:
+        if self._current_cover_position >= 25 & self._moving == 0:
             self._state = STATE_OPEN
-        else:
+        elif self._moving == 0:
             self._state = STATE_CLOSED
+        elif self._moving >0 :
+            self._state = STATE_OPENING
+        else:
+            self._state = STATE_CLOSING
         return self._state
 
     @property
@@ -100,6 +104,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             CoverEntityFeature.OPEN
             | CoverEntityFeature.CLOSE
             | CoverEntityFeature.SET_POSITION
+            | CoverEntityFeature.STOP
         )
 
     @property
@@ -136,22 +141,40 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Open the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
+            self._moving = 1
+            self.schedule_update_ha_state()
             await self._blind.set_position(0)
+        if not self._blind._client.is_connected:
             self._current_cover_position = 100
+            self._moving = 0
             self.schedule_update_ha_state()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
+            self._moving = -1
+            self.schedule_update_ha_state()
             await self._blind.set_position(100)
+        if not self._blind._client.is_connected:
             self._current_cover_position = 0
+            self._moving = 0
             self.schedule_update_ha_state()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Close the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            await self._blind.set_position(100 - kwargs[ATTR_POSITION])
-            self._current_cover_position = kwargs[ATTR_POSITION]
+            if (self._current_cover_position < (100 - kwargs[ATTR_POSITION])):
+                self._moving = 1
+            else:
+                self._moving = -1
             self.schedule_update_ha_state()
+            await self._blind.set_position(100 - kwargs[ATTR_POSITION])
+            self.schedule_update_ha_state()
+
+    async def async_stop_cover(self, **kwargs: Any) -> None:
+        """Stop the cover."""
+        await self._blind.stop()
+        if not self._blind._client.is_connected:
+            await self.get_blind_position()
