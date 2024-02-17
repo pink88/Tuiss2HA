@@ -214,8 +214,8 @@ class TuissBlind:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
-        await self.send_command(UUID, command)
-        if client and self._client.is_connected:
+        if self._client and self._client.is_connected:
+            await self.send_command(UUID, command)
             self._moving = 0
             await self.get_blind_position()
 
@@ -301,7 +301,7 @@ class TuissBlind:
         """Get the battery state from the blind as good or bad."""
 
         # connect to the blind first
-        if not client or not self._client.is_connected:
+        if not self._client or not self._client.is_connected:
             await self.attempt_connection()
         await self._client.stop_notify(BATTERY_NOTIFY_CHARACTERISTIC)
         await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
