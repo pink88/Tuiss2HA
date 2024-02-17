@@ -1,6 +1,9 @@
 """Platform for cover integration."""
 from __future__ import annotations
 
+import asyncio
+import logging
+
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -19,6 +22,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN
 
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -39,7 +43,7 @@ async def async_setup_entry(
 async def async_get_blind_position(entity, service_call):
     """Get the battery status when called by service."""
     await entity._blind.get_blind_position()
-    entity._current_cover_position = entity._blind._current_cover_position
+    #entity._current_cover_position = entity._blind._current_cover_position
     entity.schedule_update_ha_state()
 
 
@@ -52,20 +56,20 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_unique_id = f"{self._blind._id}_cover"
         self._attr_name = self._blind.name
         self._state = None
-        self._current_cover_position: None
-        self._moving = False
+        #self._current_cover_position: None
+        
 
     @property
     def state(self):
         """Set state of object."""
-        if self._current_cover_position >= 25 & self._moving == 0:
-            self._state = STATE_OPEN
-        elif self._moving == 0:
-            self._state = STATE_CLOSED
-        elif self._moving >0 :
+        if self._blind._moving > 0:
             self._state = STATE_OPENING
-        else:
+        elif self._blind._moving < 0:
             self._state = STATE_CLOSING
+        elif self._blind._moving == 0 and self._blind._current_cover_position >= 25:
+            self._state = STATE_OPEN
+        else:
+            self._state = STATE_CLOSED
         return self._state
 
     @property
@@ -86,16 +90,16 @@ class Tuiss(CoverEntity, RestoreEntity):
     @property
     def current_cover_position(self):
         """Return the current position of the cover."""
-        if self._current_cover_position is None:
+        if self._blind._current_cover_position is None:
             return None
-        return self._current_cover_position
+        return self._blind._current_cover_position
 
     @property
     def is_closed(self) -> bool | None:
         """Return if the cover is closed or not."""
-        if self._current_cover_position is None:
+        if self._blind._current_cover_position is None:
             return None
-        return self._current_cover_position == 0
+        return self._blind._current_cover_position == 0
 
     @property
     def supported_features(self):
@@ -126,9 +130,9 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Run when this Entity has been added to HA."""
         last_state = await self.async_get_last_state()
         if not last_state or ATTR_CURRENT_POSITION not in last_state.attributes:
-            self._current_cover_position = 0
+            self._blind._current_cover_position = 0
         else:
-            self._current_cover_position = last_state.attributes.get(
+            self._blind._current_cover_position = last_state.attributes.get(
                 ATTR_CURRENT_POSITION
             )
         self._blind.register_callback(self.async_write_ha_state)
@@ -141,40 +145,45 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Open the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            self._moving = 1
-            self.schedule_update_ha_state()
+            self._blind._moving = 1
+            await self.async_scheduled_update_request()
             await self._blind.set_position(0)
-        if not self._blind._client.is_connected:
-            self._current_cover_position = 100
-            self._moving = 0
-            self.schedule_update_ha_state()
+            while self._blind._client.is_connected:
+                await asyncio.sleep(1)
+            await self.async_scheduled_update_request()
+
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            self._moving = -1
-            self.schedule_update_ha_state()
+            self._blind._moving = -1
+            await self.async_scheduled_update_request()
             await self._blind.set_position(100)
-        if not self._blind._client.is_connected:
-            self._current_cover_position = 0
-            self._moving = 0
-            self.schedule_update_ha_state()
+            while self._blind._client.is_connected:
+                await asyncio.sleep(1)
+            await self.async_scheduled_update_request()
+
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
-        """Close the cover."""
+        """Set the cover position."""
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            if (self._current_cover_position < (100 - kwargs[ATTR_POSITION])):
-                self._moving = 1
-            else:
-                self._moving = -1
-            self.schedule_update_ha_state()
+            if (self._blind._current_cover_position <= kwargs[ATTR_POSITION]):
+                self._blind._moving = 1
+            else:  
+                self._blind._moving = -1
+            await self.async_scheduled_update_request()
             await self._blind.set_position(100 - kwargs[ATTR_POSITION])
-            self.schedule_update_ha_state()
+
+            while self._blind._client.is_connected:
+                await asyncio.sleep(1)
+            await self.async_scheduled_update_request()
+
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         await self._blind.stop()
-        if not self._blind._client.is_connected:
-            await self.get_blind_position()
+        while self._blind._client.is_connected:
+            await asyncio.sleep(1)
+        await self.async_scheduled_update_request()

@@ -62,6 +62,10 @@ class TuissBlind:
         self._retry_count = 0
         self._max_retries = 10
         self._battery_status = False
+        self._moving = 0
+        self._current_cover_position: None
+        self._desired_position:None
+
 
     @property
     def blind_id(self) -> str:
@@ -115,6 +119,8 @@ class TuissBlind:
         _LOGGER.debug("%s: Connected to blind", self.name)
         # await self._client.connect(timeout=30)
         self._client = client
+        _LOGGER.debug("Connect. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
+
 
     # Disconnect
     async def blind_disconnect(self):
@@ -134,6 +140,10 @@ class TuissBlind:
             )
         else:
             _LOGGER.debug("%s: Disconnect completed successfully", self.name)
+            _LOGGER.debug("Disconnect. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
+
+
+
 
     # Creates the % open/closed hex command
     def hex_convert(self, userPercent):
@@ -175,6 +185,7 @@ class TuissBlind:
             #     if disconnect:
             #         await self.blind_disconnect()
 
+
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
         self._callbacks.add(callback)
@@ -183,21 +194,31 @@ class TuissBlind:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
 
+
+
+
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
-        _LOGGER.debug("%s: Attempting to set position to: %s", self.name, userPercent)
+        self._desired_position = 100- userPercent
+        _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.position_callback) #start listening for completion message
+        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.set_position_callback) #start listening for completion message
         await self.send_command(UUID, command) #send the command
 
+  
+        
 
-    async def stop() -> None:
+
+
+    async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
         await self.send_command(UUID, command)
-        if _client.is_connected:
-            await self.blind_disconnect()
+        if client and self._client.is_connected:
+            self._moving = 0
+            await self.get_blind_position()
+
 
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
@@ -236,8 +257,18 @@ class TuissBlind:
         blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
+        self._moving = 0
 
         await self.blind_disconnect()
+
+
+    async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
+        """Wait for response from the blind and updates entity status."""
+        self._current_cover_position =  self._desired_position
+        self._moving = 0
+
+        await self.blind_disconnect()
+
 
 
     def return_hex_bytearray(self, x):
@@ -270,7 +301,9 @@ class TuissBlind:
         """Get the battery state from the blind as good or bad."""
 
         # connect to the blind first
-        await self.attempt_connection()
+        if not client or not self._client.is_connected:
+            await self.attempt_connection()
+        await self._client.stop_notify(BATTERY_NOTIFY_CHARACTERISTIC)
         await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
         await self.send_command(UUID, command, False)
         while self._client.is_connected:
