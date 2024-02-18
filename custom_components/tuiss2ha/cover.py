@@ -178,6 +178,7 @@ class Tuiss(CoverEntity, RestoreEntity):
 
             while self._blind._client.is_connected:
                 await asyncio.sleep(1)
+                await self._blind.check_connection()
             await self.async_scheduled_update_request()
 
 

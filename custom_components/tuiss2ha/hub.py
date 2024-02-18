@@ -72,6 +72,14 @@ class TuissBlind:
         """Return ID for blind."""
         return self._id
 
+    def register_callback(self, callback) -> None:
+        """Register callback, called when blind changes state."""
+        self._callbacks.add(callback)
+
+    def remove_callback(self, callback) -> None:
+        """Remove previously registered callback."""
+        self._callbacks.discard(callback)
+
     # Attempt Connections
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
@@ -144,69 +152,15 @@ class TuissBlind:
 
 
 
-
-    # Creates the % open/closed hex command
-    def hex_convert(self, userPercent):
-        """Convert the blind position."""
-        callStr = "ff78ea41bf03"
-        outHex = round((((100 - userPercent) * 10) % 256), 1)
-        if outHex == 256:
-            outHex = 0
-        if userPercent > 74.4:
-            groupStr = "00"
-        elif userPercent > 48.8:
-            groupStr = "01"
-        elif userPercent > 23.2:
-            groupStr = "02"
-        elif userPercent >= 0:
-            groupStr = "03"
-        hexVal = str(format(int(outHex), "#04x"))
-
-        return callStr + hexVal[2:] + groupStr
-
-    # Send the data
-    async def send_command(self, UUID, command, disconnect=True):
-        """Send the command to the blind."""
-        _LOGGER.debug(
-            "%s (%s) connected state is %s",
-            self.name,
-            self._ble_device,
-            self._client.is_connected,
-        )
-        if self._client.is_connected:
-            try:
-                _LOGGER.debug("%s: Sending the command", self.name)
-                await self._client.write_gatt_char(UUID, command)
-            except Exception as e:
-                _LOGGER.error(("%s: Send Command error: %s", self.name, e))
-        
-        # NOW HANDLED IN THE CALL BACK
-            # finally:
-            #     if disconnect:
-            #         await self.blind_disconnect()
-
-
-    def register_callback(self, callback) -> None:
-        """Register callback, called when blind changes state."""
-        self._callbacks.add(callback)
-
-    def remove_callback(self, callback) -> None:
-        """Remove previously registered callback."""
-        self._callbacks.discard(callback)
-
-
-
-
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
         self._desired_position = 100- userPercent
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.set_position_callback) #start listening for completion message
-        await self.send_command(UUID, command) #send the command
-
-  
-        
+        try:
+            await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.set_position_callback) #start listening for completion message
+        finally:
+            await self.send_command(UUID, command) #send the command
 
 
 
@@ -218,6 +172,43 @@ class TuissBlind:
             await self.send_command(UUID, command)
             self._moving = 0
             await self.get_blind_position()
+
+      
+    async def check_connection(self) -> None:
+        _LOGGER.debug(
+            "%s (%s) connected state is %s",
+            self.name,
+            self._ble_device,
+            self._client.is_connected,)
+        
+
+
+
+    async def get_from_blind(self, command, callback) -> None:
+        """Get the battery state from the blind as good or bad."""
+
+        # connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        await self._client.stop_notify(BATTERY_NOTIFY_CHARACTERISTIC)
+        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
+        await self.send_command(UUID, command, False)
+        while self._client.is_connected:
+            await asyncio.sleep(1)
+
+    async def get_battery_status(self) -> None:
+        """Get the battery state from the blind as good or bad."""
+        command = bytes.fromhex("ff78ea41f00301")
+        await self.get_from_blind(command, self.battery_callback)
+
+    async def get_blind_position(self) -> None:
+        """Get the current position of the blind."""
+        command = bytes.fromhex("ff78ea41d10301")
+        await self.get_from_blind(command, self.position_callback)
+
+
+
+
 
 
 
@@ -264,12 +255,55 @@ class TuissBlind:
 
     async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
+        _LOGGER.debug("%s: Disconnecting based on response %s", self.name, decimals(self.split_data(data)) )
         self._current_cover_position =  self._desired_position
         self._moving = 0
 
         await self.blind_disconnect()
 
 
+
+    
+
+    # Send the data
+    async def send_command(self, UUID, command, disconnect=True):
+        """Send the command to the blind."""
+        _LOGGER.debug(
+            "%s (%s) connected state is %s",
+            self.name,
+            self._ble_device,
+            self._client.is_connected,
+        )
+        if self._client.is_connected:
+            try:
+                _LOGGER.debug("%s: Sending the command", self.name)
+                await self._client.write_gatt_char(UUID, command)
+            except Exception as e:
+                _LOGGER.error(("%s: Send Command error: %s", self.name, e))
+        
+        # NOW HANDLED IN THE CALL BACK
+            # finally:
+            #     if disconnect:
+            #         await self.blind_disconnect()
+
+    # Creates the % open/closed hex command
+    def hex_convert(self, userPercent):
+        """Convert the blind position."""
+        callStr = "ff78ea41bf03"
+        outHex = round((((100 - userPercent) * 10) % 256), 1)
+        if outHex == 256:
+            outHex = 0
+        if userPercent > 74.4:
+            groupStr = "00"
+        elif userPercent > 48.8:
+            groupStr = "01"
+        elif userPercent > 23.2:
+            groupStr = "02"
+        elif userPercent >= 0:
+            groupStr = "03"
+        hexVal = str(format(int(outHex), "#04x"))
+
+        return callStr + hexVal[2:] + groupStr
 
     def return_hex_bytearray(self, x):
         """make sure we print ascii symbols as hex"""
@@ -297,24 +331,4 @@ class TuissBlind:
         _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
         return decimals
 
-    async def get_from_blind(self, command, callback) -> None:
-        """Get the battery state from the blind as good or bad."""
-
-        # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
-        await self._client.stop_notify(BATTERY_NOTIFY_CHARACTERISTIC)
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
-        await self.send_command(UUID, command, False)
-        while self._client.is_connected:
-            await asyncio.sleep(1)
-
-    async def get_battery_status(self) -> None:
-        """Get the battery state from the blind as good or bad."""
-        command = bytes.fromhex("ff78ea41f00301")
-        await self.get_from_blind(command, self.battery_callback)
-
-    async def get_blind_position(self) -> None:
-        """Get the current position of the blind."""
-        command = bytes.fromhex("ff78ea41d10301")
-        await self.get_from_blind(command, self.position_callback)
+    
