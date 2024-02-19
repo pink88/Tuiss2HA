@@ -16,8 +16,9 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     DOMAIN,
-    BATTERY_NOTIFY_CHARACTERISTIC,
+    BLIND_NOTIFY_CHARACTERISTIC,
     UUID,
+    CONNECTION_MESSAGE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +81,11 @@ class TuissBlind:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
 
+
+    ##################################################################################################
+    ## CONNECTION METHODS ############################################################################
+    ##################################################################################################
+
     # Attempt Connections
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
@@ -125,9 +131,10 @@ class TuissBlind:
             ble_device_callback=lambda: self._device,
         )
         _LOGGER.debug("%s: Connected to blind", self.name)
-        # await self._client.connect(timeout=30)
         self._client = client
-        _LOGGER.debug("Connect. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
+        #send the maintain connection message
+        await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
+        _LOGGER.debug("Connected. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
 
 
     # Disconnect
@@ -151,14 +158,16 @@ class TuissBlind:
             _LOGGER.debug("Disconnect. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
 
 
-
+    ##################################################################################################
+    ## SET METHODS ############################################################################
+    ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
         self._desired_position = 100- userPercent
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
         try:
-            await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, self.set_position_callback) #start listening for completion message
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback) #start listening for completion message
         finally:
             await self.send_command(UUID, command) #send the command
 
@@ -172,8 +181,10 @@ class TuissBlind:
             await self.send_command(UUID, command)
             self._moving = 0
             await self.get_blind_position()
+        else:
+            _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
 
-      
+
     async def check_connection(self) -> None:
         _LOGGER.debug(
             "%s (%s) connected state is %s",
@@ -182,7 +193,10 @@ class TuissBlind:
             self._client.is_connected,)
         
 
-
+    
+    ##################################################################################################
+    ## GET METHODS ############################################################################
+    ##################################################################################################
 
     async def get_from_blind(self, command, callback) -> None:
         """Get the battery state from the blind as good or bad."""
@@ -190,9 +204,9 @@ class TuissBlind:
         # connect to the blind first
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
-        await self._client.stop_notify(BATTERY_NOTIFY_CHARACTERISTIC)
-        await self._client.start_notify(BATTERY_NOTIFY_CHARACTERISTIC, callback)
-        await self.send_command(UUID, command, False)
+        await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+        await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+        await self.send_command(UUID, command)
         while self._client.is_connected:
             await asyncio.sleep(1)
 
@@ -210,6 +224,9 @@ class TuissBlind:
 
 
 
+    ##################################################################################################
+    ## CALLBACK METHODS ############################################################################
+    ##################################################################################################
 
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
@@ -245,7 +262,8 @@ class TuissBlind:
 
         decimals = self.split_data(data)
 
-        blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
+        #blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
+        blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
@@ -255,7 +273,7 @@ class TuissBlind:
 
     async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
-        _LOGGER.debug("%s: Disconnecting based on response %s", self.name, decimals(self.split_data(data)) )
+        _LOGGER.debug("%s: Disconnecting based on response %s", self.name, self.split_data(data) )
         self._current_cover_position =  self._desired_position
         self._moving = 0
 
@@ -264,9 +282,12 @@ class TuissBlind:
 
 
     
+    ##################################################################################################
+    ## DATA METHODS ############################################################################
+    ##################################################################################################
 
     # Send the data
-    async def send_command(self, UUID, command, disconnect=True):
+    async def send_command(self, UUID, command):
         """Send the command to the blind."""
         _LOGGER.debug(
             "%s (%s) connected state is %s",
@@ -281,10 +302,7 @@ class TuissBlind:
             except Exception as e:
                 _LOGGER.error(("%s: Send Command error: %s", self.name, e))
         
-        # NOW HANDLED IN THE CALL BACK
-            # finally:
-            #     if disconnect:
-            #         await self.blind_disconnect()
+
 
     # Creates the % open/closed hex command
     def hex_convert(self, userPercent):
