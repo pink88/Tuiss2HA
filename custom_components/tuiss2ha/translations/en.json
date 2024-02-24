@@ -1,0 +1,22 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Add your Tuiss Smartblind.",
+                "description": "The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near where the battery is attached.",
+                "data": {
+                    "mac": "MAC Address in form XX:XX:XX:XX:XX:XX",
+                    "name": "Friendly name for your blind"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]"
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    }
+}
