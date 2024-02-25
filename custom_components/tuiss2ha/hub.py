@@ -167,6 +167,8 @@ class TuissBlind:
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
         try:
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback)
+        except:
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback)
         finally:
