@@ -20,6 +20,7 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 - Set position
 - Open 
 - Close
+- Stop
 - Battery State (through service)
 - Blind position (through service)
 
@@ -66,7 +67,7 @@ The blind will not update its position within Home Assistant if controlled using
 
 
 ## Limitations ##
-- Currently the opening and closing status of the blind are not included, it will only report on if the blind is Open and Closed, not while it is moving
+- Setting the top and bottom thresholds of the blind. Currently, you still need to pair with and use the Tuiss app to set these values.
 
 
 ## Troubleshooting ##
