@@ -207,11 +207,15 @@ class TuissBlind:
         # connect to the blind first
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
-        await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-        await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-        await self.send_command(UUID, command)
-        while self._client.is_connected:
-            await asyncio.sleep(1)
+        try:
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+        except:
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+        finally:
+            await self.send_command(UUID, command)
+            while self._client.is_connected:
+                await asyncio.sleep(1)
 
     async def get_battery_status(self) -> None:
         """Get the battery state from the blind as good or bad."""
