@@ -30,9 +30,9 @@ class Hub:
 
     manufacturer = "Tuiss and Blinds2go"
 
-    def __init__(self, hass: HomeAssistant, host: str, name: str) -> None:
+    def __init__(self, hass: HomeAssistant, mac: str, name: str) -> None:
         """Init dummy hub."""
-        self._host = host
+        self._mac = mac
         self._hass = hass
         self._name = name
         self._id = host.lower()
