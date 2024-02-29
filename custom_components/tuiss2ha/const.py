@@ -3,7 +3,7 @@
 # name for the integration.
 DOMAIN = "tuiss2ha"
 
-CONF_BLIND_MAC = "mac"
+CONF_BLIND_HOST = "host"
 CONF_BLIND_NAME = "name"
 
 

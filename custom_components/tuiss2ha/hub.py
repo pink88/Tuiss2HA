@@ -47,15 +47,15 @@ class Hub:
 class TuissBlind:
     """Tuiss Blind object."""
 
-    def __init__(self, mac: str, name: str, hub: Hub) -> None:
+    def __init__(self, host: str, name: str, hub: Hub) -> None:
         """Init tuiss blind."""
-        self._id = mac  # also the mac address
-        self._mac = mac
+        self._id = host  # also the host address
+        self._host = host
         self.name = name
         self.hub = hub
         self.model = "Tuiss"
         self._ble_device = bluetooth.async_ble_device_from_address(
-            self.hub._hass, self._mac, connectable=True
+            self.hub._hass, self._host, connectable=True
         )
         self._client: BleakClientWithServiceCache | None = None
         _LOGGER.debug("BLEDevice: %s", self._ble_device)
@@ -95,7 +95,7 @@ class TuissBlind:
         while self._ble_device is None and rediscover_attempts < 4:
             _LOGGER.debug("Unable to find device %s, attempting rediscovery", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(
-                self.hub._hass, self._mac, connectable=True
+                self.hub._hass, self._host, connectable=True
             )
             rediscover_attempts += 1
         if self._ble_device is None:
@@ -125,7 +125,7 @@ class TuissBlind:
         client: BleakClientWithServiceCache = await establish_connection(
             client_class=BleakClientWithServiceCache,
             device=self._ble_device,
-            name=self._mac,
+            name=self._host,
             use_services_cache=True,
             max_attempts=self._max_retries,
             ble_device_callback=lambda: self._device,

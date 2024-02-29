@@ -10,13 +10,13 @@ from homeassistant import config_entries, exceptions
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import CONF_BLIND_MAC, CONF_BLIND_NAME, DOMAIN
+from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_BLIND_MAC): str,
+        vol.Required(CONF_BLIND_HOST): str,
         vol.Required(CONF_BLIND_NAME): str,
     }
 )
@@ -41,8 +41,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _title = await validate_input(self.hass, user_input)
         except CannotConnect:
             errors["name"] = "Cannot connect"
-        except InvalidMac:
-            errors["mac"] = "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
+        except InvalidHost:
+            errors["host"] = "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
         except InvalidName:
             errors["name"] = "Your name must be longer than 0 characters"
         except Exception:
@@ -59,8 +59,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
 
-    if len(data["mac"]) < 17:
-        raise InvalidMac
+    if len(data["host"]) < 17:
+        raise InvalidHost
 
     if len(data["name"]) == 0:
         raise InvalidName
@@ -72,7 +72,7 @@ class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
 
 
-class InvalidMac(exceptions.HomeAssistantError):
+class InvalidHost(exceptions.HomeAssistantError):
     """Error to indicate there is an invalid hostname."""
 
 
