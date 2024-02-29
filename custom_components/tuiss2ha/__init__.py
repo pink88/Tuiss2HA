@@ -12,7 +12,7 @@ PLATFORMS: list[str] = ["cover","binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tuiss2HA from a config entry."""
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub.Hub(hass, entry.data["host"], entry.data["name"])
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub.Hub(hass, entry.data["mac"], entry.data["name"])
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
