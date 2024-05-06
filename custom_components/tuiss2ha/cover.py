@@ -187,6 +187,7 @@ class Tuiss(CoverEntity, RestoreEntity):
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         await self._blind.stop()
-        while self._blind._client.is_connected:
-            await asyncio.sleep(1)
-        await self.async_scheduled_update_request()
+        if self._blind._client:
+            while self._blind._client.is_connected:
+                await asyncio.sleep(1)
+            await self.async_scheduled_update_request()

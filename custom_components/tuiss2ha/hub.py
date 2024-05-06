@@ -175,17 +175,16 @@ class TuissBlind:
             await self.send_command(UUID, command) #send the command
 
 
-
     async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
-        if self._client and self._client.is_connected:
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("%s: Cannot stop, not connected. %s", self.name)
+        else:
             await self.send_command(UUID, command)
             self._moving = 0
             await self.get_blind_position()
-        else:
-            _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
 
 
     async def check_connection(self) -> None:
