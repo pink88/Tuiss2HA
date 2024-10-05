@@ -1,5 +1,7 @@
 # Tuiss2HA
-This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through home assistant, this also includes 2 services. 1 service can be used to get the battery status (normal or low). The other can be used to periodically poll your blinds to get their position, as using the Tuiss app or bluetooth remotes will not automatically update the position of the blind in home assistant due to limitations in the tuiss platform itself.
+This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through Home Assistant, this also includes 2 services. 1 service can be used to get the battery status (normal or low). The other can be used to periodically poll your blinds to get their position, as using the Tuiss app or bluetooth remotes will not automatically update the position of the blind in Home Assistant due to limitations in the Tuiss platform itself.
+
+Note: This integration only controls blinds using BLE (bluetooth low energy), it will not control blinds that also or only support RF control.
 
 
 ## Before Integration to Home Assistant ##
@@ -72,4 +74,4 @@ The blind will not update its position within Home Assistant if controlled using
 ## Troubleshooting ##
 - I've only tested with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work, so I had to use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
 - I only have access to a number of TS3000 blinds where I have tested this. Other models may or may not function the same way, but please do raise an issue if you find anything
-- Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards if using ESPhome)
+- Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards when using ESPhome)

@@ -130,11 +130,10 @@ class TuissBlind:
             max_attempts=self._max_retries,
             ble_device_callback=lambda: self._device,
         )
-        _LOGGER.debug("%s: Connected to blind", self.name)
         self._client = client
         #send the maintain connection message
         await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
-        _LOGGER.debug("Connected. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
+        _LOGGER.debug("%s: Connected. Current Position: %s. Current Moving: %s", self.name, self._current_cover_position, self._moving)
 
 
     # Disconnect
@@ -182,7 +181,6 @@ class TuissBlind:
         command = bytes.fromhex("ff78ea415f0301")
         if self._client and self._client.is_connected:
             await self.send_command(UUID, command)
-            self._moving = 0
             await self.get_blind_position()
         else:
             _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
@@ -194,7 +192,7 @@ class TuissBlind:
             self.name,
             self._ble_device,
             self._client.is_connected,)
-        
+
 
     
     ##################################################################################################
@@ -279,11 +277,8 @@ class TuissBlind:
 
 
     async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
-        """Wait for response from the blind and updates entity status."""
+        """Wait for response from the blind and disconnects. Used to keep alive."""
         _LOGGER.debug("%s: Disconnecting based on response %s", self.name, self.split_data(data) )
-        self._current_cover_position =  self._desired_position
-        self._moving = 0
-
         await self.blind_disconnect()
 
 
