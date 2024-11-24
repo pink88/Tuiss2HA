@@ -130,11 +130,10 @@ class TuissBlind:
             max_attempts=self._max_retries,
             ble_device_callback=lambda: self._device,
         )
-        _LOGGER.debug("%s: Connected to blind", self.name)
         self._client = client
         #send the maintain connection message
         await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
-        _LOGGER.debug("Connected. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
+        _LOGGER.debug("%s: Connected. Current Position: %s. Current Moving: %s", self.name, self._current_cover_position, self._moving)
 
 
     # Disconnect
@@ -163,6 +162,11 @@ class TuissBlind:
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
+
+        # connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+
         self._desired_position = 100- userPercent
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
@@ -175,16 +179,16 @@ class TuissBlind:
             await self.send_command(UUID, command) #send the command
 
 
+
     async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("%s: Cannot stop, not connected. %s", self.name)
-        else:
+        if self._client and self._client.is_connected:
             await self.send_command(UUID, command)
-            self._moving = 0
             await self.get_blind_position()
+        else:
+            _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
 
 
     async def check_connection(self) -> None:
@@ -193,7 +197,7 @@ class TuissBlind:
             self.name,
             self._ble_device,
             self._client.is_connected,)
-        
+
 
     
     ##################################################################################################
@@ -268,21 +272,17 @@ class TuissBlind:
 
         decimals = self.split_data(data)
 
-        #blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
-        blindPos = decimals[6]
+        blindPos = ((decimals[7] + (256 * decimals[8])) / 10)
+        #blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
-
         await self.blind_disconnect()
 
 
     async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
-        """Wait for response from the blind and updates entity status."""
+        """Wait for response from the blind and disconnects. Used to keep alive."""
         _LOGGER.debug("%s: Disconnecting based on response %s", self.name, self.split_data(data) )
-        self._current_cover_position =  self._desired_position
-        self._moving = 0
-
         await self.blind_disconnect()
 
 

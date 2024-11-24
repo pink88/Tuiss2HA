@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import voluptuous as vol
 
 from typing import Any
 
@@ -24,6 +25,14 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+SET_BLIND_POSITION_SCHEMA = {
+    vol.Required("position"): vol.All(
+        vol.Coerce(float),
+        vol.Range(min=0, max=100)
+    )
+}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -39,12 +48,26 @@ async def async_setup_entry(
         "get_blind_position", {}, async_get_blind_position
     )
 
+    platform.async_register_entity_service(
+        "set_blind_position",
+        SET_BLIND_POSITION_SCHEMA,
+        async_set_blind_position
+    )
+
 
 async def async_get_blind_position(entity, service_call):
     """Get the battery status when called by service."""
     await entity._blind.get_blind_position()
-    #entity._current_cover_position = entity._blind._current_cover_position
     entity.schedule_update_ha_state()
+
+
+async def async_set_blind_position(entity, service_call):
+    """Set the blind position with decimal precision."""
+    position = service_call.data["position"]
+    await entity._blind.set_position(100-position)
+    entity._blind._current_cover_position = 100-position
+    entity.schedule_update_ha_state()
+
 
 
 class Tuiss(CoverEntity, RestoreEntity):
@@ -56,12 +79,13 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_unique_id = f"{self._blind._id}_cover"
         self._attr_name = self._blind.name
         self._state = None
-        #self._current_cover_position: None
         
 
     @property
     def state(self):
         """Set state of object."""
+        #corrects the state if there is a disconnect during open or close
+        _LOGGER.debug("%s: Setting State from %s. Moving: %s. Client: %s", self._attr_name, self._state, self._blind._moving, self._blind._client)
         if self._blind._moving > 0:
             self._state = STATE_OPENING
         elif self._blind._moving < 0:
@@ -141,47 +165,39 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Entity being removed from hass."""
         self._blind.remove_callback(self.async_write_ha_state)
 
+
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        await self._blind.attempt_connection()
-        if self._blind._client.is_connected:
-            self._blind._moving = 1
-            await self.async_scheduled_update_request()
-            await self._blind.set_position(0)
-            while self._blind._client.is_connected:
-                await asyncio.sleep(1)
-                await self._blind.check_connection()
-            await self.async_scheduled_update_request()
+        await self.async_move_cover(1,0)
 
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        await self._blind.attempt_connection()
-        if self._blind._client.is_connected:
-            self._blind._moving = -1
-            await self.async_scheduled_update_request()
-            await self._blind.set_position(100)
-            while self._blind._client.is_connected:
-                await asyncio.sleep(1)
-                await self._blind.check_connection()
-            await self.async_scheduled_update_request()
+        await self.async_move_cover(-1,100)
 
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
+        if (self._blind._current_cover_position <= kwargs[ATTR_POSITION]):
+            movVal = 1
+        else:  
+            movVal = -1
+        await self.async_move_cover(movVal,100 - kwargs[ATTR_POSITION])
+
+
+    async def async_move_cover(self, movVal, targetPos):
         await self._blind.attempt_connection()
         if self._blind._client.is_connected:
-            if (self._blind._current_cover_position <= kwargs[ATTR_POSITION]):
-                self._blind._moving = 1
-            else:  
-                self._blind._moving = -1
+            self._blind._moving = movVal
             await self.async_scheduled_update_request()
-            await self._blind.set_position(100 - kwargs[ATTR_POSITION])
-
+            await self._blind.set_position(targetPos)
             while self._blind._client.is_connected:
-                await asyncio.sleep(1)
                 await self._blind.check_connection()
+                await asyncio.sleep(1)
+            self._blind._current_cover_position = 100 - targetPos
+            self._blind._moving = 0
             await self.async_scheduled_update_request()
+
 
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
@@ -190,4 +206,5 @@ class Tuiss(CoverEntity, RestoreEntity):
         if self._blind._client:
             while self._blind._client.is_connected:
                 await asyncio.sleep(1)
+            self._blind._moving = 0
             await self.async_scheduled_update_request()
