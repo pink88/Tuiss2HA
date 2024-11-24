@@ -19,3 +19,24 @@ get_blind_position:
     entity:
       integration: tuiss2ha
       domain: cover
+
+set_blind_position:
+  # Sets the position of the blind with decimal precision, bypassing the standard
+  # cover position setting mechanism
+  name: "Set Blind Position"
+  description: "Set the position of the blind with single decimal point precision (0.0-100.0)"
+  target:
+    entity:
+      integration: tuiss2ha
+      domain: cover
+  fields:
+    position:
+      name: Position
+      description: "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal point accuracy)"
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.1
+          mode: box

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import voluptuous as vol
 
 from typing import Any
 
@@ -24,6 +25,14 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+SET_BLIND_POSITION_SCHEMA = {
+    vol.Required("position"): vol.All(
+        vol.Coerce(float),
+        vol.Range(min=0, max=100)
+    )
+}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -39,11 +48,26 @@ async def async_setup_entry(
         "get_blind_position", {}, async_get_blind_position
     )
 
+    platform.async_register_entity_service(
+        "set_blind_position",
+        SET_BLIND_POSITION_SCHEMA,
+        async_set_blind_position
+    )
+
 
 async def async_get_blind_position(entity, service_call):
     """Get the battery status when called by service."""
     await entity._blind.get_blind_position()
     entity.schedule_update_ha_state()
+
+
+async def async_set_blind_position(entity, service_call):
+    """Set the blind position with decimal precision."""
+    position = service_call.data["position"]
+    await entity._blind.set_position(100-position)
+    entity._blind._current_cover_position = 100-position
+    entity.schedule_update_ha_state()
+
 
 
 class Tuiss(CoverEntity, RestoreEntity):

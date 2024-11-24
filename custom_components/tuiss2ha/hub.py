@@ -162,6 +162,11 @@ class TuissBlind:
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
+
+        # connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+
         self._desired_position = 100- userPercent
         _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
         command = bytes.fromhex(self.hex_convert(userPercent))
@@ -267,12 +272,11 @@ class TuissBlind:
 
         decimals = self.split_data(data)
 
-        #blindPos = (decimals[-4] + (decimals[-3] * 256)) / 10
-        blindPos = decimals[6]
+        blindPos = ((decimals[7] + (256 * decimals[8])) / 10)
+        #blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
-
         await self.blind_disconnect()
 
 

@@ -1,5 +1,8 @@
 # Tuiss2HA
-This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through Home Assistant, this also includes 2 services. 1 service can be used to get the battery status (normal or low). The other can be used to periodically poll your blinds to get their position, as using the Tuiss app or bluetooth remotes will not automatically update the position of the blind in Home Assistant due to limitations in the Tuiss platform itself.
+This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through home assistant, this also includes 3 services.
+1. get_battery_status: can be used to get the battery status (normal or low)
+2. set_blind_position: allows setting decimal precision for the blind over home assistants built in integer position, which allows refined tilt controls. 
+3. get_blind_position: can be used to periodically poll your blinds to get their position, as using the Tuiss app or bluetooth remotes will not automatically update the position of the blind in home assistant due to limitations in the tuiss platform itself.
 
 Note: This integration only controls blinds using BLE (bluetooth low energy), it will not control blinds that also or only support RF control.
 
@@ -31,7 +34,7 @@ An accurate battery percentage is not provided by the blind, but it is possible 
 1. "Battery is good"
 2. "Battery needs charging"
 
-To accomplish this a service has been provided: "Tuiss2ha.Get Battery Status". This can be called manually from Developers -> Services or included as a part of an automation which I'd recommend runs on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the service. For example:
+To accomplish this a service has been provided: "Tuiss2ha.Get_Battery_Status". This can be called manually from Developers -> Services or included as a part of an automation which I'd recommend runs on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the service. For example:
 
         alias: Blinds_Battery_Notify
         description: ""
@@ -65,8 +68,10 @@ To accomplish this a service has been provided: "Tuiss2ha.Get Battery Status". T
 
 
 ### Accurate Blind Position ###
-The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, a service "Tuiss2ha.Get Blind Position" has been provided. This can be called manually from Developers -> Services or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries (though I have not tested this).
+The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, a service "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Services or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries (though I have not tested this).
 
+### Decimal Precision ###
+To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" service, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Services.
 
 ## Limitations ##
 - Setting the top and bottom thresholds of the blind. Currently, you still need to pair with and use the Tuiss app to set these values.
