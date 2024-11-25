@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import voluptuous as vol
+import datetime
 
 from typing import Any
 
@@ -79,6 +80,10 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_unique_id = f"{self._blind._id}_cover"
         self._attr_name = self._blind.name
         self._state = None
+        self._startTime = None
+        self._endTime = None
+        self._traversalTime = None
+        self._locked = False
         
 
     @property
@@ -117,6 +122,11 @@ class Tuiss(CoverEntity, RestoreEntity):
         if self._blind._current_cover_position is None:
             return None
         return self._blind._current_cover_position
+
+    @property
+    def traversal_time(self):
+        """The speed of the blind, used to calculate the realtime position."""
+        return self._traversalTime
 
     @property
     def is_closed(self) -> bool | None:
@@ -161,6 +171,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             )
         self._blind.register_callback(self.async_write_ha_state)
 
+
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
         self._blind.remove_callback(self.async_write_ha_state)
@@ -185,26 +196,56 @@ class Tuiss(CoverEntity, RestoreEntity):
         await self.async_move_cover(movVal,100 - kwargs[ATTR_POSITION])
 
 
+
     async def async_move_cover(self, movVal, targetPos):
         await self._blind.attempt_connection()
-        if self._blind._client.is_connected:
+        if self._blind._client.is_connected and self._locked == False:
+            self._locked = True
+            startPos = self._blind._current_cover_position
             self._blind._moving = movVal
+            
+            #Update the state and trigger the moving
             await self.async_scheduled_update_request()
             await self._blind.set_position(targetPos)
+            self._endTime = None
+            self._startTime = datetime.datetime.now()
+            
             while self._blind._client.is_connected:
-                await self._blind.check_connection()
+                #Update the position in realtime based on average traversal time
+                if self._traversalTime is not None:
+                    _LOGGER.debug("StartPos: %s. Timedelta: %s",startPos, (datetime.datetime.now() - self._startTime).total_seconds())
+                    self._blind._current_cover_position = startPos + ((datetime.datetime.now() - self._startTime).total_seconds()*self._traversalTime*movVal)
+                    await self.async_scheduled_update_request()
                 await asyncio.sleep(1)
-            self._blind._current_cover_position = 100 - targetPos
-            self._blind._moving = 0
-            await self.async_scheduled_update_request()
+            
+            #set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
+            if not self._blind._is_stopping:    
+                self._endTime = datetime.datetime.now()
+                await self.update_traversal_time(100-targetPos, startPos)
+
+                self._blind._current_cover_position = 100 - targetPos
+                self._blind._moving = 0
+                await self.async_scheduled_update_request()
+
+            #unlock the entity to allow more changes
+            self._locked = False
+
+
+    async def update_traversal_time(self, targetPos, startPos):
+        timeTaken = (self._endTime - self._startTime).total_seconds()
+        traversalDistance = abs(targetPos - startPos)
+        self._traversalTime = traversalDistance/timeTaken
+        _LOGGER.debug("%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s", self._attr_name, timeTaken,  startPos, targetPos, traversalDistance, self._traversalTime)
 
 
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
+        self._blind._is_stopping = True
         await self._blind.stop()
         if self._blind._client:
             while self._blind._client.is_connected:
                 await asyncio.sleep(1)
             self._blind._moving = 0
             await self.async_scheduled_update_request()
+        self._locked = False
