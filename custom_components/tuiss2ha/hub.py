@@ -66,6 +66,7 @@ class TuissBlind:
         self._moving = 0
         self._current_cover_position: None
         self._desired_position:None
+        self._is_stopping = False
 
 
     @property
@@ -187,16 +188,9 @@ class TuissBlind:
         if self._client and self._client.is_connected:
             await self.send_command(UUID, command)
             await self.get_blind_position()
+            self._is_stopping = False
         else:
             _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
-
-
-    async def check_connection(self) -> None:
-        _LOGGER.debug(
-            "%s (%s) connected state is %s",
-            self.name,
-            self._ble_device,
-            self._client.is_connected,)
 
 
     
