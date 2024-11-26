@@ -26,6 +26,10 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+
+ATTR_TRAVERSAL_TIME = "traversal_time"
+
+
 SET_BLIND_POSITION_SCHEMA = {
     vol.Required("position"): vol.All(
         vol.Coerce(float),
@@ -82,8 +86,9 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._state = None
         self._startTime = None
         self._endTime = None
-        self._traversalTime = None
+        self._attr_traversal_time= None
         self._locked = False
+
         
 
     @property
@@ -117,16 +122,17 @@ class Tuiss(CoverEntity, RestoreEntity):
         return True
 
     @property
+    def extra_state_attributes(self) -> dict[str,Any]:
+        """Attributes for the traversal time of the blinds."""
+        return {ATTR_TRAVERSAL_TIME: self._attr_traversal_time}
+
+    @property
     def current_cover_position(self):
         """Return the current position of the cover."""
         if self._blind._current_cover_position is None:
             return None
         return self._blind._current_cover_position
 
-    @property
-    def traversal_time(self):
-        """The speed of the blind, used to calculate the realtime position."""
-        return self._traversalTime
 
     @property
     def is_closed(self) -> bool | None:
@@ -163,12 +169,19 @@ class Tuiss(CoverEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when this Entity has been added to HA."""
         last_state = await self.async_get_last_state()
+        #get the last known position
         if not last_state or ATTR_CURRENT_POSITION not in last_state.attributes:
             self._blind._current_cover_position = 0
         else:
             self._blind._current_cover_position = last_state.attributes.get(
                 ATTR_CURRENT_POSITION
             )
+        #get the last known traversal time, for calculating realtime position
+        if last_state and ATTR_TRAVERSAL_TIME in last_state.attributes:
+            self._attr_traversal_time = last_state.attributes.get(
+                ATTR_TRAVERSAL_TIME
+            )
+
         self._blind.register_callback(self.async_write_ha_state)
 
 
@@ -212,9 +225,10 @@ class Tuiss(CoverEntity, RestoreEntity):
             
             while self._blind._client.is_connected:
                 #Update the position in realtime based on average traversal time
-                if self._traversalTime is not None:
+                if self._attr_traversal_time is not None:
                     _LOGGER.debug("StartPos: %s. Timedelta: %s",startPos, (datetime.datetime.now() - self._startTime).total_seconds())
-                    self._blind._current_cover_position = startPos + ((datetime.datetime.now() - self._startTime).total_seconds()*self._traversalTime*movVal)
+                    traversalDelta = (datetime.datetime.now() - self._startTime).total_seconds()*self._attr_traversal_time*movVal
+                    self._blind._current_cover_position = sorted([startPos,startPos + traversalDelta,100-targetPos])[1]
                     await self.async_scheduled_update_request()
                 await asyncio.sleep(1)
             
@@ -234,9 +248,9 @@ class Tuiss(CoverEntity, RestoreEntity):
     async def update_traversal_time(self, targetPos, startPos):
         timeTaken = (self._endTime - self._startTime).total_seconds()
         traversalDistance = abs(targetPos - startPos)
-        self._traversalTime = traversalDistance/timeTaken
-        _LOGGER.debug("%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s", self._attr_name, timeTaken,  startPos, targetPos, traversalDistance, self._traversalTime)
-
+        self._attr_traversal_time = traversalDistance/timeTaken
+        _LOGGER.debug("%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s", self._attr_name, timeTaken,  startPos, targetPos, traversalDistance, self._attr_traversal_time)
+        await self.async_scheduled_update_request()
 
 
     async def async_stop_cover(self, **kwargs: Any) -> None:

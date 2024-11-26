@@ -27,7 +27,7 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 - Close
 - Stop
 - Battery State (through service)
-- Blind position (through service)
+- Decimal Blind position (through service)
 
 ### Battery State ###
 An accurate battery percentage is not provided by the blind, but it is possible to return two states:
@@ -75,7 +75,7 @@ To overwrite home assistants built in integer accuracy, you can use the "Tuiss2h
 
 ## Limitations ##
 - Setting the top and bottom thresholds of the blind. Currently, you still need to pair with and use the Tuiss app to set these values.
-- Realtime blind positioning as moving will work after the first use, as this is required to calibrate the speed of your blind motor.
+- Realtime blind positioning will only work after the first use as this initial run is required to calibrate the speed of your blind motor.
 
 ## Troubleshooting ##
 - I've only tested with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work, so I had to use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
