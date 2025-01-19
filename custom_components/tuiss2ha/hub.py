@@ -186,6 +186,10 @@ class TuissBlind:
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
 
+        #skip if the blind is not moving
+        if self._moving == 0:
+            return
+
         # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
