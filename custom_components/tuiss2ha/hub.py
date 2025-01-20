@@ -202,7 +202,7 @@ class TuissBlind:
                 self._is_stopping = False
         except:
             _LOGGER.debug("%s: Stop failed.", self.name)
-            raise RuntimeError("Unable to STOP. %s has lost connection. Check %s is powered and within bluetooth range",self.name,self.name)
+            raise RuntimeError("Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range")
 
 
     
@@ -314,7 +314,7 @@ class TuissBlind:
                 await self._client.write_gatt_char(UUID, command)
             except Exception as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
-                raise RuntimeError("Unable to send the command to %s.%s",self.name, e)
+                raise RuntimeError(e)
         
 
 
