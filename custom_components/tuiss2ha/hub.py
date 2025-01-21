@@ -185,12 +185,24 @@ class TuissBlind:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
-        if self._client and self._client.is_connected:
-            await self.send_command(UUID, command)
-            await self.get_blind_position()
-            self._is_stopping = False
-        else:
-            _LOGGER.debug("%s: Stop failed. %s", self.name, self._client.is_connected)
+
+        #skip if the blind is not moving
+        if self._moving == 0:
+            return
+
+        # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+
+        # send the stop command
+        try:
+            if self._client and self._client.is_connected:
+                await self.send_command(UUID, command)
+                await self.get_blind_position()
+                self._is_stopping = False
+        except:
+            _LOGGER.debug("%s: Stop failed.", self.name)
+            raise RuntimeError("Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range")
 
 
     
@@ -207,6 +219,7 @@ class TuissBlind:
         try:
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
         except:
+            #when need to overwrite the existing notification
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
         finally:
@@ -300,7 +313,8 @@ class TuissBlind:
                 _LOGGER.debug("%s: Sending the command", self.name)
                 await self._client.write_gatt_char(UUID, command)
             except Exception as e:
-                _LOGGER.error(("%s: Send Command error: %s", self.name, e))
+                _LOGGER.error("%s: Send Command error: %s", self.name, e)
+                raise RuntimeError(e)
         
 
 
