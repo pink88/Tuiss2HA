@@ -28,6 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 ATTR_TRAVERSAL_TIME = "traversal_time"
+ATTR_MAC_ADDRESS = "mac_address"
 
 
 SET_BLIND_POSITION_SCHEMA = {
@@ -87,6 +88,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._startTime = None
         self._endTime = None
         self._attr_traversal_time= None
+        self._attr_mac_address = self._blind.host
         self._locked = False
 
         
@@ -124,7 +126,7 @@ class Tuiss(CoverEntity, RestoreEntity):
     @property
     def extra_state_attributes(self) -> dict[str,Any]:
         """Attributes for the traversal time of the blinds."""
-        return {ATTR_TRAVERSAL_TIME: self._attr_traversal_time}
+        return {ATTR_TRAVERSAL_TIME: self._attr_traversal_time, ATTR_MAC_ADDRESS: self._attr_mac_address }
 
     @property
     def current_cover_position(self):

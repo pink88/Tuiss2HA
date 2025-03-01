@@ -50,12 +50,12 @@ class TuissBlind:
     def __init__(self, host: str, name: str, hub: Hub) -> None:
         """Init tuiss blind."""
         self._id = host  # also the host address
-        self._host = host
+        self.host = host
         self.name = name
         self.hub = hub
         self.model = "Tuiss"
         self._ble_device = bluetooth.async_ble_device_from_address(
-            self.hub._hass, self._host, connectable=True
+            self.hub._hass, self.host, connectable=True
         )
         self._client: BleakClientWithServiceCache | None = None
         _LOGGER.debug("BLEDevice: %s", self._ble_device)
@@ -64,8 +64,8 @@ class TuissBlind:
         self._max_retries = 10
         self._battery_status = False
         self._moving = 0
-        self._current_cover_position: None
-        self._desired_position:None
+        self._current_cover_position = None
+        self._desired_position = None
         self._is_stopping = False
 
 
@@ -96,7 +96,7 @@ class TuissBlind:
         while self._ble_device is None and rediscover_attempts < 4:
             _LOGGER.debug("Unable to find device %s, attempting rediscovery", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(
-                self.hub._hass, self._host, connectable=True
+                self.hub._hass, self.host, connectable=True
             )
             rediscover_attempts += 1
         if self._ble_device is None:
@@ -115,26 +115,30 @@ class TuissBlind:
                 self._retry_count,
             )
             await self.blind_connect()
+            self._retry_count += 1
 
         if self._retry_count > self._max_retries:
-            _LOGGER.debug("%s: Connection Failed too many times", self.name)
             self._retry_count = 0
+            raise Exception(f"{self.name}: Connection Failed too many times")
 
     # Connect
     async def blind_connect(self):
         """Connect to the blind."""
-        client: BleakClientWithServiceCache = await establish_connection(
-            client_class=BleakClientWithServiceCache,
-            device=self._ble_device,
-            name=self._host,
-            use_services_cache=True,
-            max_attempts=self._max_retries,
-            ble_device_callback=lambda: self._device,
-        )
-        self._client = client
-        #send the maintain connection message
-        await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
-        _LOGGER.debug("%s: Connected. Current Position: %s. Current Moving: %s", self.name, self._current_cover_position, self._moving)
+        try:
+            client: BleakClientWithServiceCache = await establish_connection(
+                client_class=BleakClientWithServiceCache,
+                device=self._ble_device,
+                name=self.host,
+                use_services_cache=True,
+                max_attempts=self._max_retries,
+                ble_device_callback=lambda: self._device,
+            )
+            self._client = client
+            #send the maintain connection message
+            await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
+            _LOGGER.debug("%s: Connected. Current Position: %s. Current Moving: %s", self.name, self._current_cover_position, self._moving)
+        except Exception as e:
+            _LOGGER.debug('Failed to connect to blind: %s', e)
 
 
     # Disconnect
