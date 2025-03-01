@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -11,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN
+from .hub import Hub
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,18 +55,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=_title, data=user_input)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_DATA_SCHEMA, 
+                user_input if user_input is not None else {}
+            ),
+            errors=errors
         )
 
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
 
-    if len(data["host"]) < 17:
+    matches = re.search("^([A-F0-9]{2}:){5}[A-F0-9]{2}$", data["host"])
+    if matches is None:
         raise InvalidHost
 
     if len(data["name"]) == 0:
         raise InvalidName
+    
+    try:
+        hub = Hub(hass, data["host"], data["name"])
+        await hub.blinds[0].get_battery_status()
+        await hub.blinds[0].blind_disconnect()
+    except:
+        raise CannotConnect()
 
     return data["name"]
 
