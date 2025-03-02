@@ -51,7 +51,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
-            user_input["host"] = user_input["host"].upper()
+            user_input["host"] = user_input["host"].upper() 
             return self.async_create_entry(title=_title, data=user_input)
 
         return self.async_show_form(
@@ -76,7 +76,7 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     
     try:
         hub = Hub(hass, data["host"], data["name"])
-        await hub.blinds[0].get_battery_status()
+        await hub.blinds[0].get_blind_position()
         await hub.blinds[0].blind_disconnect()
     except:
         raise CannotConnect()
