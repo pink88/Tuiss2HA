@@ -76,7 +76,7 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     
     try:
         hub = Hub(hass, data["host"], data["name"])
-        await hub.blinds[0].get_blind_position()
+        await hub.blinds[0].attempt_connection()
         await hub.blinds[0].blind_disconnect()
     except:
         raise CannotConnect()
