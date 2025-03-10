@@ -10,6 +10,8 @@ Note: This integration only controls blinds using BLE (bluetooth low energy), it
 ## Before Integration to Home Assistant ##
 To get started you need to download and use the Tuiss Smartview app to set the upper and bottom limits of the blinds.
 
+Note: If you have a newer TS5200 device, you *must* add to the Tuiss Smartview app or the blind won't operate. See hardware versions below.
+
 ## Installation and adding your first device ##
 1. Add the integration from the HACs marketplace ([instructions here](https://hacs.xyz/docs/configuration/basic))
 2. Restart Home Assistant if required
@@ -20,6 +22,17 @@ To get started you need to download and use the Tuiss Smartview app to set the u
 7. Enter the MAC address from the tag including in your blind, or written within the top bracket of the blind, close to where the battery is plugged in
 8. Give the blind a name
 9. Click Submit
+
+### Tuiss Hardware Versions ###
+Both known hardware versions from Tuiss / Blinds2Go are compatible with this integration. If unsure, you can identify from the name of the blind in the bluetooth discovery panel in HA.
+
+#### TS3000 ####
+The TS3000 has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC-style charger. No special setup is required.
+
+#### TS5200 ####
+The TS5200 has a battery pack integrated with the blind housing and charged with a USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. First seen in blinds supplied from March 2025.
+
+**Important:** For the TS5200 to work, it first must be 'activated' via the Tuiss SmartView app. The blind will chime and move slightly once activated. Following this, it can be added and used with this integration as normal. No further action is required within the app.
 
 ## Features ##
 - Set position
