@@ -92,5 +92,4 @@ To overwrite home assistants built in integer accuracy, you can use the "Tuiss2h
 
 ## Troubleshooting ##
 - I've only tested with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work, so I had to use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
-- I only have access to a number of TS3000 blinds where I have tested this. Other models may or may not function the same way, but please do raise an issue if you find anything
 - Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards when using ESPhome)
