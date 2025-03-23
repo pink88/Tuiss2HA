@@ -67,7 +67,7 @@ class TuissBlind:
         self._current_cover_position = None
         self._desired_position = None
         self._is_stopping = False
-
+        self._desired_orientation = False
 
     @property
     def blind_id(self) -> str:
@@ -81,7 +81,6 @@ class TuissBlind:
     def remove_callback(self, callback) -> None:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
-
 
     ##################################################################################################
     ## CONNECTION METHODS ############################################################################
@@ -134,12 +133,16 @@ class TuissBlind:
                 ble_device_callback=lambda: self._device,
             )
             self._client = client
-            #send the maintain connection message
-            await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE)) 
-            _LOGGER.debug("%s: Connected. Current Position: %s. Current Moving: %s", self.name, self._current_cover_position, self._moving)
+            # send the maintain connection message
+            await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+            _LOGGER.debug(
+                "%s: Connected. Current Position: %s. Current Moving: %s",
+                self.name,
+                self._current_cover_position,
+                self._moving,
+            )
         except Exception as e:
-            _LOGGER.debug('Failed to connect to blind: %s', e)
-
+            _LOGGER.debug("Failed to connect to blind: %s", e)
 
     # Disconnect
     async def blind_disconnect(self):
@@ -159,8 +162,11 @@ class TuissBlind:
             )
         else:
             _LOGGER.debug("%s: Disconnect completed successfully", self.name)
-            _LOGGER.debug("Disconnect. Current Position: %s. Current Moving: %s", self._current_cover_position, self._moving)
-
+            _LOGGER.debug(
+                "Disconnect. Current Position: %s. Current Moving: %s",
+                self._current_cover_position,
+                self._moving,
+            )
 
     ##################################################################################################
     ## SET METHODS ############################################################################
@@ -172,25 +178,29 @@ class TuissBlind:
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
 
-        self._desired_position = 100- userPercent
-        _LOGGER.debug("%s: Attempting to set position to: %s", self.name, self._desired_position)
+        self._desired_position = 100 - userPercent
+        _LOGGER.debug(
+            "%s: Attempting to set position to: %s", self.name, self._desired_position
+        )
         command = bytes.fromhex(self.hex_convert(userPercent))
         try:
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback)
+            await self._client.start_notify(
+                BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
+            )
         except:
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback)
+            await self._client.start_notify(
+                BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
+            )
         finally:
-            await self.send_command(UUID, command) #send the command
-
-
+            await self.send_command(UUID, command)  # send the command
 
     async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex("ff78ea415f0301")
 
-        #skip if the blind is not moving
+        # skip if the blind is not moving
         if self._moving == 0:
             return
 
@@ -206,10 +216,10 @@ class TuissBlind:
                 self._is_stopping = False
         except:
             _LOGGER.debug("%s: Stop failed.", self.name)
-            raise RuntimeError("Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range")
+            raise RuntimeError(
+                "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
+            )
 
-
-    
     ##################################################################################################
     ## GET METHODS ############################################################################
     ##################################################################################################
@@ -223,7 +233,7 @@ class TuissBlind:
         try:
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
         except:
-            #when need to overwrite the existing notification
+            # when need to overwrite the existing notification
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
         finally:
@@ -241,14 +251,9 @@ class TuissBlind:
         command = bytes.fromhex("ff78ea41d10301")
         await self.get_from_blind(command, self.position_callback)
 
-
-
-
-
     ##################################################################################################
     ## CALLBACK METHODS ############################################################################
     ##################################################################################################
-
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
@@ -257,12 +262,7 @@ class TuissBlind:
         decimals = self.split_data(data)
 
         if decimals[4] == 210:
-            if len(decimals) == 7:
-                _LOGGER.debug(
-                    "%s: Please charge device", self.name
-                )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
-                self._battery_status = True
-            elif decimals[5] >= 10:
+            if len(decimals) == 7 or decimals[5] >= 10:
                 _LOGGER.debug(
                     "%s: Please charge device", self.name
                 )  # think its based on the length of the response? ff010203d2 (bad) vs ff010203d202e803 (good)
@@ -275,30 +275,28 @@ class TuissBlind:
                 self._battery_status = None
             await self.blind_disconnect()
 
-
-
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get position", self.name)
 
         decimals = self.split_data(data)
 
-        blindPos = ((decimals[7] + (256 * decimals[8])) / 10)
-        #blindPos = decimals[6]
+        blindPos = (decimals[7] + (256 * decimals[8])) / 10
+        # blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
         await self.blind_disconnect()
 
-
-    async def set_position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
+    async def set_position_callback(
+        self, sender: BleakGATTCharacteristic, data: bytearray
+    ):
         """Wait for response from the blind and disconnects. Used to keep alive."""
-        _LOGGER.debug("%s: Disconnecting based on response %s", self.name, self.split_data(data) )
+        _LOGGER.debug(
+            "%s: Disconnecting based on response %s", self.name, self.split_data(data)
+        )
         await self.blind_disconnect()
 
-
-
-    
     ##################################################################################################
     ## DATA METHODS ############################################################################
     ##################################################################################################
@@ -319,8 +317,6 @@ class TuissBlind:
             except Exception as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
                 raise RuntimeError(e)
-        
-
 
     # Creates the % open/closed hex command
     def hex_convert(self, userPercent):
@@ -343,9 +339,9 @@ class TuissBlind:
 
     def return_hex_bytearray(self, x):
         """make sure we print ascii symbols as hex"""
-        return ''.join([type(x).__name__, "('",
-                    *['\\x'+'{:02x}'.format(i) for i in x], "')"])
-    
+        return "".join(
+            [type(x).__name__, "('", *["\\x" + "{:02x}".format(i) for i in x], "')"]
+        )
 
     def split_data(self, data):
         """Split the byte response into decimal."""
@@ -366,5 +362,3 @@ class TuissBlind:
         _LOGGER.debug("%s: As string:%s", self.name, response)
         _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
         return decimals
-
-    
