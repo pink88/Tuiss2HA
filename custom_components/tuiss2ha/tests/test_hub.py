@@ -43,8 +43,6 @@ def test_blind_init(mock_hub):
     assert blind._ble_device is None
     assert blind._client is None
     assert blind._callbacks == set()
-    assert blind._retry_count == 0
-    assert blind._max_retries == 10
     assert blind._battery_status is False
     assert blind._moving == 0
     assert blind._current_cover_position is None
