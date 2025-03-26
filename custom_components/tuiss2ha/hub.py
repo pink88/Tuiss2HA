@@ -60,7 +60,7 @@ class TuissBlind:
         self._client: BleakClientWithServiceCache | None = None
         _LOGGER.debug("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
-        self._retry_count = 0
+        self._max_rediscover_attempts = 4
         self._max_retries = 10
         self._battery_status = False
         self._moving = 0
@@ -93,33 +93,38 @@ class TuissBlind:
 
         # check if the device not loaded at boot and retry a connection
         rediscover_attempts = 0
-        while self._ble_device is None and rediscover_attempts < 4:
+        while self._ble_device is None and rediscover_attempts < self._max_rediscover_attempts:
             _LOGGER.debug("Unable to find device %s, attempting rediscovery", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(
                 self.hub._hass, self.host, connectable=True
             )
             rediscover_attempts += 1
         if self._ble_device is None:
-            _LOGGER.debug(
+            _LOGGER.error(
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
                 self.name,
             )
+            raise Exception(f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies")
 
-        while (
-            self._client is None or not self._client.is_connected
-        ) and self._retry_count <= self._max_retries:
+        retry_count = 0
+        while retry_count <= self._max_retries:
             _LOGGER.debug(
-                "%s %s: Attempting Connection to blind. Rety count: %s",
+                "%s %s: Attempting Connection to blind. Retry count: %s",
                 self.name,
                 self._ble_device,
-                self._retry_count,
+                retry_count,
             )
             await self.blind_connect()
-            self._retry_count += 1
 
-        if self._retry_count > self._max_retries:
-            self._retry_count = 0
-            raise Exception(f"{self.name}: Connection Failed too many times")
+            # If the client is connected, return early
+            if self._client and self._client.is_connected:
+                return
+
+            retry_count += 1
+
+        # If we reach here, we have exceeded max retries
+        _LOGGER.error("%s: Connection failed too many times [%d]", self.name, self._max_retries)
+        raise Exception(f"{self.name}: Connection failed too many times [{self._max_retries}]")
 
     # Connect
     async def blind_connect(self):
