@@ -81,10 +81,10 @@ To accomplish this a service has been provided: "Tuiss2ha.Get_Battery_Status". T
 
 
 ### Accurate Blind Position ###
-The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, a service "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Services or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries (though I have not tested this).
+The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, a service "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Actions or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries (though I have not tested this).
 
 ### Decimal Precision ###
-To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" service, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Services.
+To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" service, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Actions.
 
 ## Limitations ##
 - Setting the top and bottom thresholds of the blind. Currently, you still need to pair with and use the Tuiss app to set these values.
