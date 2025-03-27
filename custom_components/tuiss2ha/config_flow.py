@@ -1,4 +1,5 @@
 """Config flow for Tuiss2ha integration."""
+
 from __future__ import annotations
 
 import logging
@@ -44,23 +45,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except CannotConnect:
             errors["name"] = "Cannot connect"
         except InvalidHost:
-            errors["host"] = "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
+            errors["host"] = (
+                "Your macsss address must be in the format XX:XX:XX:XX:XX:XX"
+            )
         except InvalidName:
             errors["name"] = "Your name must be longer than 0 characters"
         except Exception:
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
-            user_input["host"] = user_input["host"].upper() 
+            user_input["host"] = user_input["host"].upper()
             return self.async_create_entry(title=_title, data=user_input)
 
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
-                STEP_DATA_SCHEMA, 
-                user_input if user_input is not None else {}
+                STEP_DATA_SCHEMA, user_input if user_input is not None else {}
             ),
-            errors=errors
+            errors=errors,
         )
 
 
@@ -73,7 +75,7 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
 
     if len(data["name"]) == 0:
         raise InvalidName
-    
+
     try:
         hub = Hub(hass, data["host"], data["name"])
         await hub.blinds[0].get_blind_position()
