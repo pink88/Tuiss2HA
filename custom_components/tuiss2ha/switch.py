@@ -35,7 +35,7 @@ class SwitchOrientation(SwitchEntity, RestoreEntity):
     def __init__(self, blind) -> None:
         """Initialize the sensor."""
         self._blind = blind
-        self._state = False
+        self._state = True
         self._attr_unique_id = f"{self._blind.blind_id}_orientation"
         self._attr_name = f"{self._blind.name} Orientation"
         self._attr_device_class = SwitchDeviceClass.SWITCH
