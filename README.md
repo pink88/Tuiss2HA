@@ -93,3 +93,4 @@ To overwrite home assistants built in integer accuracy, you can use the "Tuiss2h
 ## Troubleshooting ##
 - I've only tested with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work, so I had to use a couple ESP32 devices with Bluetooth proxy software installed (See [here](https://esphome.io/components/bluetooth_proxy.html))
 - Sometimes the devices take a few attempts to connect, so expect some delay to commmands (though much improved from HA 2023-07 onwards when using ESPhome)
+- If you notice that the provided action "Get_Blind_Position" is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then a Switch entity has been provided to resolve this. By default the switch entity to set to True and this appears to work in most cases.
