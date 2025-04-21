@@ -40,6 +40,20 @@ class SwitchOrientation(SwitchEntity, RestoreEntity):
         self._attr_name = f"{self._blind.name} Orientation"
         self._attr_device_class = SwitchDeviceClass.SWITCH
 
+    # To link this entity to the cover device, this property must return an
+    # identifiers value matching that used in the cover, but no other information such
+    # as name. If name is returned, this entity will then also become a device in the
+    # HA UI.
+    @property
+    def device_info(self):
+        """Return information to link this entity with the correct device."""
+        return {"identifiers": {(DOMAIN, self._blind.blind_id)}}
+
+    @property
+    def device_class(self):
+        """Return device class."""
+        return self._attr_device_class
+
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Set orientation to normal."""
         self._state = False
@@ -56,3 +70,8 @@ class SwitchOrientation(SwitchEntity, RestoreEntity):
     def is_on(self) -> bool | None:
         """Return True if orientation is opposite or False if Normal"""
         return self._state
+
+    async def async_added_to_hass(self):
+        """Run when this Entity has been added to HA."""
+        last_state = await self.async_get_last_state()
+        self._state = last_state
