@@ -25,6 +25,13 @@ STEP_DATA_SCHEMA = vol.Schema(
 )
 
 
+# def name_from_discovery(discovery: SwitchBotAdvertisement) -> str:
+#     """Get the name from a discovery."""
+#     return f"{discovery.data['modelFriendlyName']} {short_address(discovery.address)}"
+
+
+
+
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Tuiss2HA."""
 
@@ -46,7 +53,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["name"] = "Cannot connect"
         except InvalidHost:
             errors["host"] = (
-                "Your macsss address must be in the format XX:XX:XX:XX:XX:XX"
+                "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
             )
         except InvalidName:
             errors["name"] = "Your name must be longer than 0 characters"
@@ -64,6 +71,41 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        """Allow reconfiguration of Host."""
+
+        config_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        errors = {}
+        if user_input is not None:
+            self.async_set_unique_id(config_entry.data.get(CONF_BLIND_NAME))
+            self._abort_if_unique_id_mismatch()
+
+            try:
+                user_input[CONF_BLIND_NAME] = config_entry.data.get(CONF_BLIND_NAME)
+                _title = await validate_input(self.hass, user_input)
+            except InvalidHost:
+                errors[CONF_BLIND_HOST] = "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
+            except CannotConnect:
+                errors[CONF_BLIND_HOST] = "Cannot connect"
+
+            return self.async_update_reload_and_abort(
+                config_entry,
+                unique_id=config_entry.unique_id,
+                data={**config_entry.data, **user_input},
+                reason="reconfigure_successful",
+            )
+        
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({
+                vol.Required(CONF_BLIND_HOST,default=config_entry.data.get(CONF_BLIND_HOST)): str
+            }),
+        )
+
 
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
@@ -84,6 +126,11 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
         raise CannotConnect()
 
     return data["name"]
+
+
+
+
+
 
 
 class CannotConnect(exceptions.HomeAssistantError):
