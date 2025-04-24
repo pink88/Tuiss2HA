@@ -55,10 +55,10 @@ class TuissBlind:
         self.host = host
         self.name = name
         self.hub = hub
-        self.model = "Tuiss"
         self._ble_device = bluetooth.async_ble_device_from_address(
             self.hub._hass, self.host, connectable=True
         )
+        self.model = self._ble_device.name
         self._client: BleakClientWithServiceCache | None = None
         _LOGGER.debug("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
@@ -144,6 +144,7 @@ class TuissBlind:
             _LOGGER.debug(
                 "%s: Connected. Current Position: %s. Current Moving: %s",
                 self.name,
+                self._client.name,
                 self._current_cover_position,
                 self._moving,
             )

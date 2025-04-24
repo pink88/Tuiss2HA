@@ -165,6 +165,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             "name": self.name,
             "model": self._blind.model,
             "manufacturer": self._blind.hub.manufacturer,
+            "MAC": self._attr_mac_address,
         }
 
     async def async_scheduled_update_request(self, *_):
