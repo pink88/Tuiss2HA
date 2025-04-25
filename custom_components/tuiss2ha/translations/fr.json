@@ -8,13 +8,6 @@
                     "host": "Adresse MAC de la forme XX:XX:XX:XX:XX:XX",
                     "name": "Nom de votre store"
                 }
-            },
-            "reconfigure": {
-                "title": "Update the mac address of your Tuiss Smartblind",
-                "description": "L'adresse MAC peut-être trouvée sur le tag qui est attaché à votre store ou imprimé sur le dessus du store, près de la batterie.",
-                "data": {
-                    "host": "Adresse MAC de la forme XX:XX:XX:XX:XX:XX"
-                }
             }
         },
         "error": {

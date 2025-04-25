@@ -22,6 +22,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+
+
 
 from .const import DOMAIN
 
@@ -87,6 +90,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_traversal_time = None
         self._attr_mac_address = self._blind.host
         self._locked = False
+        
 
     @property
     def state(self):
@@ -165,7 +169,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             "name": self.name,
             "model": self._blind.model,
             "manufacturer": self._blind.hub.manufacturer,
-            "MAC": self._attr_mac_address,
+            "connections": {(CONNECTION_NETWORK_MAC, self._attr_mac_address)},
         }
 
     async def async_scheduled_update_request(self, *_):

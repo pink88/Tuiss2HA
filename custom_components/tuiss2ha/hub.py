@@ -30,7 +30,7 @@ hass = HomeAssistant
 class Hub:
     """Tuiss BLE hub."""
 
-    manufacturer = "Tuiss and Blinds2go"
+    manufacturer = "Tuiss Smartview"
 
     def __init__(self, hass: HomeAssistant, host: str, name: str) -> None:
         """Init dummy hub."""
@@ -294,6 +294,7 @@ class TuissBlind:
         self._current_cover_position = blindPos
         self._moving = 0
         await self.blind_disconnect()
+
 
     async def set_position_callback(
         self, sender: BleakGATTCharacteristic, data: bytearray

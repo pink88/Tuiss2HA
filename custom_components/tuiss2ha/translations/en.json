@@ -8,13 +8,6 @@
                     "host": "MAC Address in form XX:XX:XX:XX:XX:XX",
                     "name": "Friendly name for your blind"
                 }
-            },
-            "reconfigure": {
-                "title": "Update your MAC Address",
-                "description": "The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near where the battery is attached.",
-                "data": {
-                    "host": "MAC Address in form XX:XX:XX:XX:XX:XX"
-                }
             }
         },
         "error": {

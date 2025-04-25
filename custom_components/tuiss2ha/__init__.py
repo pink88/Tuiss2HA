@@ -7,18 +7,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .hub import Hub
-from .const import DOMAIN
+from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME
 
 PLATFORMS: list[str] = ["cover", "binary_sensor", "switch"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tuiss2HA from a config entry."""
-    hub = Hub(hass, entry.data["host"], entry.data["name"])
+    hub = Hub(hass, entry.data[CONF_BLIND_HOST], entry.data[CONF_BLIND_NAME])
 
     for blind in hub.blinds:
         try:
-            await blind.get_battery_status()
+            await blind.get_blind_position()
         except:
             raise ConfigEntryNotReady("Cannot connect to blind")
 
