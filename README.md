@@ -1,5 +1,5 @@
 # Tuiss2HA
-This adds support for Blinds2go Electronic blinds, powered by the Tuiss Smartview platform (if other brands exist they should work, but are untested). These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through home assistant, this also includes 3 services.
+This adds support for Tuiss Smartview BLE electronic blinds. These blinds use bluetooth low energy and are controlled through a simple cover interface. As well as control of the blinds position through home assistant, this also includes 3 services.
 1. get_battery_status: can be used to get the battery status (normal or low)
 2. set_blind_position: allows setting decimal precision for the blind over home assistants built in integer position, which allows refined tilt controls in some models. 
 3. get_blind_position: can be used to periodically poll your blinds to get their position, as using the Tuiss app or bluetooth remotes will not automatically update the position of the blind in home assistant due to limitations in the tuiss platform itself.

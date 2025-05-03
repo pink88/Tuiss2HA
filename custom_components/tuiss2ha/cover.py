@@ -59,6 +59,7 @@ async def async_setup_entry(
     )
 
 
+
 async def async_get_blind_position(entity, service_call):
     """Get the blind position when called by service."""
     await entity._blind.get_blind_position()

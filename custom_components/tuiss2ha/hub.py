@@ -37,7 +37,7 @@ class Hub:
         self._host = host
         self._hass = hass
         self._name = name
-        self._id = host.lower()
+        self._id = host
         self.blinds = [TuissBlind(self._host, self._name, self)]
 
     @property
@@ -60,7 +60,6 @@ class TuissBlind:
         )
         self.model = self._ble_device.name
         self._client: BleakClientWithServiceCache | None = None
-        _LOGGER.debug("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
         self._battery_status = False
         self._moving = 0
@@ -144,7 +143,6 @@ class TuissBlind:
             _LOGGER.debug(
                 "%s: Connected. Current Position: %s. Current Moving: %s",
                 self.name,
-                self._client.name,
                 self._current_cover_position,
                 self._moving,
             )
@@ -294,7 +292,6 @@ class TuissBlind:
         self._current_cover_position = blindPos
         self._moving = 0
         await self.blind_disconnect()
-
 
     async def set_position_callback(
         self, sender: BleakGATTCharacteristic, data: bytearray

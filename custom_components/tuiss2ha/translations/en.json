@@ -3,10 +3,17 @@
         "step": {
             "user": {
                 "title": "Add your Tuiss Smartblind.",
-                "description": "The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near where the battery is attached.",
+                "description": " Please make sure that you have connected to the Tuiss app before using in order to correctly set the top and bottom values. The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near to where the battery is attached.",
                 "data": {
-                    "host": "MAC Address in form XX:XX:XX:XX:XX:XX",
-                    "name": "Friendly name for your blind"
+                    "host": "XX:XX:XX:XX:XX:XX",
+                    "name": "Friendly name for your blind."
+                }
+            },
+            "confirm": {
+                "title": "Name your Tuiss Smartblind.",
+                "description": " Please add a friendly name for your blind.",
+                "data": {
+                    "name": "Friendly name for your blind."
                 }
             }
         },
