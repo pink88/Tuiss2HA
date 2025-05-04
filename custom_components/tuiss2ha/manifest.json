@@ -1,6 +1,20 @@
 {
   "domain": "tuiss2ha",
   "name": "Tuiss Smartview",
+  "bluetooth": [
+    {
+      "service_uuid": "00010203-0405-0607-0809-0a0b0c0d1910",
+      "connectable" : true
+    },
+    {
+      "local_name": "TS3000",
+      "connectable" : true
+    },
+    {
+      "local_name": "TS5200",
+      "connectable" : true
+    }
+  ],
   "codeowners" : ["@pink88"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
@@ -9,5 +23,5 @@
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
   "loggers": ["custom_components.tuiss2ha"],
   "requirements": ["bleak>=0.21.1","bleak-retry-connector>=3.2.1"],
-  "version": "1.6.1"
+  "version": "1.7.0"
 }

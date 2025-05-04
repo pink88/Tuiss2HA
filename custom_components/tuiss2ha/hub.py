@@ -30,14 +30,14 @@ hass = HomeAssistant
 class Hub:
     """Tuiss BLE hub."""
 
-    manufacturer = "Tuiss and Blinds2go"
+    manufacturer = "Tuiss Smartview"
 
     def __init__(self, hass: HomeAssistant, host: str, name: str) -> None:
         """Init dummy hub."""
         self._host = host
         self._hass = hass
         self._name = name
-        self._id = host.lower()
+        self._id = host
         self.blinds = [TuissBlind(self._host, self._name, self)]
 
     @property
@@ -55,12 +55,11 @@ class TuissBlind:
         self.host = host
         self.name = name
         self.hub = hub
-        self.model = "Tuiss"
         self._ble_device = bluetooth.async_ble_device_from_address(
             self.hub._hass, self.host, connectable=True
         )
+        self.model = self._ble_device.name
         self._client: BleakClientWithServiceCache | None = None
-        _LOGGER.debug("BLEDevice: %s", self._ble_device)
         self._callbacks = set()
         self._battery_status = False
         self._moving = 0
