@@ -54,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_register_callback(
             hass,
             _async_discovered_device,
-            {"service_uuid": "00010203-0405-0607-0809-0a0b0c0d1910", "connectable": True},
+            BluetoothCallbackMatcher(address=entry.data[CONF_ADDRESS]),
             BluetoothScanningMode.ACTIVE,
         )
     )
