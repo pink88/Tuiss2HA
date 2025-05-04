@@ -8,6 +8,13 @@
                     "host": "Adresse MAC de la forme XX:XX:XX:XX:XX:XX",
                     "name": "Nom de votre store"
                 }
+            },
+            "confirm": {
+                "title": "Nom de votre store Tuiss.",
+                "description": "Veuillez ajouter un nom convivial pour votre store.",
+                "data": {
+                    "name": "Nom"
+                }
             }
         },
         "error": {
