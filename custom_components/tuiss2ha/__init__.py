@@ -24,11 +24,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for blind in hub.blinds:
         
         #add missing unique_ids TO DEPRICATE IN FUTURE RELEASE
-        try:
-            _LOGGER.debug("Adding device missing uID for %s",self._blind._attr_mac_address)
-            await entry.async_set_unique_id(self._blind._attr_mac_address)
-        except:
-            _LOGGER.debug("Failed to set UID")
+        if entry.unique_id is None:
+            _LOGGER.debug("Attempting to set UID for %s to %s", entry.data["name"],entry.data["host"])
+            hass.config_entries.async_update_entry(entry, unique_id = entry.data["host"])
+        else:
+            _LOGGER.debug("Skipping, UID already set for %s.", entry.data["name"])
         
         try:
             await blind.get_blind_position()
@@ -36,11 +36,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise ConfigEntryNotReady("Cannot connect to blind")
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
-    
-
-
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
 
 
     @callback
