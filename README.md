@@ -34,10 +34,10 @@ Known working hardware versions:
 
 ### Battery State ###
 An accurate battery percentage is not provided by the blind, but it is possible to return two states:
-1. "Battery is good"
-2. "Battery needs charging"
+1. "Normal" - battery is good
+2. "Low" - battery needs charging
 
-To accomplish this a service has been provided: "Tuiss2ha.Get_Battery_Status". This can be called manually from Developers -> Services or included as a part of an automation which I'd recommend runs on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the service. For example:
+To accomplish this an action has been provided: "Tuiss2ha.Get_Battery_Status". This can be called manually from Developers -> Actions or included as a part of an automation which I'd recommend runs on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the action. For example:
 
         alias: Blinds_Battery_Notify
         description: ""
@@ -71,13 +71,13 @@ To accomplish this a service has been provided: "Tuiss2ha.Get_Battery_Status". T
 
 
 ### Poll for Blind Position ###
-The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, a service "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Actions or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries.
+The blind will not update its position within Home Assistant if controlled using the Tuiss app or bluetooth remotes. To compensate, an action "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Actions or included as a part of an automation. The automation can be set to run periodically throughout the day to update the position. I would not recommend running this more than hourly as it will likely drain your blinds batteries.
 
 ### Control with Decimal Precision ###
-To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" service, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Actions or from within automations.
+To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" action, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Actions or from within automations.
 
 ## Limitations ##
-1. *Setting the top and bottom thresholds of the blind* - Currently, you still need to pair with and use the Tuiss Smartview app to set these values.
+1. *Setting the top and bottom thresholds of the blind* - you still need to pair with and use the Tuiss Smartview app to set these values.
 2. *Realtime blind positioning* - only works after the first use as this initial run is required to calibrate the speed of your blind motor.
 
 ## Troubleshooting ##
