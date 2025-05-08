@@ -46,8 +46,7 @@ async def async_setup_entry(
 ) -> None:
     """Add cover for passed config_entry in HA."""
     hub = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities(Tuiss(blind) for blind in hub.blinds)
-
+    async_add_entities(Tuiss(blind,config_entry) for blind in hub.blinds)
     platform = entity_platform.async_get_current_platform()
 
     platform.async_register_entity_service(
@@ -70,17 +69,17 @@ async def async_set_blind_position(entity, service_call):
     """Set the blind position with decimal precision."""
     position = service_call.data["position"]
     await entity._blind.set_position(100 - position)
-    if entity._blind._desired_orientation:
-        entity._blind._current_cover_position = position
-    else:
+    if entity._blind_orientation: #wokraround for some blinds working opposite for this service only?
         entity._blind._current_cover_position = 100 - position
+    else:
+        entity._blind._current_cover_position = position
     entity.schedule_update_ha_state()
 
 
 class Tuiss(CoverEntity, RestoreEntity):
     """Create Cover Class."""
 
-    def __init__(self, blind) -> None:
+    def __init__(self, blind, config=None) -> None:
         """Initialize the cover."""
         self._blind = blind
         self._attr_unique_id = f"{self._blind._id}_cover"
@@ -91,6 +90,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_traversal_time = None
         self._attr_mac_address = self._blind.host
         self._locked = False
+        self._blind_orientation = config.options.get("blind_orientation")
         
 
     @property

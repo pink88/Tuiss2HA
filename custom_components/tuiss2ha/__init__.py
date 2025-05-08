@@ -10,11 +10,11 @@ from homeassistant.components import bluetooth
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
-from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME
+from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
 
 
 
-PLATFORMS: list[str] = ["cover", "binary_sensor", "switch"]
+PLATFORMS: list[str] = ["cover", "binary_sensor"]
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -30,6 +30,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         else:
             _LOGGER.debug("Skipping, UID already set for %s.", entry.data["name"])
         
+        if not entry.options:
+            hass.config_entries.async_update_entry(
+            entry,
+            options={OPT_BLIND_ORIENTATION: DEFAULT_BLIND_ORIENTATION},
+        )
+
+
         try:
             await blind.get_blind_position()
         except:

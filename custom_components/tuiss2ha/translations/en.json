@@ -25,5 +25,18 @@
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
         }
+    },
+    "options":{
+        "step":{
+            "init": {
+                "title": "Additional options.",
+                "data": {
+                    "blind_orientation": "Blind Orientation"
+                },
+                "data_description": {
+                    "blind_orientation": "Inverts the Set_Blind_Orientation action result. Select this if using the action returns a value that is opposite to what you would expect e.g. 60% open instead of 40% open."
+                }
+            }
+        }
     }
 }
