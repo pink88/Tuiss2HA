@@ -9,12 +9,12 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 
 
-from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN
+from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
 from .hub import Hub
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +32,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_ASSUMED
+
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OptionsFlowHandler:
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler()
 
     def __init__(self) -> None:
         """Initialise a config flow"""
@@ -132,6 +141,28 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
 
     return data[CONF_BLIND_NAME]
 
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Tuiss options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage Tuiss options."""
+        if user_input is not None:
+            # Update common entity options for all other entities.
+            return self.async_create_entry(title="", data=user_input)
+
+        options: dict[vol.Optional, Any] = {
+            vol.Optional(
+                OPT_BLIND_ORIENTATION,
+                default=self.config_entry.options.get(
+                    OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
+                ),
+            ): bool
+        }
+
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
 
 
 
