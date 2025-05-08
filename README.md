@@ -1,12 +1,12 @@
 # Tuiss2HA
 This adds support for Tuiss Smartview BLE blinds. These blinds use bluetooth low energy and are controlled through a simple cover interface. Home Assistant due to limitations in the Tuiss platform itself. This integration does not support RF control.
 
-## Supported Tuiss Hardware Versions and Prerequisites##
+## Supported Tuiss Hardware Versions and Prerequisites ##
 Both known hardware versions from Tuiss (purchased from UK retailer Blinds2go) are compatible with this integration, but all Tuiss Smartview compatable blinds should be. All blinds should be added to the Tuiss Smartview app before connecting to Home Assistant, following the set up instruction to pair and to set the upper and lower limits.
 
 Known working hardware versions:
--TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
--TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. First seen in blinds supplied from March 2025.
+- TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
+- TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. First seen in blinds supplied from March 2025.
 
 
 ## Installation and adding your first device ##
@@ -77,10 +77,10 @@ The blind will not update its position within Home Assistant if controlled using
 To overwrite home assistants built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" service, which allows for up to 1 decimal place of precision. This can be called manually from Developers -> Actions or from within automations.
 
 ## Limitations ##
-1. Setting the top and bottom thresholds of the blind - Currently, you still need to pair with and use the Tuiss app to set these values.
-2. Realtime blind positioning - only works after the first use as this initial run is required to calibrate the speed of your blind motor.
+1. *Setting the top and bottom thresholds of the blind* - Currently, you still need to pair with and use the Tuiss Smartview app to set these values.
+2. *Realtime blind positioning* - only works after the first use as this initial run is required to calibrate the speed of your blind motor.
 
 ## Troubleshooting ##
-- If you notice that the provided action "Get_Blind_Position" is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then a configuration option has been added to invert the result. By default this is set to off. Set from the devices screen within Home Assistant.
+- If you notice that the provided action "Get_Blind_Position" is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then a configuration option has been added to invert the result, which can be set within the Tuiss2HA Integration screen in Home Assistant after your blind has been added.
 - I have tested this integration with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work. I had to use a few ESP32 devices with Bluetooth proxy software installed using the excellent ESPHome (See [here](https://esphome.io/components/bluetooth_proxy.html))
 - Sometimes the devices take a few attempts to connect, so expect some delay to commmands. This may also be a result of too many bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of bluetooth adapters/proxies.
