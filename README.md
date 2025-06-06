@@ -1,13 +1,13 @@
 # Tuiss2HA
-This adds support for Tuiss Smartview BLE blinds. These blinds use bluetooth low energy and are controlled through a simple cover interface. Home Assistant due to limitations in the Tuiss platform itself. This integration does not support RF control.
+This adds support for Tuiss Smartview BLE blinds. These blinds use bluetooth low energy and are controlled through a simple cover interface. This integration does not support RF control.
 
 ## Supported Tuiss Hardware Versions and Prerequisites ##
-Both known hardware versions from Tuiss (purchased from UK retailer Blinds2go) are compatible with this integration, but all Tuiss Smartview compatable blinds should be. All blinds should be added to the Tuiss Smartview app before connecting to Home Assistant, following the set up instruction to pair and to set the upper and lower limits.
+The following hardeare versions have been tested and confirmed as working, but other versions should be supoorted.
 
-Known working hardware versions:
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. First seen in blinds supplied from March 2025.
 
+Before xonncting a blind to Home Assistant, first add the blind to the Tuiss Smartview app and follow the set up instruction to pair and to set the upper and lower limits.
 
 ## Installation and adding your first device ##
 1. Complete the setup of your blind in the Tuiss Smartview app
