@@ -239,9 +239,9 @@ class Tuiss(CoverEntity, RestoreEntity):
                         * self._attr_traversal_time
                         * movVal
                     )
-                    self._blind._current_cover_position = sorted(
+                    self._blind._current_cover_position = round(sorted(
                         [startPos, startPos + traversalDelta, 100 - targetPos]
-                    )[1]
+                    )[1],2)
                     await self.async_scheduled_update_request()
                 await asyncio.sleep(1)
 
