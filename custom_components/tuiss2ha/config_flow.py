@@ -14,7 +14,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 
 
-from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
+from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION, OPT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, DEFAULT_RESTART_POSITION
 from .hub import Hub
 
 _LOGGER = logging.getLogger(__name__)
@@ -158,8 +158,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 OPT_BLIND_ORIENTATION,
                 default=self.config_entry.options.get(
                     OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
-                ),
-            ): bool
+                )): bool,
+            vol.Optional(
+                OPT_RESTART_POSITION,
+                default = self.config_entry.options.get(
+                    OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION
+                )): bool,
+            vol.Optional(
+                OPT_RESTART_ATTEMPTS,
+                default = self.config_entry.options.get(
+                    OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
+            )): int
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))

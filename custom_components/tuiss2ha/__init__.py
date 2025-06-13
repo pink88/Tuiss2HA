@@ -10,7 +10,7 @@ from homeassistant.components import bluetooth
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
-from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
+from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION,OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
 
 
 
@@ -33,14 +33,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not entry.options:
             hass.config_entries.async_update_entry(
             entry,
-            options={OPT_BLIND_ORIENTATION: DEFAULT_BLIND_ORIENTATION},
+            options={OPT_BLIND_ORIENTATION: DEFAULT_BLIND_ORIENTATION, OPT_RESTART_POSITION: DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS},
         )
 
-
-        try:
-            await blind.get_blind_position()
-        except:
-            raise ConfigEntryNotReady("Cannot connect to blind")
+        #only attempt to get the current position of the blind on boot if required. Required when using tuiss app or bluetooth remotes
+        if blind._position_on_restart:
+            try:
+                await blind.get_blind_position()
+            except:
+                raise ConfigEntryNotReady("Cannot connect to blind")
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
     entry.async_on_unload(entry.add_update_listener(update_listener))

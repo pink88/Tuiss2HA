@@ -30,11 +30,15 @@
         "step":{
             "init": {
                 "title": "Additional options.",
-                "data": {
-                    "blind_orientation": "Invert Set Blind Position"
+                  "data": {
+                    "blind_orientation": "Invert Set Blind Position response",
+                    "blind_restart_position": "Check for blind position on restart",
+                    "blind_restart_attempts": "Reconnection attempts"
                 },
                 "data_description": {
-                    "blind_orientation": "Inverts the result of the Set_Blind_Position action. Select this if using the action returns a value that is opposite to what you would expect e.g. 60% open instead of 40% open."
+                     "blind_orientation": "Inverts the result of the 'Set_Blind_Position' action. Select this if using the action returns a value that is opposite to what you would expect e.g. 60% open instead of 40% open.",
+                    "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
+                    "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs."
                 }
             }
         }
