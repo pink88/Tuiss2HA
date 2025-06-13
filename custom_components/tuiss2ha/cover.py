@@ -91,8 +91,8 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_mac_address = self._blind.host
         self._locked = False
         self._blind_orientation = config.options.get("blind_orientation")
-        self._blind._position_on_restart = config.options.get("blind_restart_position")
         self._blind._restart_attempts = config.options.get("blind_restart_attempts")
+        self._blind._position_on_restart = config.options.get("blind_restart_position")
 
         
 

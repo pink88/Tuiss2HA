@@ -18,7 +18,8 @@ from .const import (
     DOMAIN,
     BLIND_NOTIFY_CHARACTERISTIC,
     UUID,
-    CONNECTION_MESSAGE
+    CONNECTION_MESSAGE,
+    DEFAULT_RESTART_ATTEMPTS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,8 +91,14 @@ class TuissBlind:
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
 
-        # check if the device not loaded at boot and retry a connection
+        #Set restart attempts if not set in options
         rediscover_attempts = 0
+        _LOGGER.debug("%s: Number of attempts: %s", self.name, self._restart_attempts)
+        _LOGGER.debug("%s: Startup position check: %s",self.name, self._position_on_restart)
+        if self._restart_attempts is None:
+            self._restart_attempts = DEFAULT_RESTART_ATTEMPTS
+
+        # check if the device not loaded at boot and retry a connection
         while self._ble_device is None and rediscover_attempts < self._restart_attempts:
             _LOGGER.debug("Unable to find device %s, attempting rediscovery", self.name)
             self._ble_device = bluetooth.async_ble_device_from_address(
