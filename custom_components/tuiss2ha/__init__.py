@@ -37,7 +37,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         #only attempt to get the current position of the blind on boot if required. Required when using tuiss app or bluetooth remotes
-        blind._position_on_restart = entry.options.get("blind_restart_position")
+        try:
+            blind._position_on_restart = entry.options.get("blind_restart_position")
+        except:
+            blind._position_on_restart = False
         _LOGGER.debug("Getting the blind position for %s if %s set TRUE",blind.name, blind._position_on_restart)
 
         if blind._position_on_restart:
