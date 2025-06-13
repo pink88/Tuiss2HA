@@ -23,5 +23,5 @@
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
   "loggers": ["custom_components.tuiss2ha"],
   "requirements": ["bleak>=0.21.1","bleak-retry-connector>=3.2.1"],
-  "version": "1.7.0"
+  "version": "1.8.0"
 }
