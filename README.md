@@ -80,7 +80,10 @@ To overwrite home assistants built in integer accuracy, you can use the "Tuiss2h
 1. *Setting the top and bottom thresholds of the blind* - you still need to pair with and use the Tuiss Smartview app to set these values.
 2. *Realtime blind positioning* - only works after the first use as this initial run is required to calibrate the speed of your blind motor.
 
-## Troubleshooting ##
-- If you notice that the provided action "Get_Blind_Position" is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then a configuration option has been added to invert the result, which can be set within the Tuiss2HA Integration screen in Home Assistant after your blind has been added.
+## Troubleshooting and Options ##
+Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
+- OPTION: If you notice that the provided action _"Set_Blind_Position"_ is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then you can toggle the configuration option _"Invert Set_Blind_Position"_. 
+- OPTION: Sometimes the devices take a few attempts to connect, so expect some delay to commmands. This may also be a result of too many bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of bluetooth adapters/proxies. You can change the max number of retry attempts using the configuration option _"Reconnection attempts"_.
+- OPTION: If you use the Tuiss app or a remote control  to move the blinds in addition to this integration, you may want home assistant to fetch the latest position of a blind when it is restarted using configuration option _"Check for blind position on restart"_.
+
 - I have tested this integration with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work. I had to use a few ESP32 devices with Bluetooth proxy software installed using the excellent ESPHome (See [here](https://esphome.io/components/bluetooth_proxy.html))
-- Sometimes the devices take a few attempts to connect, so expect some delay to commmands. This may also be a result of too many bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of bluetooth adapters/proxies.
