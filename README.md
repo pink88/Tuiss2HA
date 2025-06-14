@@ -2,12 +2,12 @@
 This adds support for Tuiss Smartview BLE blinds. These blinds use bluetooth low energy and are controlled through a simple cover interface. This integration does not support RF control.
 
 ## Supported Tuiss Hardware Versions and Prerequisites ##
-The following hardeare versions have been tested and confirmed as working, but other versions should be supoorted.
+The following hardware versions have been tested and confirmed as working, but other versions should be supported.
 
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. First seen in blinds supplied from March 2025.
 
-Before xonncting a blind to Home Assistant, first add the blind to the Tuiss Smartview app and follow the set up instruction to pair and to set the upper and lower limits.
+Before connecting a blind to Home Assistant, first add the blind to the Tuiss Smartview app and follow the set-up instructions to pair and to set the upper and lower limits.
 
 ## Installation and adding your first device ##
 1. Complete the setup of your blind in the Tuiss Smartview app
@@ -83,7 +83,7 @@ To overwrite home assistants built in integer accuracy, you can use the "Tuiss2h
 ## Troubleshooting and Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
 - OPTION: If you notice that the provided action _"Set_Blind_Position"_ is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then you can toggle the configuration option _"Invert Set_Blind_Position"_. 
-- OPTION: Sometimes the devices take a few attempts to connect, so expect some delay to commmands. This may also be a result of too many bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of bluetooth adapters/proxies. You can change the max number of retry attempts using the configuration option _"Reconnection attempts"_.
+- OPTION: Sometimes the devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devices closer or increasing the number of bluetooth adapters/proxies. You can change the max number of retry attempts using the configuration option _"Reconnection attempts"_.
 - OPTION: If you use the Tuiss app or a remote control  to move the blinds in addition to this integration, you may want home assistant to fetch the latest position of a blind when it is restarted using configuration option _"Check for blind position on restart"_.
 
 - I have tested this integration with HAOS installed on a Raspberry Pi4b and the built in Bluetooth module did not work. I had to use a few ESP32 devices with Bluetooth proxy software installed using the excellent ESPHome (See [here](https://esphome.io/components/bluetooth_proxy.html))
