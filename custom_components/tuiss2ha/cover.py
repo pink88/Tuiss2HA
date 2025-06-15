@@ -25,7 +25,6 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 
 
-
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ async def async_setup_entry(
 ) -> None:
     """Add cover for passed config_entry in HA."""
     hub = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities(Tuiss(blind,config_entry) for blind in hub.blinds)
+    async_add_entities(Tuiss(blind, config_entry) for blind in hub.blinds)
     platform = entity_platform.async_get_current_platform()
 
     platform.async_register_entity_service(
@@ -56,7 +55,6 @@ async def async_setup_entry(
     platform.async_register_entity_service(
         "set_blind_position", SET_BLIND_POSITION_SCHEMA, async_set_blind_position
     )
-
 
 
 async def async_get_blind_position(entity, service_call):
@@ -69,7 +67,9 @@ async def async_set_blind_position(entity, service_call):
     """Set the blind position with decimal precision."""
     position = service_call.data["position"]
     await entity._blind.set_position(100 - position)
-    if entity._blind_orientation: #wokraround for some blinds working opposite for this service only?
+    if (
+        entity._blind_orientation
+    ):  # wokraround for some blinds working opposite for this service only?
         entity._blind._current_cover_position = 100 - position
     else:
         entity._blind._current_cover_position = position
@@ -93,8 +93,6 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._blind_orientation = config.options.get("blind_orientation")
         self._blind._restart_attempts = config.options.get("blind_restart_attempts")
         self._blind._position_on_restart = config.options.get("blind_restart_position")
-
-        
 
     @property
     def state(self):
@@ -242,9 +240,12 @@ class Tuiss(CoverEntity, RestoreEntity):
                         * self._attr_traversal_time
                         * movVal
                     )
-                    self._blind._current_cover_position = round(sorted(
-                        [startPos, startPos + traversalDelta, 100 - targetPos]
-                    )[1],2)
+                    self._blind._current_cover_position = round(
+                        sorted([startPos, startPos + traversalDelta, 100 - targetPos])[
+                            1
+                        ],
+                        2,
+                    )
                     await self.async_scheduled_update_request()
                 await asyncio.sleep(1)
 

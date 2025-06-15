@@ -19,7 +19,7 @@ from .const import (
     BLIND_NOTIFY_CHARACTERISTIC,
     UUID,
     CONNECTION_MESSAGE,
-    DEFAULT_RESTART_ATTEMPTS
+    DEFAULT_RESTART_ATTEMPTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,7 +69,6 @@ class TuissBlind:
         self._restart_attempts = None
         self._position_on_restart = None
 
-
     @property
     def blind_id(self) -> str:
         """Return ID for blind."""
@@ -91,10 +90,12 @@ class TuissBlind:
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
 
-        #Set restart attempts if not set in options
+        # Set restart attempts if not set in options
         rediscover_attempts = 0
         _LOGGER.debug("%s: Number of attempts: %s", self.name, self._restart_attempts)
-        _LOGGER.debug("%s: Startup position check: %s",self.name, self._position_on_restart)
+        _LOGGER.debug(
+            "%s: Startup position check: %s", self.name, self._position_on_restart
+        )
         if self._restart_attempts is None:
             self._restart_attempts = DEFAULT_RESTART_ATTEMPTS
 
@@ -110,7 +111,9 @@ class TuissBlind:
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
                 self.name,
             )
-            raise Exception(f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies")
+            raise Exception(
+                f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies"
+            )
 
         retry_count = 1
         while retry_count <= self._restart_attempts:
@@ -119,7 +122,7 @@ class TuissBlind:
                 self.name,
                 self._ble_device,
                 retry_count,
-                self._restart_attempts
+                self._restart_attempts,
             )
             await self.blind_connect()
 
@@ -130,8 +133,14 @@ class TuissBlind:
             retry_count += 1
 
         # If we reach here, we have exceeded max retries
-        _LOGGER.error("%s: Connection failed too many times [%d]", self.name, self._restart_attempts)
-        raise Exception(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
+        _LOGGER.error(
+            "%s: Connection failed too many times [%d]",
+            self.name,
+            self._restart_attempts,
+        )
+        raise Exception(
+            f"{self.name}: Connection failed too many times [{self._restart_attempts}]"
+        )
 
     # Connect
     async def blind_connect(self):

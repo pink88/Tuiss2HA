@@ -13,6 +13,10 @@
     {
       "local_name": "TS5200",
       "connectable" : true
+    },
+    {
+      "local_name" : "TS5001",
+      "connectable": true
     }
   ],
   "codeowners" : ["@pink88"],
