@@ -1,6 +1,7 @@
 # Application Dependencies
 bleak
 bleak-retry-connector
+bluetooth-auto-recovery
 pyserial
 
 # Testing Dependencies
