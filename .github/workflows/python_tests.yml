@@ -33,10 +33,11 @@ jobs:
 
       # Step 3: Installs the testing tools.
       # The reference to requirements.txt has been removed.
+      # Added bleak_retry_connector to resolve the ModuleNotFoundError.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-mock pytest-homeassistant-custom-component pytest-socket bleak
+          pip install pytest pytest-asyncio pytest-mock pytest-homeassistant-custom-component pytest-socket bleak bleak_retry_connector
 
       # Step 4: Create a definitive conftest.py override
       # This step programmatically creates a configuration file in the runner.
