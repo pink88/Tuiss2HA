@@ -4,13 +4,14 @@ name: Python application tests
 
 # Controls when the workflow will run.
 on:
-  # Triggers the workflow on push events but only for the "main" branch.
+  # Triggers the workflow on a push to any branch.
   push:
-    branches: 
+    branches:
       - '**'
-  # Triggers the workflow on pull request events for the "main" branch.
+  # Triggers the workflow on a pull request to any branch.
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - '**'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel.
 jobs:
@@ -30,15 +31,38 @@ jobs:
         with:
           python-version: "3.10"
 
-      # Step 3: Installs dependencies from your requirements.txt file and the testing tools.
+      # Step 3: Installs the testing tools.
+      # The reference to requirements.txt has been removed.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-mock pytest-homeassistant-custom-component pytest-socket
+          pip install pytest pytest-asyncio pytest-mock pytest-homeassistant-custom-component pytest-socket bleak
 
-      # Step 4: Runs the tests using pytest.
-      # We run pytest as a module ('python -m pytest') to avoid potential PATH issues.
-      # The correct flag to override a disabled socket is '--force-enable-socket'.
+      # Step 4: Create a definitive conftest.py override
+      # This step programmatically creates a configuration file in the runner.
+      # This is the most powerful way to configure pytest and will not be ignored.
+      - name: Create conftest.py to disable conflicting plugins
+        run: |
+          echo """
+          import sys
+          import asyncio
+
+          def pytest_configure(config):
+              # Forcefully unregister the pytest-socket plugin to prevent it from
+              # blocking the Home Assistant test framework's event loop setup.
+              # This is the most reliable way to resolve the conflict.
+              if config.pluginmanager.has_plugin('socket'):
+                  socket_plugin = config.pluginmanager.get_plugin('socket')
+                  config.pluginmanager.unregister(socket_plugin)
+
+              # Set the correct event loop policy for non-Windows runners.
+              # While the primary issue was on Windows, this ensures consistency.
+              if sys.platform != 'win32':
+                  asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+          """ > conftest.py
+
+      # Step 5: Run tests with the override in place
+      # No command-line flags are needed, as the conftest.py handles all configuration.
       - name: Test with pytest
         run: |
-          python -m pytest --force-enable-socket
+          python -m pytest
