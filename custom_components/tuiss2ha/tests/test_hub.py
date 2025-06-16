@@ -8,8 +8,9 @@ from unittest.mock import AsyncMock, patch
 # This ensures that 'custom_components.tuiss2ha.hub' can be found
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-# Correctly import the 'Hub' class and UUID constants from your 'hub.py' file
-from custom_components.tuiss2ha.hub import Hub, BATTERY_LEVEL_UUID, CURRENT_POSITION_UUID, MOTOR_CONTROL_UUID
+# Correctly import only the 'Hub' class from your 'hub.py' file.
+# The UUIDs are attributes of the Hub instance, not module-level constants.
+from custom_components.tuiss2ha.hub import Hub
 
 # Mark all tests in this module as asyncio tests
 pytestmark = pytest.mark.asyncio
@@ -42,26 +43,24 @@ async def test_get_battery_level(hass, mock_bleak_client):
     """
     Tests the get_battery_level method.
     """
-    # Arrange: Simulate the device returning a battery level of 90 (0x5A)
+    # Arrange
     mock_bleak_client.read_gatt_char.return_value = bytearray([0x5A])
-    
-    # Instantiate the Hub with the device name passed directly.
     hub = Hub(hass, FAKE_DEVICE_ADDRESS, FAKE_DEVICE_NAME)
 
-    # Act: Call the correct method
+    # Act
     battery_level = await hub.get_battery_level()
 
     # Assert
     assert battery_level == 90
-    # Check that read_gatt_char was called with the correct battery UUID
-    mock_bleak_client.read_gatt_char.assert_called_once_with(BATTERY_LEVEL_UUID)
+    # Use the instance attribute for the UUID
+    mock_bleak_client.read_gatt_char.assert_called_once_with(hub.char_battery)
 
 
 async def test_get_position(hass, mock_bleak_client):
     """
     Tests the get_position method.
     """
-    # Arrange: Simulate device returning a position of 75 (0x4B)
+    # Arrange
     mock_bleak_client.read_gatt_char.return_value = bytearray([0x4B])
     hub = Hub(hass, FAKE_DEVICE_ADDRESS, FAKE_DEVICE_NAME)
 
@@ -70,7 +69,8 @@ async def test_get_position(hass, mock_bleak_client):
 
     # Assert
     assert position == 75
-    mock_bleak_client.read_gatt_char.assert_called_once_with(CURRENT_POSITION_UUID)
+    # Use the instance attribute for the UUID
+    mock_bleak_client.read_gatt_char.assert_called_once_with(hub.char_position)
 
 
 async def test_set_position(hass, mock_bleak_client):
@@ -85,9 +85,9 @@ async def test_set_position(hass, mock_bleak_client):
     await hub.set_position(target_position)
 
     # Assert
-    # The command to set position sends a payload: b'\x01' + position byte
     expected_payload = b"\x01" + target_position.to_bytes(1, "little")
-    mock_bleak_client.write_gatt_char.assert_called_once_with(MOTOR_CONTROL_UUID, expected_payload)
+    # Use the instance attribute for the UUID
+    mock_bleak_client.write_gatt_char.assert_called_once_with(hub.char_control, expected_payload)
 
 
 async def test_open(hass, mock_bleak_client):
@@ -101,10 +101,9 @@ async def test_open(hass, mock_bleak_client):
     await hub.open()
 
     # Assert
-    # The 'open' command should result in a call to set_position(0).
-    # The payload for position 0 is b'\x01\x00'
     expected_payload = b'\x01\x00'
-    mock_bleak_client.write_gatt_char.assert_called_once_with(MOTOR_CONTROL_UUID, expected_payload)
+    # Use the instance attribute for the UUID
+    mock_bleak_client.write_gatt_char.assert_called_once_with(hub.char_control, expected_payload)
 
 
 async def test_close(hass, mock_bleak_client):
@@ -118,5 +117,40 @@ async def test_close(hass, mock_bleak_client):
     await hub.close()
 
     # Assert
-    # The 'close' command should result in a call to set_position(100).
-    # The payload for position 100 is b'\
+    expected_payload = b'\x01\x64'
+    # Use the instance attribute for the UUID
+    mock_bleak_client.write_gatt_char.assert_called_once_with(hub.char_control, expected_payload)
+
+
+async def test_stop(hass, mock_bleak_client):
+    """
+    Tests the stop method.
+    """
+    # Arrange
+    hub = Hub(hass, FAKE_DEVICE_ADDRESS, FAKE_DEVICE_NAME)
+
+    # Act
+    await hub.stop()
+
+    # Assert
+    expected_payload = b'\x00'
+    # Use the instance attribute for the UUID
+    mock_bleak_client.write_gatt_char.assert_called_once_with(hub.char_control, expected_payload)
+
+
+async def test_connection_management(hass, mock_bleak_client):
+    """
+    Tests that the hub context manager properly connects and disconnects the client.
+    """
+    # Arrange
+    hub = Hub(hass, FAKE_DEVICE_ADDRESS, FAKE_DEVICE_NAME)
+    assert hub._name == FAKE_DEVICE_NAME
+
+    # Act
+    async with hub as h:
+        # Assert
+        mock_bleak_client.connect.assert_called_once()
+        assert h is not None
+
+    # Assert
+    mock_bleak_client.disconnect.assert_called_once()
