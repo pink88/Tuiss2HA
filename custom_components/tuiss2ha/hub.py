@@ -68,6 +68,12 @@ class TuissBlind:
         self._desired_orientation = False
         self._restart_attempts = None
         self._position_on_restart = None
+        
+        if self._ble_device is None:
+            raise Exception(
+                f"{self.name}: Cannot find your blind, BLE connection may be weak, please check your bluetooth adapter configuration or proximity to the blind."
+            )
+        
 
     @property
     def blind_id(self) -> str:
@@ -112,7 +118,7 @@ class TuissBlind:
                 self.name,
             )
             raise Exception(
-                f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies"
+                f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies are working and within range."
             )
 
         retry_count = 1
@@ -239,7 +245,7 @@ class TuissBlind:
         except:
             _LOGGER.debug("%s: Stop failed.", self.name)
             raise RuntimeError(
-                "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
+                "Unable to STOP as connection to your blind has been lost. Check the blind has enough battery and is within bluetooth range"
             )
 
     ##################################################################################################
