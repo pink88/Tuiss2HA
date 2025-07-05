@@ -72,8 +72,9 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
         """Run when this Entity has been added to HA."""
         last_state = await self.async_get_last_state()
         _LOGGER.debug(last_state)
-        if last_state.state == "on":
-            self._attr_is_on = True
+        if last_state is not None:
+            if last_state.state == "on":
+                self._attr_is_on = True
         else:
             self._attr_is_on = False
 
