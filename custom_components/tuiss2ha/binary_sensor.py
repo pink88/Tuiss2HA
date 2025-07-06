@@ -53,6 +53,7 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
         self._attr_unique_id = f"{self._blind.blind_id}_battery"
         self._attr_name = f"{self._blind.name} Battery"
         self._attr_device_class = BinarySensorDeviceClass.BATTERY
+        self._attr_is_on = None
 
     # To link this entity to the cover device, this property must return an
     # identifiers value matching that used in the cover, but no other information such
@@ -67,6 +68,13 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
     def device_class(self):
         """Return device class."""
         return self._attr_device_class
+    
+    @property
+    def state(self):
+        if self._attr_is_on:
+            return "on"
+        else:
+            return "off"
 
     async def async_added_to_hass(self):
         """Run when this Entity has been added to HA."""
