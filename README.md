@@ -10,7 +10,10 @@ The following hardware versions have been tested and confirmed as working, but o
 
 Before conncting a blind to Home Assistant, first add the blind to the Tuiss Smartview app and follow the setup instruction to pair and to set the upper and lower limits.
 
-## Installation and adding your first device ##
+## Installation and adding your devices ##
+
+*Note: Devices should be automatically discovered if they are in range of a Bluetooth adapter/proxy once you have completed steps 1-3. If not you can add manually, though doing so may mean that your blinds are out of Bluetooth range.*
+
 1. Complete the setup of your blind in the Tuiss Smartview app
 2. Add the integration from the HACS marketplace ([instructions here](https://hacs.xyz/docs/configuration/basic))
 3. Restart Home Assistant if required
@@ -21,8 +24,6 @@ Before conncting a blind to Home Assistant, first add the blind to the Tuiss Sma
 8. Enter the MAC address from the tag included with your blind, or written within the top bracket of the blind, close to where the battery is plugged in
 9. Give the blind a name
 10. Click Submit
-
-*Note: Subsequent devices should be automatically discovered if they are in range of a Bluetooth adapter/proxy.*
 
 
 ## Features ##
