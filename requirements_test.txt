@@ -1,0 +1,12 @@
+# Application Dependencies
+bleak
+bleak-retry-connector
+bluetooth-auto-recovery
+pyserial
+
+# Testing Dependencies
+pytest
+pytest-asyncio
+pytest-mock
+pytest-homeassistant-custom-component
+pytest-socket

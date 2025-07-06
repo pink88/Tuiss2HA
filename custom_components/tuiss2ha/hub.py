@@ -68,6 +68,7 @@ class TuissBlind:
         self._desired_orientation = False
         self._restart_attempts = None
         self._position_on_restart = None
+        self._blind_speed = None
 
 
     @property
@@ -232,6 +233,37 @@ class TuissBlind:
             raise RuntimeError(
                 "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
             )
+
+
+
+    async def set_speed(self) -> None:
+        """Set the speed for supported blind types"""
+        _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
+        match self._blind_speed:
+            case "Standard":
+                command = bytes.fromhex("ff78ea41f200")
+            case "Comfort":
+                command = bytes.fromhex("ff78ea41f201")
+            case "Slow":
+                command = bytes.fromhex("ff78ea41f202")
+
+
+        # connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # send the command
+        try:
+            if self._client and self._client.is_connected:
+                await self.send_command(UUID, command)
+                await self.blind_disconnect()
+        except:
+            _LOGGER.debug("%s: Unable to set the speed.", self.name)
+            raise RuntimeError(
+                "Unable to set the speed. Check has enough battery and within bluetooth range"
+            )
+        
+
 
     ##################################################################################################
     ## GET METHODS ############################################################################

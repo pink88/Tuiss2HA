@@ -9,12 +9,27 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
+from homeassistant.helpers import device_registry, selector
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 
 
-from .const import CONF_BLIND_HOST, CONF_BLIND_NAME, DOMAIN, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION, OPT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, DEFAULT_RESTART_POSITION
+from .const import (
+    CONF_BLIND_HOST,
+    CONF_BLIND_NAME,
+    DOMAIN,
+    OPT_BLIND_ORIENTATION,
+    DEFAULT_BLIND_ORIENTATION,
+    OPT_RESTART_POSITION,
+    OPT_RESTART_ATTEMPTS,
+    DEFAULT_RESTART_ATTEMPTS,
+    DEFAULT_RESTART_POSITION,
+    SPEED_CONTROL_SUPPORTED_MODELS,
+    OPT_BLIND_SPEED,
+    DEFAULT_BLIND_SPEED,
+    BLIND_SPEED_LIST
+)
 from .hub import Hub
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +48,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_ASSUMED
 
-
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -45,8 +59,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialise a config flow"""
         self._discovery_info: BluetoothServiceInfoBleak | BLEDevice | None = None
-        #self._mac_code: str | None = None
-
+        # self._mac_code: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -74,7 +87,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
-            _LOGGER.debug("Creating entry for %s",user_input[CONF_BLIND_HOST])
+            _LOGGER.debug("Creating entry for %s", user_input[CONF_BLIND_HOST])
             user_input[CONF_BLIND_HOST] = user_input[CONF_BLIND_HOST].upper()
             return self.async_create_entry(title=_title, data=user_input)
 
@@ -90,9 +103,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
         """Handle the bluetooth discovery step."""
-        _LOGGER.debug(
-            "Discovered bluetooth device: %s", discovery_info.as_dict()
-        )
+        _LOGGER.debug("Discovered bluetooth device: %s", discovery_info.as_dict())
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
@@ -101,25 +112,28 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return await self.async_step_confirm()
 
 
-    async def async_step_confirm(self, user_input: dict[str, Any] | None = None
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         _LOGGER.debug("Ready to add the device %s", self._discovery_info.address)
 
         if user_input is not None:
-            _LOGGER.debug("Ready to add the device %s, %s", self._discovery_info.address, user_input[CONF_BLIND_NAME])
+            _LOGGER.debug(
+                "Ready to add the device %s, %s",
+                self._discovery_info.address,
+                user_input[CONF_BLIND_NAME],
+            )
             user_input[CONF_BLIND_HOST] = self._discovery_info.address
             _title = await validate_input(self.hass, user_input)
-            
-            _LOGGER.debug ("Creating the entry for %s",user_input[CONF_BLIND_NAME])
-            return self.async_create_entry(title=_title, data=user_input)
 
+            _LOGGER.debug("Creating the entry for %s", user_input[CONF_BLIND_NAME])
+            return self.async_create_entry(title=_title, data=user_input)
 
         return self.async_show_form(
             step_id="confirm",
             data_schema=vol.Schema({vol.Required(CONF_BLIND_NAME): str}),
             description_placeholders=self.context["title_placeholders"],
         )
-
 
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
@@ -149,30 +163,59 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage Tuiss options."""
+        
+        dr = device_registry.async_get(self.hass)
+        model_type = ""
+        _LOGGER.debug("Options flow, config entry: %s",self.config_entry.entry_id)
+
+        for device in dr.devices.values():
+            if self.config_entry.entry_id in device.config_entries:
+                model_type = device.model
+                break
+        _LOGGER.debug("Options flow, model_type %s",model_type)    
+        
+
         if user_input is not None:
             # Update common entity options for all other entities.
             return self.async_create_entry(title="", data=user_input)
 
-        options: dict[vol.Optional, Any] = {
-            vol.Optional(
+        options: dict[vol.Optional, Any] = dict()
+            
+        options[vol.Optional(
                 OPT_BLIND_ORIENTATION,
                 default=self.config_entry.options.get(
                     OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
-                )): bool,
-            vol.Optional(
+                ),
+            )] = bool
+        options[vol.Optional(
                 OPT_RESTART_POSITION,
-                default = self.config_entry.options.get(
+                default=self.config_entry.options.get(
                     OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION
-                )): bool,
-            vol.Optional(
+                ),
+            )] = bool
+        options[vol.Optional(
                 OPT_RESTART_ATTEMPTS,
-                default = self.config_entry.options.get(
+                default=self.config_entry.options.get(
                     OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
-            )): int
-        }
+                ),
+            )] = int
+        #MAKE AN OPTION FOR SOME DEVICES AS APPLICABLE
+        if model_type in SPEED_CONTROL_SUPPORTED_MODELS:
+            _LOGGER.debug("Found model_type for %s",self.config_entry.entry_id)
+            options[vol.Optional(
+                OPT_BLIND_SPEED,
+                default=self.config_entry.options.get(
+                    OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+                ),
+            )] = selector.selector({
+                "select": {
+                    "multiple": False, 
+                    "options": BLIND_SPEED_LIST,
+                    "mode": selector.SelectSelectorMode.DROPDOWN 
+                }
+            })
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
-
 
 
 class CannotConnect(exceptions.HomeAssistantError):

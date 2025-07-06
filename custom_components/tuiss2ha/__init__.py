@@ -10,7 +10,7 @@ from homeassistant.components import bluetooth
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
-from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION,OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
+from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION,OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
 
 
 
@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not entry.options:
             hass.config_entries.async_update_entry(
             entry,
-            options={OPT_BLIND_ORIENTATION: DEFAULT_BLIND_ORIENTATION, OPT_RESTART_POSITION: DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS},
+            options={OPT_BLIND_ORIENTATION: DEFAULT_BLIND_ORIENTATION, OPT_RESTART_POSITION: DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED: DEFAULT_BLIND_SPEED},
         )
 
         #only attempt to get the current position of the blind on boot if required. Required when using tuiss app or bluetooth remotes
@@ -72,9 +72,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return True
 
+
+
 async def update_listener(hass, entry):
     """Handle options update."""
-    
+    # Check if the options value has been changed
+    my_blind_instance: MyBlindDevice = hass.data[DOMAIN].get(entry.entry_id)
+    if not my_blind_instance:
+        _LOGGER.warning(f"Could not find device instance for entry {entry.entry_id}")
+        return
+
+    # Retrieve the updated option value
+    new_blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
+    current_blind_speed = my_blind_instance.blinds[0]._blind_speed
+    _LOGGER.debug("New blind speed: %s, Current blind speed: %s", new_blind_speed, current_blind_speed)
+    _LOGGER.debug(f"Could not find device instance for entry {entry.entry_id}")
+
+
+    # Check if the speed actually changed (important to avoid unnecessary calls)
+    if new_blind_speed != current_blind_speed: # Access the internal state
+        _LOGGER.info(f"Options updated: Calling set_blind_speed for {entry.entry_id}")
+        await my_blind_instance.blinds[0].set_speed()
+    else:
+        _LOGGER.debug(f"Blind speed option did not change for {entry.entry_id}")
+
     await hass.config_entries.async_reload(entry.entry_id)
 
 
