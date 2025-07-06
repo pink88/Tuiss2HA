@@ -8,8 +8,6 @@ The following hardware versions have been tested and confirmed as working, but o
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
 -TS5001/TS5101: Roller blinds which support variable movement speeds.
 
-Before conncting a blind to Home Assistant, first add the blind to the Tuiss Smartview app and follow the setup instruction to pair and to set the upper and lower limits.
-
 ## Installation and adding your devices ##
 
 *Note: Devices should be automatically discovered if they are in range of a Bluetooth adapter/proxy once you have completed steps 1-3. If not you can add manually, though doing so may mean that your blinds are out of Bluetooth range.*
@@ -81,7 +79,7 @@ To overwrite Home Assistant's built in integer accuracy, you can use the "Tuiss2
 ## Configuration Options and Troubleshooting ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
 - OPTION: If you notice that the provided action _"Set_Blind_Position"_ is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then you can toggle the configuration option _"Invert Set_Blind_Position"_. 
-- OPTION: Sometimes the devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of Bluetooth adapters/proxies. You can change the maximum number of retry attempts using the configuration option _"Reconnection attempts"_.
+- OPTION: Sometimes devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of Bluetooth adapters/proxies. You can change the maximum number of retry attempts using the configuration option _"Reconnection attempts"_.
 - OPTION: If you use the Tuiss app or a remote control  to move the blinds in addition to this integration, you may want Home Assistant to fetch the latest position of a blind when it is restarted using configuration option _"Check for blind position on restart"_.
 - OPTION: For supported models, the speed of the blind can be set. There are three speeds to select Standard (fastest) -> Comfort -> Slow (slowest). By default the speed will be set to Standard.
 
