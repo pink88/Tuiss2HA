@@ -9,6 +9,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
+from homeassistant.helpers import device_registry, selector
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
@@ -24,6 +25,10 @@ from .const import (
     OPT_RESTART_ATTEMPTS,
     DEFAULT_RESTART_ATTEMPTS,
     DEFAULT_RESTART_POSITION,
+    SPEED_CONTROL_SUPPORTED_MODELS,
+    OPT_BLIND_SPEED,
+    DEFAULT_BLIND_SPEED,
+    BLIND_SPEED_LIST
 )
 from .hub import Hub
 
@@ -106,6 +111,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovery_info = discovery_info
         return await self.async_step_confirm()
 
+
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -157,30 +163,57 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage Tuiss options."""
+        
+        dr = device_registry.async_get(self.hass)
+        model_type = ""
+        _LOGGER.debug("Options flow, config entry: %s",self.config_entry.entry_id)
+
+        for device in dr.devices.values():
+            if self.config_entry.entry_id in device.config_entries:
+                model_type = device.model
+                break
+        _LOGGER.debug("Options flow, model_type %s",model_type)    
+        
+
         if user_input is not None:
             # Update common entity options for all other entities.
             return self.async_create_entry(title="", data=user_input)
 
-        options: dict[vol.Optional, Any] = {
-            vol.Optional(
+        options: dict[vol.Optional, Any] = dict()
+            
+        options[vol.Optional(
                 OPT_BLIND_ORIENTATION,
                 default=self.config_entry.options.get(
                     OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
                 ),
-            ): bool,
-            vol.Optional(
+            )] = bool
+        options[vol.Optional(
                 OPT_RESTART_POSITION,
                 default=self.config_entry.options.get(
                     OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION
                 ),
-            ): bool,
-            vol.Optional(
+            )] = bool
+        options[vol.Optional(
                 OPT_RESTART_ATTEMPTS,
                 default=self.config_entry.options.get(
                     OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
                 ),
-            ): int,
-        }
+            )] = int
+        #MAKE AN OPTION FOR SOME DEVICES AS APPLICABLE
+        if model_type in SPEED_CONTROL_SUPPORTED_MODELS:
+            _LOGGER.debug("Found model_type for %s",self.config_entry.entry_id)
+            options[vol.Optional(
+                OPT_BLIND_SPEED,
+                default=self.config_entry.options.get(
+                    OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+                ),
+            )] = selector.selector({
+                "select": {
+                    "multiple": False, 
+                    "options": BLIND_SPEED_LIST,
+                    "mode": selector.SelectSelectorMode.DROPDOWN 
+                }
+            })
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
 

@@ -33,7 +33,8 @@
                   "data": {
                     "blind_orientation": "Invert Set Blind Position response",
                     "blind_restart_position": "Check for blind position on restart",
-                    "blind_restart_attempts": "Reconnection attempts"
+                    "blind_restart_attempts": "Reconnection attempts",
+                    "blind_speed": "How fast should the blind move to position"
                 },
                 "data_description": {
                      "blind_orientation": "Inverts the result of the 'Set_Blind_Position' action. Select this if using the action returns a value that is opposite to what you would expect e.g. 60% open instead of 40% open.",

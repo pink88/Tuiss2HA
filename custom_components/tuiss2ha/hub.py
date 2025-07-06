@@ -19,7 +19,7 @@ from .const import (
     BLIND_NOTIFY_CHARACTERISTIC,
     UUID,
     CONNECTION_MESSAGE,
-    DEFAULT_RESTART_ATTEMPTS,
+    DEFAULT_RESTART_ATTEMPTS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,12 +68,8 @@ class TuissBlind:
         self._desired_orientation = False
         self._restart_attempts = None
         self._position_on_restart = None
-        
-        if self._ble_device is None:
-            raise Exception(
-                f"{self.name}: Cannot find your blind, BLE connection may be weak, please check your bluetooth adapter configuration or proximity to the blind."
-            )
-        
+        self._blind_speed = None
+
 
     @property
     def blind_id(self) -> str:
@@ -96,12 +92,10 @@ class TuissBlind:
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
 
-        # Set restart attempts if not set in options
+        #Set restart attempts if not set in options
         rediscover_attempts = 0
         _LOGGER.debug("%s: Number of attempts: %s", self.name, self._restart_attempts)
-        _LOGGER.debug(
-            "%s: Startup position check: %s", self.name, self._position_on_restart
-        )
+        _LOGGER.debug("%s: Startup position check: %s",self.name, self._position_on_restart)
         if self._restart_attempts is None:
             self._restart_attempts = DEFAULT_RESTART_ATTEMPTS
 
@@ -117,9 +111,7 @@ class TuissBlind:
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
                 self.name,
             )
-            raise Exception(
-                f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies are working and within range."
-            )
+            raise Exception(f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies")
 
         retry_count = 1
         while retry_count <= self._restart_attempts:
@@ -128,7 +120,7 @@ class TuissBlind:
                 self.name,
                 self._ble_device,
                 retry_count,
-                self._restart_attempts,
+                self._restart_attempts
             )
             await self.blind_connect()
 
@@ -139,14 +131,8 @@ class TuissBlind:
             retry_count += 1
 
         # If we reach here, we have exceeded max retries
-        _LOGGER.error(
-            "%s: Connection failed too many times [%d]",
-            self.name,
-            self._restart_attempts,
-        )
-        raise Exception(
-            f"{self.name}: Connection failed too many times [{self._restart_attempts}]"
-        )
+        _LOGGER.error("%s: Connection failed too many times [%d]", self.name, self._restart_attempts)
+        raise Exception(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
 
     # Connect
     async def blind_connect(self):
@@ -245,8 +231,39 @@ class TuissBlind:
         except:
             _LOGGER.debug("%s: Stop failed.", self.name)
             raise RuntimeError(
-                "Unable to STOP as connection to your blind has been lost. Check the blind has enough battery and is within bluetooth range"
+                "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
             )
+
+
+
+    async def set_speed(self) -> None:
+        """Set the speed for supported blind types"""
+        _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
+        match self._blind_speed:
+            case "Standard":
+                command = bytes.fromhex("ff78ea41f200")
+            case "Comfort":
+                command = bytes.fromhex("ff78ea41f201")
+            case "Slow":
+                command = bytes.fromhex("ff78ea41f202")
+
+
+        # connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # send the command
+        try:
+            if self._client and self._client.is_connected:
+                await self.send_command(UUID, command)
+                await self.blind_disconnect()
+        except:
+            _LOGGER.debug("%s: Unable to set the speed.", self.name)
+            raise RuntimeError(
+                "Unable to set the speed. Check has enough battery and within bluetooth range"
+            )
+        
+
 
     ##################################################################################################
     ## GET METHODS ############################################################################
