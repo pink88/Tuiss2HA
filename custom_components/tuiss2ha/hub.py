@@ -44,6 +44,16 @@ class Hub:
         """ID for dummy hub."""
         return self._id
 
+    @property
+    def host(self) -> str:
+        """Return the host address."""
+        return self._host
+
+    @property
+    def name(self) -> str:
+        """Return the hub name."""
+        return self._name
+
 
 class TuissBlind:
     """Tuiss Blind object."""
