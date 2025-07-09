@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.exc import BleakError
 from bleak_retry_connector import (
     BLEAK_RETRY_EXCEPTIONS,
     BleakClientWithServiceCache,
@@ -23,7 +25,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-hass = HomeAssistant
 
 
 class Hub:
@@ -67,18 +68,19 @@ class TuissBlind:
         self._ble_device = bluetooth.async_ble_device_from_address(
             self.hub._hass, self.host, connectable=True
         )
-        self.model = self._ble_device.name
+        self.model = self._ble_device.name if self._ble_device else None
         self._client: BleakClientWithServiceCache | None = None
         self._callbacks = set()
         self._battery_status = False
         self._moving = 0
-        self._current_cover_position = None
-        self._desired_position = None
         self._is_stopping = False
+        self._current_cover_position: float | None = None
+        self._desired_position: int | None = None
         self._desired_orientation = False
-        self._restart_attempts = None
-        self._position_on_restart = None
-        self._blind_speed = None
+        self._restart_attempts: int | None = None
+        self._position_on_restart: bool | None = None
+        self._blind_speed: str | None = None
+        
 
 
     @property
@@ -147,14 +149,16 @@ class TuissBlind:
     # Connect
     async def blind_connect(self):
         """Connect to the blind."""
+        assert self._ble_device is not None
+        device = self._ble_device
         try:
             client: BleakClientWithServiceCache = await establish_connection(
                 client_class=BleakClientWithServiceCache,
-                device=self._ble_device,
+                device=device,
                 name=self.host,
                 use_services_cache=True,
                 max_attempts=self._restart_attempts,
-                ble_device_callback=lambda: self._device,
+                ble_device_callback=lambda: device,
             )
             self._client = client
             # send the maintain connection message
@@ -165,7 +169,7 @@ class TuissBlind:
                 self._current_cover_position,
                 self._moving,
             )
-        except Exception as e:
+        except (BleakError, asyncio.TimeoutError) as e:
             _LOGGER.debug("Failed to connect to blind: %s", e)
 
     # Disconnect
@@ -202,6 +206,7 @@ class TuissBlind:
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
 
+        assert self._client is not None
         self._desired_position = 100 - userPercent
         _LOGGER.debug(
             "%s: Attempting to set position to: %s", self.name, self._desired_position
@@ -211,7 +216,7 @@ class TuissBlind:
             await self._client.start_notify(
                 BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
             )
-        except:
+        except BleakError:
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(
                 BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
@@ -236,13 +241,11 @@ class TuissBlind:
         try:
             if self._client and self._client.is_connected:
                 await self.send_command(UUID, command)
-                await self.get_blind_position()
-                self._is_stopping = False
-        except:
-            _LOGGER.debug("%s: Stop failed.", self.name)
+        except (BleakError, RuntimeError) as e:
+            _LOGGER.debug("%s: Stop failed: %s", self.name, e)
             raise RuntimeError(
                 "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
-            )
+            ) from e
 
 
 
@@ -267,11 +270,11 @@ class TuissBlind:
             if self._client and self._client.is_connected:
                 await self.send_command(UUID, command)
                 await self.blind_disconnect()
-        except:
-            _LOGGER.debug("%s: Unable to set the speed.", self.name)
+        except (BleakError, RuntimeError) as e:
+            _LOGGER.debug("%s: Unable to set the speed: %s", self.name, e)
             raise RuntimeError(
                 "Unable to set the speed. Check has enough battery and within bluetooth range"
-            )
+            ) from e
         
 
 
@@ -285,16 +288,20 @@ class TuissBlind:
         # connect to the blind first
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
+
+        assert self._client is not None
         try:
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-        except:
+        except BleakError:
             # when need to overwrite the existing notification
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
         finally:
             await self.send_command(UUID, command)
-            while self._client.is_connected:
-                await asyncio.sleep(1)
+            if self._client:
+                while self._client.is_connected:
+                    await asyncio.sleep(1)
+                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
 
     async def get_battery_status(self) -> None:
         """Get the battery state from the blind as good or bad."""
@@ -359,19 +366,19 @@ class TuissBlind:
     # Send the data
     async def send_command(self, UUID, command):
         """Send the command to the blind."""
-        _LOGGER.debug(
-            "%s (%s) connected state is %s",
-            self.name,
-            self._ble_device,
-            self._client.is_connected,
-        )
-        if self._client.is_connected:
+        if self._client and self._client.is_connected:
+            _LOGGER.debug(
+                "%s (%s) connected state is %s",
+                self.name,
+                self._ble_device,
+                self._client.is_connected,
+            )
             try:
                 _LOGGER.debug("%s: Sending the command", self.name)
                 await self._client.write_gatt_char(UUID, command)
-            except Exception as e:
+            except BleakError as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
-                raise RuntimeError(e)
+                raise RuntimeError(e) from e
 
     # Creates the % open/closed hex command
     def hex_convert(self, userPercent):

@@ -1,0 +1,47 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Aggiungi la tua tenda intelligente Tuiss.",
+                "description": "Assicurati di esserti collegato all'app Tuiss prima dell'uso per impostare correttamente i valori superiore e inferiore. L'indirizzo MAC si trova sull'etichetta allegata alla tua tenda o su un'etichetta stampata nella parte superiore della tenda, vicino a dove è collegata la batteria.",
+                "data": {
+                    "host": "XX:XX:XX:XX:XX:XX",
+                    "name": "Nome amichevole per la tua tenda."
+                }
+            },
+            "confirm": {
+                "title": "Dai un nome alla tua tenda intelligente Tuiss.",
+                "description": "Aggiungi un nome amichevole per la tua tenda.",
+                "data": {
+                    "name": "Nome amichevole per la tua tenda."
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]"
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    },
+    "options":{
+        "step":{
+            "init": {
+                "title": "Opzioni aggiuntive.",
+                "data": {
+                    "blind_orientation": "Inverti la risposta di 'Set_Blind_Position'",
+                    "blind_restart_position": "Controlla la posizione della tenda al riavvio",
+                    "blind_restart_attempts": "Tentativi di riconnessione",
+                    "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione"
+                },
+                "data_description": {
+                    "blind_orientation": "Inverte il risultato dell'azione 'Set_Blind_Position'. Seleziona questa opzione se l'uso dell'azione restituisce un valore opposto a quello che ti aspetteresti, ad es. 60% aperto invece del 40% aperto.",
+                    "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
+                    "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione."
+                }
+            }
+        }
+    }
+}
