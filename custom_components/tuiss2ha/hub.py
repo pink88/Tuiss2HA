@@ -254,11 +254,11 @@ class TuissBlind:
         _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
         match self._blind_speed:
             case "Standard":
-                command = bytes.fromhex("ff78ea41f200")
+                command = bytes.fromhex("ff78ea41f202")
             case "Comfort":
                 command = bytes.fromhex("ff78ea41f201")
             case "Slow":
-                command = bytes.fromhex("ff78ea41f202")
+                command = bytes.fromhex("ff78ea41f200")
 
 
         # connect to the blind first
