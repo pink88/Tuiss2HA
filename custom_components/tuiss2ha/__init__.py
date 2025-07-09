@@ -7,6 +7,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth import (
+    BluetoothCallbackMatcher,
+    BluetoothScanningMode,
+    async_register_callback,
+)
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
@@ -74,29 +79,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 
-async def update_listener(hass, entry):
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Handle options update."""
-    # Check if the options value has been changed
-    my_blind_instance: MyBlindDevice = hass.data[DOMAIN].get(entry.entry_id)
-    if not my_blind_instance:
-        _LOGGER.warning(f"Could not find device instance for entry {entry.entry_id}")
+    hub: Hub | None = hass.data[DOMAIN].get(entry.entry_id)
+    if not hub:
+        _LOGGER.warning("Could not find hub instance for entry %s", entry.entry_id)
         return
+
+    blind_device = hub.blinds[0]
 
     # Retrieve the updated option value
     new_blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
-    current_blind_speed = my_blind_instance.blinds[0]._blind_speed
-    _LOGGER.debug("New blind speed: %s, Current blind speed: %s", new_blind_speed, current_blind_speed)
-    _LOGGER.debug(f"Could not find device instance for entry {entry.entry_id}")
+    current_blind_speed = blind_device._blind_speed
 
+    # Check if the speed actually changed
+    if new_blind_speed == current_blind_speed:
+        _LOGGER.debug("Blind speed option did not change for %s", entry.entry_id)
+        return
 
-    # Check if the speed actually changed (important to avoid unnecessary calls)
-    if new_blind_speed != current_blind_speed: # Access the internal state
-        _LOGGER.info(f"Options updated: Calling set_blind_speed for {entry.entry_id}")
-        await my_blind_instance.blinds[0].set_speed()
-    else:
-        _LOGGER.debug(f"Blind speed option did not change for {entry.entry_id}")
+    _LOGGER.debug(
+        "Blind speed changed from %s to %s",
+        current_blind_speed,
+        new_blind_speed,
+    )
+    # Update the speed on the blind object.
+    blind_device._blind_speed = new_blind_speed
 
-    await hass.config_entries.async_reload(entry.entry_id)
+    # If the blind is currently moving, don't send the command.
+    # The new speed will be used on the next operation.
+    if blind_device._moving != 0:
+        _LOGGER.info(
+            "Blind '%s' is currently moving. Deferring speed change command.",
+            blind_device.name,
+        )
+        return
+
+    _LOGGER.info(
+        "Options updated: Calling set_blind_speed for %s", entry.entry_id
+    )
+    await blind_device.set_speed()
+
+    # The reload is handled by the options flow, so we don't need to do it here.
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

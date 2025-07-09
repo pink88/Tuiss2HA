@@ -1,0 +1,47 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Añade tu persiana inteligente Tuiss.",
+                "description": "Asegúrate de haberte conectado a la aplicación Tuiss antes de usarla para establecer correctamente los valores superior e inferior. La dirección MAC se puede encontrar en la etiqueta que venía adjunta a tu persiana o en una etiqueta impresa en la parte superior de la persiana, cerca de donde está conectada la batería.",
+                "data": {
+                    "host": "XX:XX:XX:XX:XX:XX",
+                    "name": "Nombre amigable para tu persiana."
+                }
+            },
+            "confirm": {
+                "title": "Nombra tu persiana inteligente Tuiss.",
+                "description": "Añade un nombre amigable para tu persiana.",
+                "data": {
+                    "name": "Nombre amigable para tu persiana."
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]"
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    },
+    "options":{
+        "step":{
+            "init": {
+                "title": "Opciones adicionales.",
+                "data": {
+                    "blind_orientation": "Invertir la respuesta de 'Set_Blind_Position'",
+                    "blind_restart_position": "Comprobar la posición de la persiana al reiniciar",
+                    "blind_restart_attempts": "Intentos de reconexión",
+                    "blind_speed": "A qué velocidad debe moverse la persiana a la posición"
+                },
+                "data_description": {
+                    "blind_orientation": "Invierte el resultado de la acción 'Set_Blind_Position'. Selecciona esta opción si al usar la acción se devuelve un valor opuesto al que esperarías, p. ej. 60% abierto en lugar de 40% abierto.",
+                    "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
+                    "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión."
+                }
+            }
+        }
+    }
+}

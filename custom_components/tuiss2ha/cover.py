@@ -33,9 +33,9 @@ _LOGGER = logging.getLogger(__name__)
 ATTR_TRAVERSAL_TIME = "traversal_time"
 ATTR_MAC_ADDRESS = "mac_address"
 
-SET_BLIND_POSITION_SCHEMA = {
-    vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
-}
+SET_BLIND_POSITION_SCHEMA = vol.Schema(
+    {vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100))}
+)
 
 
 async def async_setup_entry(
@@ -79,41 +79,45 @@ async def async_set_blind_position(entity, service_call):
 class Tuiss(CoverEntity, RestoreEntity):
     """Create Cover Class."""
 
-    def __init__(self, blind, config=None) -> None:
+    def __init__(self, blind, config: ConfigEntry | None = None) -> None:
         """Initialize the cover."""
         self._blind = blind
         self._attr_unique_id = f"{self._blind._id}_cover"
         self._attr_name = self._blind.name
         self._state = None
-        self._startTime = None
-        self._endTime = None
+        self._startTime: datetime.datetime | None = None
+        self._endTime: datetime.datetime | None = None
         self._attr_traversal_time = None
         self._attr_mac_address = self._blind.host
         self._locked = False
-        self._blind_orientation = config.options.get("blind_orientation")
-        self._blind._restart_attempts = config.options.get("blind_restart_attempts")
-        self._blind._position_on_restart = config.options.get("blind_restart_position")
+        self._blind_orientation = None
+        self._blind._restart_attempts = None
+        self._blind._position_on_restart = None
+        if config:
+            self._blind_orientation = config.options.get("blind_orientation")
+            self._blind._restart_attempts = config.options.get(
+                "blind_restart_attempts"
+            )
+            self._blind._position_on_restart = config.options.get(
+                "blind_restart_position"
+            )
 
     @property
     def state(self):
         """Set state of object."""
         # corrects the state if there is a disconnect during open or close
         _LOGGER.debug(
-            "%s: Setting State from %s. Moving: %s. Client: %s",
+            "%s: Calculating State. Moving: %s.",
             self._attr_name,
-            self._state,
             self._blind._moving,
-            self._blind._client,
         )
         if self._blind._moving > 0:
-            self._state = STATE_OPENING
-        elif self._blind._moving < 0:
-            self._state = STATE_CLOSING
-        elif self._blind._moving == 0 and self._blind._current_cover_position >= 25:
-            self._state = STATE_OPEN
-        else:
-            self._state = STATE_CLOSED
-        return self._state
+            return STATE_OPENING
+        if self._blind._moving < 0:
+            return STATE_CLOSING
+        if self._blind._current_cover_position is not None and self._blind._current_cover_position > 0:
+            return STATE_OPEN
+        return STATE_CLOSED
 
     @property
     def should_poll(self):
@@ -216,65 +220,73 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_move_cover(self, movVal, targetPos):
         await self._blind.attempt_connection()
-        if self._blind._client.is_connected and self._locked == False:
+        if self._blind._client and self._blind._client.is_connected and not self._locked:
             self._locked = True
-            startPos = self._blind._current_cover_position
-            self._blind._moving = movVal
+            try:
+                startPos = self._blind._current_cover_position
+                self._blind._moving = movVal
 
-            # Update the state and trigger the moving
-            await self.async_scheduled_update_request()
-            await self._blind.set_position(targetPos)
-            self._endTime = None
-            self._startTime = datetime.datetime.now()
-
-            while self._blind._client.is_connected:
-                # Update the position in realtime based on average traversal time
-                if self._attr_traversal_time is not None:
-                    _LOGGER.debug(
-                        "StartPos: %s. Timedelta: %s",
-                        startPos,
-                        (datetime.datetime.now() - self._startTime).total_seconds(),
-                    )
-                    traversalDelta = (
-                        (datetime.datetime.now() - self._startTime).total_seconds()
-                        * self._attr_traversal_time
-                        * movVal
-                    )
-                    self._blind._current_cover_position = round(
-                        sorted([startPos, startPos + traversalDelta, 100 - targetPos])[
-                            1
-                        ],
-                        2,
-                    )
-                    await self.async_scheduled_update_request()
-                await asyncio.sleep(1)
-
-            # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
-            if not self._blind._is_stopping:
-                self._endTime = datetime.datetime.now()
-                await self.update_traversal_time(100 - targetPos, startPos)
-
-                self._blind._current_cover_position = 100 - targetPos
-                self._blind._moving = 0
+                # Update the state and trigger the moving
                 await self.async_scheduled_update_request()
+                await self._blind.set_position(targetPos)
+                self._endTime = None
+                self._startTime = datetime.datetime.now()
 
-            # unlock the entity to allow more changes
-            self._locked = False
+                while self._blind._client and self._blind._client.is_connected:
+                    # Update the position in realtime based on average traversal time
+                    if self._attr_traversal_time is not None and self._startTime:
+                        _LOGGER.debug(
+                            "StartPos: %s. Timedelta: %s",
+                            startPos,
+                            (
+                                datetime.datetime.now() - self._startTime
+                            ).total_seconds(),
+                        )
+                        traversalDelta = (
+                            (datetime.datetime.now() - self._startTime).total_seconds()
+                            * self._attr_traversal_time
+                            * movVal
+                        )
+                        
+                        self._blind._current_cover_position = round(
+                            sorted([startPos, startPos + traversalDelta, 100 - targetPos])[
+                                1
+                            ],
+                            2,
+                        )
+                        await self.async_scheduled_update_request()
+                    await asyncio.sleep(1)
+
+                # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
+                if not self._blind._is_stopping:
+                    self._endTime = datetime.datetime.now()
+                    await self.update_traversal_time(100 - targetPos, startPos)
+
+                    self._blind._current_cover_position = 100 - targetPos
+                    self._blind._moving = 0
+                    await self.async_scheduled_update_request()
+            except Exception as e:
+                _LOGGER.error(f"Error in async_move_cover: {e}")
+            finally:
+                # unlock the entity to allow more changes
+                self._locked = False
 
     async def update_traversal_time(self, targetPos, startPos):
-        timeTaken = (self._endTime - self._startTime).total_seconds()
-        traversalDistance = abs(targetPos - startPos)
-        self._attr_traversal_time = traversalDistance / timeTaken
-        _LOGGER.debug(
-            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
-            self._attr_name,
-            timeTaken,
-            startPos,
-            targetPos,
-            traversalDistance,
-            self._attr_traversal_time,
-        )
-        await self.async_scheduled_update_request()
+        if self._endTime and self._startTime:
+            timeTaken = (self._endTime - self._startTime).total_seconds()
+            traversalDistance = abs(targetPos - startPos)
+            if timeTaken > 0:
+                self._attr_traversal_time = traversalDistance / timeTaken
+                _LOGGER.debug(
+                    "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
+                    self._attr_name,
+                    timeTaken,
+                    startPos,
+                    targetPos,
+                    traversalDistance,
+                    self._attr_traversal_time,
+                )
+                await self.async_scheduled_update_request()
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
