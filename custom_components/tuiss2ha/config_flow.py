@@ -9,11 +9,10 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
-from homeassistant.helpers import device_registry, selector
+from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
-
+from homeassistant.helpers import device_registry, selector
 
 from .const import (
     CONF_BLIND_HOST,
@@ -28,7 +27,14 @@ from .const import (
     SPEED_CONTROL_SUPPORTED_MODELS,
     OPT_BLIND_SPEED,
     DEFAULT_BLIND_SPEED,
-    BLIND_SPEED_LIST
+    BLIND_SPEED_LIST,
+    CannotConnect,
+    InvalidHost,
+    InvalidName,
+    DeviceNotFound,
+    ConnectionTimeout,
+    OPT_FAVORITE_POSITION,
+    DEFAULT_FAVORITE_POSITION,
 )
 from .hub import Hub
 
@@ -101,7 +107,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
-    ) -> ConfigFlowResult:
+    ) -> FlowResult:
         """Handle the bluetooth discovery step."""
         _LOGGER.debug("Discovered bluetooth device: %s", discovery_info.as_dict())
         await self.async_set_unique_id(discovery_info.address)
@@ -114,7 +120,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    ) -> FlowResult:
         _LOGGER.debug("Ready to add the device %s", self._discovery_info.address)
 
         if user_input is not None:
@@ -150,6 +156,10 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
         hub = Hub(hass, data[CONF_BLIND_HOST], data[CONF_BLIND_NAME])
         await hub.blinds[0].get_blind_position()
         await hub.blinds[0].blind_disconnect()
+    except DeviceNotFound:
+        raise
+    except ConnectionTimeout:
+        raise
     except:
         raise CannotConnect()
 
@@ -161,70 +171,89 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    ) -> FlowResult:
         """Manage Tuiss options."""
-        
+        errors: dict[str, str] = {}
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+
+        if not hub:
+            # This should not happen, but handle it gracefully.
+            return self.async_abort(reason="hub_not_found")
+
+        blind_device = hub.blinds[0]
+
+        if user_input is not None:
+            # Check if the user is trying to change the speed while the blind is moving
+            is_moving = blind_device._moving != 0
+            current_speed = self.config_entry.options.get(
+                OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+            )
+            new_speed = user_input.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
+            speed_has_changed = new_speed != current_speed
+
+            if is_moving and speed_has_changed:
+                errors["base"] = "blind_is_moving"
+            else:
+                return self.async_create_entry(title="", data=user_input)
+
+        # Build the options form
         dr = device_registry.async_get(self.hass)
         model_type = ""
-        _LOGGER.debug("Options flow, config entry: %s",self.config_entry.entry_id)
-
         for device in dr.devices.values():
             if self.config_entry.entry_id in device.config_entries:
                 model_type = device.model
                 break
-        _LOGGER.debug("Options flow, model_type %s",model_type)    
-        
 
-        if user_input is not None:
-            # Update common entity options for all other entities.
-            return self.async_create_entry(title="", data=user_input)
-
-        options: dict[vol.Optional, Any] = dict()
-            
-        options[vol.Optional(
+        options_schema = {
+            vol.Optional(
                 OPT_BLIND_ORIENTATION,
                 default=self.config_entry.options.get(
                     OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
                 ),
-            )] = bool
-        options[vol.Optional(
+            ): bool,
+            vol.Optional(
                 OPT_RESTART_POSITION,
                 default=self.config_entry.options.get(
                     OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION
                 ),
-            )] = bool
-        options[vol.Optional(
+            ): bool,
+            vol.Optional(
                 OPT_RESTART_ATTEMPTS,
                 default=self.config_entry.options.get(
                     OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
                 ),
-            )] = int
-        #MAKE AN OPTION FOR SOME DEVICES AS APPLICABLE
-        if model_type in SPEED_CONTROL_SUPPORTED_MODELS:
-            _LOGGER.debug("Found model_type for %s",self.config_entry.entry_id)
-            options[vol.Optional(
-                OPT_BLIND_SPEED,
+            ): int,
+            vol.Required(
+                OPT_FAVORITE_POSITION,
                 default=self.config_entry.options.get(
-                    OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+                    OPT_FAVORITE_POSITION, DEFAULT_FAVORITE_POSITION
                 ),
-            )] = selector.selector({
-                "select": {
-                    "multiple": False, 
-                    "options": BLIND_SPEED_LIST,
-                    "mode": selector.SelectSelectorMode.DROPDOWN 
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=100, step=1, mode="slider")
+            ),
+        }
+
+        # Add speed control option only for supported models
+        if model_type in SPEED_CONTROL_SUPPORTED_MODELS:
+            options_schema[
+                vol.Optional(
+                    OPT_BLIND_SPEED,
+                    default=self.config_entry.options.get(
+                        OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+                    ),
+                )
+            ] = selector.selector(
+                {
+                    "select": {
+                        "multiple": False,
+                        "options": BLIND_SPEED_LIST,
+                        "mode": selector.SelectSelectorMode.DROPDOWN,
+                    }
                 }
-            })
+            )
 
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
-
-
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class InvalidHost(exceptions.HomeAssistantError):
-    """Error to indicate there is an invalid hostname."""
-
-
-class InvalidName(exceptions.HomeAssistantError):
-    """Error to indicate there is an invalid device name."""
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(options_schema),
+            errors=errors,
+        )

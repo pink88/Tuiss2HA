@@ -20,7 +20,9 @@
         "error": {
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]"
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "device_not_found": "Impossibile trovare il dispositivo. Assicurarsi che sia acceso e nel raggio d'azione.",
+            "connection_timeout": "La connessione è scaduta dopo diversi tentativi. Riprova più tardi."
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
@@ -34,14 +36,19 @@
                     "blind_orientation": "Inverti la risposta di 'Set_Blind_Position'",
                     "blind_restart_position": "Controlla la posizione della tenda al riavvio",
                     "blind_restart_attempts": "Tentativi di riconnessione",
-                    "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione"
+                    "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
+                    "blind_favorite_position": "Posizione Preferita"
                 },
                 "data_description": {
                     "blind_orientation": "Inverte il risultato dell'azione 'Set_Blind_Position'. Seleziona questa opzione se l'uso dell'azione restituisce un valore opposto a quello che ti aspetteresti, ad es. 60% aperto invece del 40% aperto.",
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
-                    "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione."
+                    "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
+                    "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'."
                 }
             }
+        },
+        "error": {
+            "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità."
         }
     }
 }

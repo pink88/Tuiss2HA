@@ -19,13 +19,14 @@ from homeassistant.components.cover import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_CLOSED, STATE_OPEN, STATE_OPENING, STATE_CLOSING
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_platform
+from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 
 
-from .const import DOMAIN
+from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION
+from .hub import TuissBlind
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ _LOGGER = logging.getLogger(__name__)
 ATTR_TRAVERSAL_TIME = "traversal_time"
 ATTR_MAC_ADDRESS = "mac_address"
 
-SET_BLIND_POSITION_SCHEMA = vol.Schema(
+GET_BLIND_POSITION_SCHEMA = cv.make_entity_service_schema({})
+SET_BLIND_POSITION_SCHEMA = cv.make_entity_service_schema(
     {vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100))}
 )
 
@@ -46,14 +48,16 @@ async def async_setup_entry(
     """Add cover for passed config_entry in HA."""
     hub = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities(Tuiss(blind, config_entry) for blind in hub.blinds)
-    platform = entity_platform.async_get_current_platform()
 
+    platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "get_blind_position", {}, async_get_blind_position
+        "get_blind_position", GET_BLIND_POSITION_SCHEMA, "async_get_blind_position"
     )
 
     platform.async_register_entity_service(
-        "set_blind_position", SET_BLIND_POSITION_SCHEMA, async_set_blind_position
+        "set_blind_position",
+        SET_BLIND_POSITION_SCHEMA,
+        "async_set_blind_position",
     )
 
 
@@ -79,28 +83,20 @@ async def async_set_blind_position(entity, service_call):
 class Tuiss(CoverEntity, RestoreEntity):
     """Create Cover Class."""
 
-    def __init__(self, blind, config: ConfigEntry | None = None) -> None:
+    def __init__(self, blind: TuissBlind, config: ConfigEntry) -> None:
         """Initialize the cover."""
         self._blind = blind
-        self._attr_unique_id = f"{self._blind._id}_cover"
+        self._attr_unique_id = f"{self._blind.blind_id}_cover"
         self._attr_name = self._blind.name
         self._state = None
         self._startTime: datetime.datetime | None = None
         self._endTime: datetime.datetime | None = None
-        self._attr_traversal_time = None
+        self._attr_traversal_time: float | None = None
         self._attr_mac_address = self._blind.host
         self._locked = False
-        self._blind_orientation = None
-        self._blind._restart_attempts = None
-        self._blind._position_on_restart = None
-        if config:
-            self._blind_orientation = config.options.get("blind_orientation")
-            self._blind._restart_attempts = config.options.get(
-                "blind_restart_attempts"
-            )
-            self._blind._position_on_restart = config.options.get(
-                "blind_restart_position"
-            )
+        self._blind_orientation = config.options.get(OPT_BLIND_ORIENTATION, False)
+        self._blind._restart_attempts = config.options.get(OPT_RESTART_ATTEMPTS)
+        self._blind._position_on_restart = config.options.get(OPT_RESTART_POSITION)
 
     @property
     def state(self):
@@ -118,7 +114,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         if self._blind._current_cover_position is not None and self._blind._current_cover_position > 0:
             return STATE_OPEN
         return STATE_CLOSED
-
+        
     @property
     def should_poll(self):
         """Set poll of object."""
@@ -135,6 +131,17 @@ class Tuiss(CoverEntity, RestoreEntity):
         return True
 
     @property
+    def device_info(self) -> DeviceInfo:
+        """Information about this entity/device."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._blind.blind_id)},
+            name=self.name,
+            model=self._blind.model,
+            manufacturer=self._blind.hub.manufacturer,
+            connections={(CONNECTION_NETWORK_MAC, self._blind.host)},
+        )
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Attributes for the traversal time of the blinds."""
         return {
@@ -143,11 +150,11 @@ class Tuiss(CoverEntity, RestoreEntity):
         }
 
     @property
-    def current_cover_position(self):
+    def current_cover_position(self) -> int | None:
         """Return the current position of the cover."""
         if self._blind._current_cover_position is None:
             return None
-        return self._blind._current_cover_position
+        return int(self._blind._current_cover_position)
 
     @property
     def is_closed(self) -> bool | None:
@@ -157,7 +164,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         return self._blind._current_cover_position == 0
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> CoverEntityFeature:
         """Set features of object."""
         return (
             CoverEntityFeature.OPEN
@@ -166,36 +173,23 @@ class Tuiss(CoverEntity, RestoreEntity):
             | CoverEntityFeature.STOP
         )
 
-    @property
-    def device_info(self):
-        """Information about this entity/device."""
-        return {
-            "identifiers": {(DOMAIN, self._blind._id)},
-            # If desired, the name for the device could be different to the entity
-            "name": self.name,
-            "model": self._blind.model,
-            "manufacturer": self._blind.hub.manufacturer,
-            "connections": {(CONNECTION_NETWORK_MAC, self._attr_mac_address)},
-        }
-
     async def async_scheduled_update_request(self, *_):
         """Request a state update from the blind at a scheduled point in time."""
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """Run when this Entity has been added to HA."""
+        # Restore the last known state
         last_state = await self.async_get_last_state()
-        # get the last known position
-        if not last_state or ATTR_CURRENT_POSITION not in last_state.attributes:
+        if not last_state or last_state.attributes.get(ATTR_CURRENT_POSITION) is None:
             self._blind._current_cover_position = 0
         else:
-            self._blind._current_cover_position = last_state.attributes.get(
-                ATTR_CURRENT_POSITION
+            self._blind._current_cover_position = float(
+                last_state.attributes.get(ATTR_CURRENT_POSITION)
             )
-        # get the last known traversal time, for calculating realtime position
-        if last_state and ATTR_TRAVERSAL_TIME in last_state.attributes:
+        if last_state and last_state.attributes.get(ATTR_TRAVERSAL_TIME) is not None:
             self._attr_traversal_time = last_state.attributes.get(ATTR_TRAVERSAL_TIME)
-
+        
         self._blind.register_callback(self.async_write_ha_state)
 
     async def async_will_remove_from_hass(self) -> None:
@@ -212,6 +206,9 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
+        if self._blind._current_cover_position is None:
+            self._blind._current_cover_position = 0
+
         if self._blind._current_cover_position <= kwargs[ATTR_POSITION]:
             movVal = 1
         else:
@@ -224,6 +221,9 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._locked = True
             try:
                 startPos = self._blind._current_cover_position
+                if startPos is None:
+                    startPos = 0
+
                 self._blind._moving = movVal
 
                 # Update the state and trigger the moving
@@ -235,21 +235,15 @@ class Tuiss(CoverEntity, RestoreEntity):
                 while self._blind._client and self._blind._client.is_connected:
                     # Update the position in realtime based on average traversal time
                     if self._attr_traversal_time is not None and self._startTime:
-                        _LOGGER.debug(
-                            "StartPos: %s. Timedelta: %s",
-                            startPos,
-                            (
-                                datetime.datetime.now() - self._startTime
-                            ).total_seconds(),
-                        )
                         traversalDelta = (
                             (datetime.datetime.now() - self._startTime).total_seconds()
-                            * self._attr_traversal_time
+                            / self._attr_traversal_time
+                            * 100
                             * movVal
                         )
                         
                         self._blind._current_cover_position = round(
-                            sorted([startPos, startPos + traversalDelta, 100 - targetPos])[
+                            sorted([0, startPos + traversalDelta, 100])[
                                 1
                             ],
                             2,
@@ -257,7 +251,6 @@ class Tuiss(CoverEntity, RestoreEntity):
                         await self.async_scheduled_update_request()
                     await asyncio.sleep(1)
 
-                # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
                 if not self._blind._is_stopping:
                     self._endTime = datetime.datetime.now()
                     await self.update_traversal_time(100 - targetPos, startPos)
@@ -268,7 +261,6 @@ class Tuiss(CoverEntity, RestoreEntity):
             except Exception as e:
                 _LOGGER.error(f"Error in async_move_cover: {e}")
             finally:
-                # unlock the entity to allow more changes
                 self._locked = False
 
     async def update_traversal_time(self, targetPos, startPos):
@@ -277,15 +269,6 @@ class Tuiss(CoverEntity, RestoreEntity):
             traversalDistance = abs(targetPos - startPos)
             if timeTaken > 0:
                 self._attr_traversal_time = traversalDistance / timeTaken
-                _LOGGER.debug(
-                    "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
-                    self._attr_name,
-                    timeTaken,
-                    startPos,
-                    targetPos,
-                    traversalDistance,
-                    self._attr_traversal_time,
-                )
                 await self.async_scheduled_update_request()
 
     async def async_stop_cover(self, **kwargs: Any) -> None:

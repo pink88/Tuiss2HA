@@ -1,0 +1,54 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Fügen Sie Ihr Tuiss Smartblind hinzu.",
+                "description": "Bitte stellen Sie sicher, dass Sie sich vor der Verwendung mit der Tuiss-App verbunden haben, um die oberen und unteren Werte korrekt einzustellen. Die MAC-Adresse finden Sie auf dem an Ihrem Rollo angebrachten Etikett oder auf einem Etikett, das oben am Rollo in der Nähe der Batterie aufgedruckt ist.",
+                "data": {
+                    "host": "XX:XX:XX:XX:XX:XX",
+                    "name": "Freundlicher Name für Ihr Rollo."
+                }
+            },
+            "confirm": {
+                "title": "Benennen Sie Ihr Tuiss Smartblind.",
+                "description": "Bitte fügen Sie einen freundlichen Namen für Ihr Rollo hinzu.",
+                "data": {
+                    "name": "Freundlicher Name für Ihr Rollo."
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "device_not_found": "Das Gerät konnte nicht gefunden werden. Bitte stellen Sie sicher, dass es eingeschaltet und in Reichweite ist.",
+            "connection_timeout": "Die Verbindung ist nach mehreren Wiederholungsversuchen fehlgeschlagen. Bitte versuchen Sie es später erneut."
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        }
+    },
+    "options":{
+        "step":{
+            "init": {
+                "title": "Zusätzliche Optionen.",
+                "data": {
+                    "blind_orientation": "Antwort von 'Set_Blind_Position' invertieren",
+                    "blind_restart_position": "Position des Rollos beim Neustart prüfen",
+                    "blind_restart_attempts": "Wiederverbindungsversuche",
+                    "blind_speed": "Wie schnell soll sich das Rollo in Position bewegen",
+                    "blind_favorite_position": "Lieblingsposition"
+                },
+                "data_description": {
+                    "blind_orientation": "Invertiert das Ergebnis der Aktion 'Set_Blind_Position'. Wählen Sie dies, wenn die Verwendung der Aktion einen Wert zurückgibt, der dem erwarteten entgegengesetzt ist, z. B. 60 % geöffnet anstelle von 40 % geöffnet.",
+                    "blind_restart_position": "Ruft die aktuelle Position des Rollos nach einem Neustart von Home Assistant ab. Nützlich, wenn Sie die Smartview-App oder eine Fernbedienung verwenden.",
+                    "blind_restart_attempts": "Verbindungsversuche, die unternommen werden, bevor eine Zeitüberschreitung auftritt. Erhöhen Sie diesen Wert, wenn Sie feststellen, dass Anfragen verloren gehen. Hinweis: Die Entfernung zwischen Rollos und Bluetooth-Proxys/Dongles ist die Hauptursache für Verbindungsabbrüche.",
+                    "blind_favorite_position": "Die Position (in Prozent, 0=geschlossen, 100=geöffnet), zu der sich das Rollo bewegt, wenn die Taste 'Gehe zu Lieblingsposition' gedrückt wird."
+                }
+            }
+        },
+        "error": {
+            "blind_is_moving": "Das Rollo bewegt sich gerade. Bitte warten Sie, bis es anhält, bevor Sie die Geschwindigkeit ändern."
+        }
+    }
+} 
