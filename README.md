@@ -30,6 +30,7 @@ The following hardware versions have been tested and confirmed as working, but o
 - Close
 - Stop
 - Battery State (through action)
+- Signal Strength
 - Decimal Blind position (through action)
 
 ### Battery State ###
@@ -76,12 +77,17 @@ The blind will not update its position within Home Assistant if controlled using
 ### Control with Decimal Precision ###
 To overwrite Home Assistant's built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" action, which allows for up to 1 decimal place of precision. This can be called manually from Developer tools -> Actions or from within automations.
 
-## Configuration Options and Troubleshooting ##
+## Configuration Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
 - OPTION: If you notice that the provided action _"Set_Blind_Position"_ is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then you can toggle the configuration option _"Invert Set_Blind_Position"_. 
 - OPTION: Sometimes devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of Bluetooth adapters/proxies. You can change the maximum number of retry attempts using the configuration option _"Reconnection attempts"_.
 - OPTION: If you use the Tuiss app or a remote control  to move the blinds in addition to this integration, you may want Home Assistant to fetch the latest position of a blind when it is restarted using configuration option _"Check for blind position on restart"_.
 - OPTION: For supported models, the speed of the blind can be set. There are three speeds to select Standard (fastest) -> Comfort -> Slow (slowest). By default the speed will be set to Standard.
+- OPTION: Favourite position allows you to specify a % value for the your favourite position. This can then be activated using the button entity provided by the Integration.
+
+## Troubleshooting ##
+- If the blind is slow to respond, failing to connect, it will usually be due to signal strength. -60dBm or higher is Excellent -61 to -75 dBm is Good, -76 dbM to -90 dBm is Weak and below -90 dBm is Very Weak. Improving this with more or closer Bluetooth adapter/proxies.
+
 
 ## Limitations ##
 1. *Setting the top and bottom thresholds of the blind* - you still need to pair with and use the Tuiss Smartview app to set these values for older blind models.

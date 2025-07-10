@@ -20,7 +20,9 @@
         "error": {
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]"
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "device_not_found": "No se pudo encontrar el dispositivo. Asegúrese de que esté encendido y dentro del alcance.",
+            "connection_timeout": "La conexión se agotó después de varios reintentos. Por favor, inténtelo de nuevo más tarde."
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
@@ -34,14 +36,19 @@
                     "blind_orientation": "Invertir la respuesta de 'Set_Blind_Position'",
                     "blind_restart_position": "Comprobar la posición de la persiana al reiniciar",
                     "blind_restart_attempts": "Intentos de reconexión",
-                    "blind_speed": "A qué velocidad debe moverse la persiana a la posición"
+                    "blind_speed": "A qué velocidad debe moverse la persiana a la posición",
+                    "blind_favorite_position": "Posición Favorita"
                 },
                 "data_description": {
                     "blind_orientation": "Invierte el resultado de la acción 'Set_Blind_Position'. Selecciona esta opción si al usar la acción se devuelve un valor opuesto al que esperarías, p. ej. 60% abierto en lugar de 40% abierto.",
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
-                    "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión."
+                    "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
+                    "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'."
                 }
             }
+        },
+        "error": {
+            "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad."
         }
     }
 }

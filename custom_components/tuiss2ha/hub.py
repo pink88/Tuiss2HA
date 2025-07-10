@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import datetime
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakError
@@ -21,7 +22,9 @@ from .const import (
     BLIND_NOTIFY_CHARACTERISTIC,
     UUID,
     CONNECTION_MESSAGE,
-    DEFAULT_RESTART_ATTEMPTS
+    DEFAULT_RESTART_ATTEMPTS,
+    DeviceNotFound,
+    ConnectionTimeout,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,6 +72,7 @@ class TuissBlind:
             self.hub._hass, self.host, connectable=True
         )
         self.model = self._ble_device.name if self._ble_device else None
+        self._rssi: int | None = None
         self._client: BleakClientWithServiceCache | None = None
         self._callbacks = set()
         self._battery_status = False
@@ -87,6 +91,17 @@ class TuissBlind:
     def blind_id(self) -> str:
         """Return ID for blind."""
         return self._id
+
+    @property
+    def rssi(self) -> int | None:
+        """Return the rssi for the blind."""
+        return self._rssi
+
+    def set_rssi(self, rssi: int) -> None:
+        """Update the RSSI for the blind."""
+        self._rssi = rssi
+        for callback in self._callbacks:
+            callback()
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
@@ -123,7 +138,9 @@ class TuissBlind:
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
                 self.name,
             )
-            raise Exception(f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies")
+            raise DeviceNotFound(
+                f"{self.name}: Cannot find the device. Check your bluetooth adapters and proxies"
+            )
 
         retry_count = 1
         while retry_count <= self._restart_attempts:
@@ -144,7 +161,7 @@ class TuissBlind:
 
         # If we reach here, we have exceeded max retries
         _LOGGER.error("%s: Connection failed too many times [%d]", self.name, self._restart_attempts)
-        raise Exception(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
+        raise ConnectionTimeout(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
 
     # Connect
     async def blind_connect(self):
@@ -246,8 +263,6 @@ class TuissBlind:
             raise RuntimeError(
                 "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
             ) from e
-
-
 
     async def set_speed(self) -> None:
         """Set the speed for supported blind types"""

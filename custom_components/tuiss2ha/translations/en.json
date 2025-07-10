@@ -20,7 +20,9 @@
         "error": {
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]"
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "device_not_found": "The device could not be found. Please ensure it is powered on and in range.",
+            "connection_timeout": "The connection timed out after several retries. Please try again later."
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
@@ -34,14 +36,19 @@
                     "blind_orientation": "Invert 'Set_Blind_Position' response",
                     "blind_restart_position": "Check for blind position on restart",
                     "blind_restart_attempts": "Reconnection attempts",
-                    "blind_speed": "How fast should the blind move to position"
+                    "blind_speed": "How fast should the blind move to position",
+                    "blind_favorite_position": "Favorite Position"
                 },
                 "data_description": {
                     "blind_orientation": "Inverts the result of the 'Set_Blind_Position' action. Select this if using the action returns a value that is opposite to what you would expect e.g. 60% open instead of 40% open.",
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
-                    "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs."
+                    "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs.",
+                    "blind_favorite_position": "The position (in percent, 0=closed, 100=open) that the blind will move to when the 'Go to Favorite Position' button is pressed."
                 }
             }
+        },
+        "error": {
+            "blind_is_moving": "The blind is currently moving. Please wait for it to stop before changing the speed."
         }
     }
 }

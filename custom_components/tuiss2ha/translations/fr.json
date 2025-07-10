@@ -20,7 +20,9 @@
         "error": {
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]"
+            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "device_not_found": "L'appareil est introuvable. Veuillez vous assurer qu'il est sous tension et à portée.",
+            "connection_timeout": "La connexion a expiré après plusieurs tentatives. Veuillez réessayer plus tard."
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
@@ -34,14 +36,19 @@
                     "blind_orientation": "Inverser la réponse de 'Set_Blind_Position'",
                     "blind_restart_position": "Vérifier la position du store au redémarrage",
                     "blind_restart_attempts": "Tentatives de reconnexion",
-                    "blind_speed": "À quelle vitesse le store doit-il se déplacer en position"
+                    "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
+                    "blind_favorite_position": "Position Favorite"
                 },
                 "data_description": {
                     "blind_orientation": "Inverse le résultat de l'action 'Set_Blind_Position'. Sélectionnez cette option si l'utilisation de l'action renvoie une valeur opposée à ce à quoi vous vous attendiez, par ex. 60% ouvert au lieu de 40% ouvert.",
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
-                    "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion."
+                    "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
+                    "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé."
                 }
             }
+        },
+        "error": {
+            "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse."
         }
     }
 }

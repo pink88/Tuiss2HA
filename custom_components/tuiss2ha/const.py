@@ -23,4 +23,27 @@ DEFAULT_RESTART_ATTEMPTS = 4
 
 OPT_BLIND_SPEED = "blind_speed"
 DEFAULT_BLIND_SPEED = "Standard"
-BLIND_SPEED_LIST = ["Standard", "Comfort", "Slow"] 
+BLIND_SPEED_LIST = ["Standard", "Comfort", "Slow"]
+
+OPT_FAVORITE_POSITION = "blind_favorite_position"
+DEFAULT_FAVORITE_POSITION = 50
+
+#Exceptions
+class CannotConnect(Exception):
+    """Error to indicate we cannot connect."""
+
+
+class InvalidHost(Exception):
+    """Error to indicate there is an invalid hostname."""
+
+
+class InvalidName(Exception):
+    """Error to indicate there is an invalid device name."""
+
+
+class DeviceNotFound(Exception):
+    """Error to indicate the device is not found."""
+
+
+class ConnectionTimeout(Exception):
+    """Error to indicate a connection timeout.""" 
