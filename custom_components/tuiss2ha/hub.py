@@ -316,7 +316,7 @@ class TuissBlind:
             if self._client:
                 while self._client.is_connected:
                     await asyncio.sleep(1)
-                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+                    
 
     async def get_battery_status(self) -> None:
         """Get the battery state from the blind as good or bad."""
