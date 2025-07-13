@@ -237,7 +237,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                     if self._attr_traversal_time is not None and self._startTime:
                         traversalDelta = (
                             (datetime.datetime.now() - self._startTime).total_seconds()
-                            / self._attr_traversal_time
+                            / sorted([1,self._attr_traversal_time])[1]
                             * 100
                             * movVal
                         )
