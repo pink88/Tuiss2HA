@@ -51,13 +51,13 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "get_blind_position", GET_BLIND_POSITION_SCHEMA, "async_get_blind_position"
+        "get_blind_position", GET_BLIND_POSITION_SCHEMA, async_get_blind_position
     )
 
     platform.async_register_entity_service(
         "set_blind_position",
         SET_BLIND_POSITION_SCHEMA,
-        "async_set_blind_position",
+        async_set_blind_position,
     )
 
 
