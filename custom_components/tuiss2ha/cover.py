@@ -51,13 +51,13 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "get_blind_position", GET_BLIND_POSITION_SCHEMA, "async_get_blind_position"
+        "get_blind_position", GET_BLIND_POSITION_SCHEMA, async_get_blind_position
     )
 
     platform.async_register_entity_service(
         "set_blind_position",
         SET_BLIND_POSITION_SCHEMA,
-        "async_set_blind_position",
+        async_set_blind_position,
     )
 
 
@@ -237,7 +237,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                     if self._attr_traversal_time is not None and self._startTime:
                         traversalDelta = (
                             (datetime.datetime.now() - self._startTime).total_seconds()
-                            / self._attr_traversal_time
+                            / sorted([1,self._attr_traversal_time])[1]
                             * 100
                             * movVal
                         )
