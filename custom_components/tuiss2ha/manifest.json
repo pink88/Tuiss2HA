@@ -21,6 +21,14 @@
     {
       "local_name": "TS5101",
       "connectable" : true
+    },
+    {
+      "local_name": "TS2600",
+      "connectable" : true
+    },
+    {
+      "local_name": "TS2900",
+      "connectable" : true
     }
   ],
   "codeowners" : ["@pink88"],
@@ -31,5 +39,5 @@
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
   "loggers": ["custom_components.tuiss2ha"],
   "requirements": ["bleak>=0.21.1","bleak-retry-connector>=3.2.1"],
-  "version": "1.9.0"
+  "version": "1.9.1"
 }
