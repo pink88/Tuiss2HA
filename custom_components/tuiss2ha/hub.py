@@ -314,12 +314,8 @@ class TuissBlind:
         finally:
             await self.send_command(UUID, command)
             if self._client:
-                try:
-                    async with asyncio.timeout(10):
-                        while self._client.is_connected:
-                            await asyncio.sleep(1)
-                except TimeoutError:
-                    _LOGGER.warning("%s: Timeout waiting for blind to disconnect after get", self.name)
+                while self._client.is_connected:
+                    await asyncio.sleep(1)
                     
 
     async def get_battery_status(self) -> None:
@@ -401,18 +397,11 @@ class TuissBlind:
 
     # Creates the % open/closed hex command
     def hex_convert(self, user_percent: float) -> str:
-        """
-        Convert the Home Assistant position percentage (0-100) to the Tuiss hex command.
-        Args:
-            user_percent: The desired position in HA format (0=closed, 100=open).
-        Returns:
-            A hex string representing the command to send to the blind.
-        """
-        # The blind uses an inverted percentage (0=open, 100=closed)
+        """Convert the Home Assistant position percentage (0-100) to the Tuiss hex command."""
+        # Tuiss uses an inverted percentage (0=open, 100=closed)
         tuiss_percent = 100 - user_percent
 
         # Calculate the position value for the hex command
-        # This is a scaled value modulo 256
         position_value = int(round((tuiss_percent * 10) % 256))
         if position_value == 256:  # handle edge case
             position_value = 0
@@ -424,13 +413,13 @@ class TuissBlind:
             group_str = "01"
         elif user_percent > 23.2:
             group_str = "02"
-        else:  # 0 <= user_percent <= 23.2
+        else:
             group_str = "03"
 
-        # Format the position value as a two-character hex string (e.g., 0A, FF)
+        # Format the position value as a two-character hex (e.g., 0A, FF)
         hex_val = f"{position_value:02x}"
 
-        # Construct the final command string
+        # Build the final command
         command_prefix = "ff78ea41bf03"
         return f"{command_prefix}{hex_val}{group_str}"
 
