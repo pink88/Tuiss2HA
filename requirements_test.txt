@@ -1,1 +1,3 @@
 pytest
+bleak
+bleak-retry-connector
