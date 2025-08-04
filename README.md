@@ -1,27 +1,27 @@
 # Tuiss2HA
 This adds support for Tuiss Smartview BLE blinds. These blinds use Bluetooth Low Energy and are controlled through a simple cover interface. This integration does not support RF control.
 
+
 ## Supported Tuiss Hardware Versions and Prerequisites ##
 The following hardware versions have been tested and confirmed as working, but other versions should be supported.
 
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
 -TS5001/TS5101: Roller blinds which support variable movement speeds.
+-TS2600/TS2900
 
 ## Installation and adding your devices ##
-
 *Note: Devices should be automatically discovered if they are in range of a Bluetooth adapter/proxy once you have completed steps 1-3. If not you can add manually, though doing so may mean that your blinds are out of Bluetooth range.*
 
-1. Complete the setup of your blind in the Tuiss Smartview app
-2. Add the integration from the HACS marketplace ([instructions here](https://hacs.xyz/docs/configuration/basic))
-3. Restart Home Assistant if required
-4. Click Settings
-5. Click Devices & Services
-6. Click the "+ Add Integration" button
-7. Select Tuiss SmartView from the dropdown
-8. Enter the MAC address from the tag included with your blind, or written within the top bracket of the blind, close to where the battery is plugged in
-9. Give the blind a name
-10. Click Submit
+1. Complete the setup of your blind in the Tuiss Smartview app.
+2. Add the integration from the HACS marketplace ([instructions here](https://hacs.xyz/docs/configuration/basic)).
+3. Restart Home Assistant if required.
+4. Go to **Settings > Devices & Services**.
+5. Click the **+ Add Integration** button.
+6. Select **Tuiss SmartView** from the dropdown.
+7. Enter the MAC address from the tag included with your blind, or written within the top bracket of the blind, close to where the battery is plugged in.
+8. Give the blind a name.
+9. Click **Submit**.
 
 
 ## Features ##
@@ -35,10 +35,10 @@ The following hardware versions have been tested and confirmed as working, but o
 
 ### Battery State ###
 An accurate battery percentage is not provided by the blind, but it is possible to return two states:
-1. "Normal" - battery is good
-2. "Low" - battery needs charging
+1. **Normal** - battery is good
+2. **Low** - battery needs charging
 
-To accomplish this, an action has been provided: "Tuiss2ha.Get_Battery_Status". This can be called manually from Developer tools -> Actions or included as part of an automation which I'd recommend runs on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the action. For example:
+To accomplish this, an action has been provided: 'tuiss2ha.get_battery_status'. This can be called manually from Developer tools -> Actions or included as part of an automation which It's recommended to run this on a weekly schedule. The resulting battery state of "Normal" or "Low" is then recorded against the Battery entity. The automation can then send a notification if the battery state is returned as low from the action. For example:
 
         alias: Blinds_Battery_Notify
         description: ""
@@ -72,21 +72,24 @@ To accomplish this, an action has been provided: "Tuiss2ha.Get_Battery_Status". 
 
 
 ### Poll for Blind Position ###
-The blind will not update its position within Home Assistant if controlled using the Tuiss app or Bluetooth remotes. To compensate, an action "Tuiss2ha.Get_Blind_Position" has been provided. This can be called manually from Developers -> Actions or included as part of an automation. The automation can be set to run periodically throughout the day to update the position. I do not recommend running this more than hourly as it will likely drain your blinds' batteries.
+The blind will not update its position within Home Assistant if controlled using the Tuiss app or Bluetooth remotes. To compensate, an action 'tuiss2ha.get_blind_position' has been provided. This can be called manually from Developers -> Actions or included as part of an automation. The automation can be set to run periodically throughout the day to update the position. I do not recommend running this more than hourly as it will likely drain your blinds' batteries.
 
 ### Control with Decimal Precision ###
-To overwrite Home Assistant's built in integer accuracy, you can use the "Tuiss2ha.Set_Blind_Position" action, which allows for up to 1 decimal place of precision. This can be called manually from Developer tools -> Actions or from within automations.
+To overwrite Home Assistant's built in integer accuracy, you can use the 'tuiss2ha.set_blind_position' action, which allows for up to 1 decimal place of precision. This can be called manually from Developer tools -> Actions or from within automations.
+
 
 ## Configuration Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
-- OPTION: If you notice that the provided action _"Set_Blind_Position"_ is giving you the opposite % to what you expect e.g. instead of 75% open, it shows as 75% closed, then you can toggle the configuration option _"Invert Set_Blind_Position"_. 
-- OPTION: Sometimes devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters or the distance between the blind and the adapter being too large. Try moving devces closer or increasing the number of Bluetooth adapters/proxies. You can change the maximum number of retry attempts using the configuration option _"Reconnection attempts"_.
-- OPTION: If you use the Tuiss app or a remote control  to move the blinds in addition to this integration, you may want Home Assistant to fetch the latest position of a blind when it is restarted using configuration option _"Check for blind position on restart"_.
-- OPTION: For supported models, the speed of the blind can be set. There are three speeds to select Standard (fastest) -> Comfort -> Slow (slowest). By default the speed will be set to Standard.
-- OPTION: Favourite position allows you to specify a % value for the your favourite position. This can then be activated using the button entity provided by the Integration.
+- **Invert `set_blind_position`**: If you notice that the provided `set_blind_position` action is giving you the opposite result to what you expect (e.g. instead of 75% open, it shows as 75% closed), then you can toggle this option.
+- **Reconnection attempts**: Sometimes devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters, or the distance between the blind and the adapter being too large. You can change the maximum number of retry attempts using this option. For connection issues, try moving devices closer or increasing the number of Bluetooth adapters/proxies.
+- **Check for blind position on restart**: If you use the Tuiss app or a remote control to move the blinds in addition to this integration, you may want Home Assistant to fetch the latest position of a blind when it is restarted using this option.
+- **Blind motor speed**: For supported models, the speed of the blind can be set. There are three speeds to select from: Standard (fastest), Comfort, and Slow (slowest). By default, the speed will be set to Standard.
+- **Favourite position**: Allows you to specify a percentage value for your favourite position. This can then be activated using the button entity provided by the integration.
+
 
 ## Troubleshooting ##
 - If the blind is slow to respond, failing to connect, it will usually be due to signal strength. -60dBm or higher is Excellent -61 to -75 dBm is Good, -76 dbM to -90 dBm is Weak and below -90 dBm is Very Weak. Improving this with more or closer Bluetooth adapter/proxies.
+- If you are getting errors when adding a blind, some users report that removing Shelly Bluetooth proxies resolves the issue. This appears to be a limitation of how Home Assistant decides which proxy to use and sometimes selects the Shelly proxy which cannot retain the active connection required by this integration.
 
 
 ## Limitations ##
