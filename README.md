@@ -7,8 +7,8 @@ The following hardware versions have been tested and confirmed as working, but o
 
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
--TS5001/TS5101: Roller blinds which support variable movement speeds.
--TS2600/TS2900
+-TS2600/TS2900/TS5001/TS5101: Roller blinds which support variable movement speeds.
+
 
 ## Installation and adding your devices ##
 *Note: Devices should be automatically discovered if they are in range of a Bluetooth adapter/proxy once you have completed steps 1-3. If not you can add manually, though doing so may mean that your blinds are out of Bluetooth range.*
