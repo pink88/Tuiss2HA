@@ -64,7 +64,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialise a config flow"""
-        self._discovery_info: BluetoothServiceInfoBleak | BLEDevice | None = None
+        self._discovery_info: BluetoothServiceInfoBleak | None = None
         # self._mac_code: str | None = None
 
     async def async_step_user(
@@ -160,8 +160,8 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
         raise
     except ConnectionTimeout:
         raise
-    except:
-        raise CannotConnect()
+    except Exception as e:
+        raise CannotConnect() from e
 
     return data[CONF_BLIND_NAME]
 

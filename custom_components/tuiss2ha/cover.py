@@ -233,7 +233,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._endTime = None
             self._startTime = datetime.datetime.now()
 
-            while self._blind._client.is_connected:
+            while self._blind._client and self._blind._client.is_connected:
                 # Update the position in realtime based on average traversal time
                 if self._attr_traversal_time is not None:
                     _LOGGER.debug("StartPos: %s. CurrentPos: %s. Timedelta: %s",
@@ -250,6 +250,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                     )[1],2)
                     await self.async_scheduled_update_request()
                 await asyncio.sleep(1)
+            
 
             # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
             _LOGGER.debug("%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s", self._attr_name, startPos, self._blind._current_cover_position, targetPos, self._blind._is_stopping)

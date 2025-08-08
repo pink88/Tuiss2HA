@@ -15,7 +15,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
-from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION,OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION,OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED, DeviceNotFound, ConnectionTimeout
 
 
 
@@ -42,17 +42,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         #only attempt to get the current position of the blind on boot if required. Required when using tuiss app or bluetooth remotes
-        try:
-            blind._position_on_restart = entry.options.get("blind_restart_position")
-        except:
-            blind._position_on_restart = False
+        blind._position_on_restart = entry.options.get("blind_restart_position", False)
         _LOGGER.debug("Getting the blind position for %s if %s set TRUE",blind.name, blind._position_on_restart)
 
         if blind._position_on_restart:
             try:
                 await blind.get_blind_position()
-            except:
-                raise ConfigEntryNotReady("Cannot connect to blind")
+            except (DeviceNotFound, ConnectionTimeout) as e:
+                raise ConfigEntryNotReady("Cannot connect to blind") from e
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
     entry.async_on_unload(entry.add_update_listener(update_listener))
