@@ -77,6 +77,8 @@ The blind will not update its position within Home Assistant if controlled using
 ### Control with Decimal Precision ###
 To overwrite Home Assistant's built in integer accuracy, you can use the 'tuiss2ha.set_blind_position' action, which allows for up to 1 decimal place of precision. This can be called manually from Developer tools -> Actions or from within automations.
 
+### Set Blind Speed ###
+For supported models, you can set the speed of the blind motor using the 'tuiss2ha.set_blind_speed' action. This can be called manually from Developer tools -> Actions or from within automations. The available speeds are "Standard", "Comfort", and "Slow".
 
 ## Configuration Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.

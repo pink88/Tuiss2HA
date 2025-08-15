@@ -51,4 +51,35 @@
             "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse."
         }
     }
+,
+    "services": {
+        "get_battery_status": {
+            "name": "Obtenir l'état de la batterie",
+            "description": "Obtient l'état de la batterie pour les stores Tuiss sélectionnés"
+        },
+        "get_blind_position": {
+            "name": "Obtenir la position du store",
+            "description": "Obtient la position actuelle du store pour les stores Tuiss sélectionnés"
+        },
+        "set_blind_position": {
+            "name": "Définir la position du store",
+            "description": "Définit la position du store avec une précision d'une seule décimale (0,0-100,0)",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Position cible entre 0,0 (fermé) et 100,0 (ouvert) avec une précision de 1 décimale)"
+                }
+            }
+        },
+        "set_blind_speed": {
+            "name": "Définir la vitesse du store",
+            "description": "Définit la vitesse du moteur du store",
+            "fields": {
+                "speed": {
+                    "name": "Vitesse",
+                    "description": "Vitesse cible pour le moteur du store"
+                }
+            }
+        }
+    }
 }

@@ -51,4 +51,35 @@
             "blind_is_moving": "The blind is currently moving. Please wait for it to stop before changing the speed."
         }
     }
+,
+    "services": {
+        "get_battery_status": {
+            "name": "Get Battery Status",
+            "description": "Get the battery status for the Tuiss blinds selected"
+        },
+        "get_blind_position": {
+            "name": "Get Blind Position",
+            "description": "Get the current position of the blind for the Tuiss blinds selected"
+        },
+        "set_blind_position": {
+            "name": "Set Blind Position",
+            "description": "Set the position of the blind with single decimal point precision (0.0-100.0)",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal point accuracy)"
+                }
+            }
+        },
+        "set_blind_speed": {
+            "name": "Set Blind Speed",
+            "description": "Set the speed of the blind motor",
+            "fields": {
+                "speed": {
+                    "name": "Speed",
+                    "description": "Target speed for the blind motor"
+                }
+            }
+        }
+    }
 }

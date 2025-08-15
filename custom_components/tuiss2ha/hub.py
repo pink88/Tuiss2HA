@@ -264,6 +264,7 @@ class TuissBlind:
                 "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
             ) from e
 
+
     async def set_speed(self) -> None:
         """Set the speed for supported blind types"""
         _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
@@ -288,7 +289,7 @@ class TuissBlind:
         except (BleakError, RuntimeError) as e:
             _LOGGER.debug("%s: Unable to set the speed: %s", self.name, e)
             raise RuntimeError(
-                "Unable to set the speed. Check has enough battery and within bluetooth range"
+                "Unable to set the speed. Check has enough battery and within bluetooth range or that blind supports speed changes"
             ) from e
         
 
