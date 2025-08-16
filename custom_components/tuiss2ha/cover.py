@@ -120,8 +120,8 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_unique_id = f"{self._blind.blind_id}_cover"
         self._attr_name = self._blind.name
         self._state = None
-        self._startTime: datetime.datetime | None = None
-        self._endTime: datetime.datetime | None = None
+        self._start_time: datetime.datetime | None = None
+        self._end_time: datetime.datetime | None = None
         self._attr_traversal_time: float | None = None
         self._attr_mac_address = self._blind.host
         self._locked = False
@@ -250,113 +250,69 @@ class Tuiss(CoverEntity, RestoreEntity):
             movement_direction = -1
         await self.async_move_cover(
             movement_direction=movement_direction,
-            target_position=100 - kwargs[ATTR_POSITION],
+            target_position= 100 - kwargs[ATTR_POSITION],
         )
 
-    @asynccontextmanager
-    async def _lock_entity(self):
-        """Lock the entity to prevent concurrent operations."""
-        self._locked = True
-        try:
-            yield
-        finally:
-            self._locked = False
-
-    async def async_move_cover(self, movement_direction: int, target_position: int):
-        """Move the cover to a specific position."""
+    async def async_move_cover(self, movement_direction, target_position):
         await self._blind.attempt_connection()
-        if not self._blind._client or not self._blind._client.is_connected:
-            _LOGGER.warning("%s: Cannot move blind, not connected.", self.name)
-            return
-        if self._locked:
-            _LOGGER.debug("%s: Cannot move blind, entity is locked.", self.name)
-            return
-
-        async with self._lock_entity():
+        if self._blind._client.is_connected and self._locked == False:
+            self._locked = True
             self._blind._is_stopping = False
             start_position = self._blind._current_cover_position
             self._blind._moving = movement_direction
-            self.async_write_ha_state()
 
+            # Update the state and trigger the moving
+            await self.async_scheduled_update_request()
             await self._blind.set_position(target_position)
-            start_time = datetime.datetime.now()
+            self._end_time = None
+            self._start_time = datetime.datetime.now()
 
-            await self.async_update_position_in_realtime(
-                start_position, start_time, movement_direction, target_position
-            )
+            while self._blind._client and self._blind._client.is_connected and not self._blind._is_stopping and self._blind._current_cover_position != 100-target_position:
+                # Update the position in realtime based on average traversal time
+                if self._attr_traversal_time is not None:
+                    _LOGGER.debug("StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                        start_position,self._blind._current_cover_position, target_position,
+                        (datetime.datetime.now() - self._start_time).total_seconds()
+                    )
+                    traversalDelta = (
+                        (datetime.datetime.now() - self._start_time).total_seconds()
+                        * self._attr_traversal_time
+                        * movement_direction
+                    )
+                    self._blind._current_cover_position = round(sorted(
+                        [start_position, start_position + traversalDelta, 100 - target_position]
+                    )[1],2)
+                    await self.async_scheduled_update_request()
+                await asyncio.sleep(1)
+            
 
-            _LOGGER.debug(
-                "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
-                self._attr_name,
-                start_position,
-                self._blind._current_cover_position,
-                target_position,
-                self._blind._is_stopping,
-            )
-
+            # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
+            _LOGGER.debug("%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s", self._attr_name, start_position, self._blind._current_cover_position, target_position, self._blind._is_stopping)
             if not self._blind._is_stopping:
-                await self.async_finalize_movement(
-                    target_position, start_position, start_time
-                )
+                self._end_time = datetime.datetime.now()
+                await self.update_traversal_time(100 - target_position, start_position)
 
-    async def async_update_position_in_realtime(
-        self, start_position: float, start_time: datetime.datetime, movement_direction: int, target_position: int
-    ):
-        """Update the cover position in HA while it is moving."""
-        while (
-            self._blind._client
-            and self._blind._client.is_connected
-            and not self._blind._is_stopping
-            and self._blind._current_cover_position != target_position
-        ):
-            if self._attr_traversal_time is not None:
-                elapsed_time = (datetime.datetime.now() - start_time).total_seconds()
-                traversal_delta = elapsed_time * self._attr_traversal_time * movement_direction
-                new_position = start_position + traversal_delta
-                self._blind._current_cover_position = round(max(0, min(100, new_position)), 2)
-                _LOGGER.debug(
-                    "%s. StartPos: %s. CurrentPos: %s. TargetPos: %s. ElapsedTime: %s",
-                    self._attr_name,
-                    start_position,
-                    self._blind._current_cover_position,
-                    target_position,
-                    elapsed_time,
-                )
-                self.async_write_ha_state()
-            await asyncio.sleep(1)
+                self._blind._current_cover_position = 100 - target_position
+                self._blind._moving = 0
+                await self.async_scheduled_update_request()
 
-    async def async_finalize_movement(
-        self, target_position: int, start_position: float, start_time: datetime.datetime
-    ):
-        """Finalize the cover state after movement is complete."""
-        self._endTime = datetime.datetime.now()
-        await self.update_traversal_time(
-            100 - target_position, start_position, start_time
+            # unlock the entity to allow more changes
+            self._locked = False
+
+    async def update_traversal_time(self, target_position, start_position):
+        timeTaken = (self._end_time - self._start_time).total_seconds()
+        traversal_distance = abs(target_position - start_position)
+        self._attr_traversal_time = traversal_distance / timeTaken
+        _LOGGER.debug(
+            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
+            self._attr_name,
+            timeTaken,
+            start_position,
+            target_position,
+            traversal_distance,
+            self._attr_traversal_time,
         )
-        self._blind._current_cover_position = 100 - target_position
-        self._blind._moving = 0
-        self.async_write_ha_state()
-
-
-    async def update_traversal_time(
-        self, target_position, start_position, start_time
-    ):
-        """Update the traversal time attribute."""
-        if self._endTime:
-            time_taken = (self._endTime - start_time).total_seconds()
-            traversal_distance = abs(target_position - start_position)
-            if time_taken > 0:
-                self._attr_traversal_time = traversal_distance / time_taken
-                _LOGGER.debug(
-                    "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
-                    self._attr_name,
-                    time_taken,
-                    start_position,
-                    target_position,
-                    traversal_distance,
-                    self._attr_traversal_time,
-                )
-                self.async_write_ha_state()
+        await self.async_scheduled_update_request()
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
