@@ -51,4 +51,35 @@
             "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad."
         }
     }
+,
+    "services": {
+        "get_battery_status": {
+            "name": "Obtener estado de la batería",
+            "description": "Obtiene el estado de la batería para las persianas Tuiss seleccionadas"
+        },
+        "get_blind_position": {
+            "name": "Obtener posición de la persiana",
+            "description": "Obtiene la posición actual de la persiana para las persianas Tuiss seleccionadas"
+        },
+        "set_blind_position": {
+            "name": "Establecer posición de la persiana",
+            "description": "Establece la posición de la persiana con una precisión de un solo punto decimal (0.0-100.0)",
+            "fields": {
+                "position": {
+                    "name": "Posición",
+                    "description": "Posición objetivo entre 0.0 (cerrado) y 100.0 (abierto) con una precisión de 1 punto decimal)"
+                }
+            }
+        },
+        "set_blind_speed": {
+            "name": "Establecer velocidad de la persiana",
+            "description": "Establece la velocidad del motor de la persiana",
+            "fields": {
+                "speed": {
+                    "name": "Velocidad",
+                    "description": "Velocidad objetivo para el motor de la persiana"
+                }
+            }
+        }
+    }
 }

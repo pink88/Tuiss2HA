@@ -51,4 +51,35 @@
             "blind_is_moving": "Das Rollo bewegt sich gerade. Bitte warten Sie, bis es anhält, bevor Sie die Geschwindigkeit ändern."
         }
     }
+,
+    "services": {
+        "get_battery_status": {
+            "name": "Batteriestatus abrufen",
+            "description": "Ruft den Batteriestatus für die ausgewählten Tuiss-Jalousien ab"
+        },
+        "get_blind_position": {
+            "name": "Jalousieposition abrufen",
+            "description": "Ruft die aktuelle Position der Jalousie für die ausgewählten Tuiss-Jalousien ab"
+        },
+        "set_blind_position": {
+            "name": "Jalousieposition einstellen",
+            "description": "Stellt die Position der Jalousie mit einer Dezimalpunktgenauigkeit ein (0,0-100,0)",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Zielposition zwischen 0,0 (geschlossen) und 100,0 (geöffnet) mit einer Genauigkeit von 1 Dezimalstelle)"
+                }
+            }
+        },
+        "set_blind_speed": {
+            "name": "Jalousiegeschwindigkeit einstellen",
+            "description": "Stellt die Geschwindigkeit des Jalousiemotors ein",
+            "fields": {
+                "speed": {
+                    "name": "Geschwindigkeit",
+                    "description": "Zielgeschwindigkeit für den Jalousiemotor"
+                }
+            }
+        }
+    }
 } 

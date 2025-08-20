@@ -51,4 +51,35 @@
             "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità."
         }
     }
+,
+    "services": {
+        "get_battery_status": {
+            "name": "Ottieni stato batteria",
+            "description": "Ottiene lo stato della batteria per le tende Tuiss selezionate"
+        },
+        "get_blind_position": {
+            "name": "Ottieni posizione tenda",
+            "description": "Ottiene la posizione corrente della tenda per le tende Tuiss selezionate"
+        },
+        "set_blind_position": {
+            "name": "Imposta posizione tenda",
+            "description": "Imposta la posizione della tenda con una precisione di un singolo punto decimale (0,0-100,0)",
+            "fields": {
+                "position": {
+                    "name": "Posizione",
+                    "description": "Posizione di destinazione tra 0,0 (chiuso) e 100,0 (aperto) con una precisione di 1 punto decimale)"
+                }
+            }
+        },
+        "set_blind_speed": {
+            "name": "Imposta velocità tenda",
+            "description": "Imposta la velocità del motore della tenda",
+            "fields": {
+                "speed": {
+                    "name": "Velocità",
+                    "description": "Velocità di destinazione per il motore della tenda"
+                }
+            }
+        }
+    }
 }

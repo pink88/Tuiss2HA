@@ -2,8 +2,6 @@ get_battery_status:
   # Gets the status of the battery for the target device. Because the blind has a
   # specific call for battery and because this does not advertise, nor give an actual %,
   # use this service instead to return true/false when battery is low
-  name: "Get Battery Status"
-  description: "Get the battery status for the Tuiss blinds selected"
   target:
     entity:
       integration: tuiss2ha
@@ -13,8 +11,6 @@ get_blind_position:
   # Gets the position of the blind for the target device. Useful as the blind does not
   # advertise its position, so if using the app or a remote the position will be different
   # to that shown in home assistant
-  name: "Get Blind Position"
-  description: "Get the current position of the blind for the Tuiss blinds selected"
   target:
     entity:
       integration: tuiss2ha
@@ -23,16 +19,12 @@ get_blind_position:
 set_blind_position:
   # Sets the position of the blind with decimal precision, bypassing the standard
   # cover position setting mechanism
-  name: "Set Blind Position"
-  description: "Set the position of the blind with single decimal point precision (0.0-100.0)"
   target:
     entity:
       integration: tuiss2ha
       domain: cover
   fields:
     position:
-      name: Position
-      description: "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal point accuracy)"
       required: true
       selector:
         number:
@@ -40,3 +32,18 @@ set_blind_position:
           max: 100
           step: 0.1
           mode: box
+
+set_blind_speed:
+  target:
+    entity:
+      integration: tuiss2ha
+      domain: cover
+  fields:
+    speed:
+      required: true
+      selector:
+        select:
+          options:
+            - "Standard"
+            - "Comfort"
+            - "Slow"
