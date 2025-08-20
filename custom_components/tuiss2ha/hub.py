@@ -78,6 +78,7 @@ class TuissBlind:
         self._battery_status = False
         self._moving = 0
         self._is_stopping = False
+        self._stopped_event = asyncio.Event()
         self._current_cover_position: float | None = None
         self._desired_position: int | None = None
         self._desired_orientation = False
@@ -151,7 +152,7 @@ class TuissBlind:
                 retry_count,
                 self._restart_attempts
             )
-            await self.blind_connect()
+            await self.connect()
 
             # If the client is connected, return early
             if self._client and self._client.is_connected:
@@ -164,7 +165,7 @@ class TuissBlind:
         raise ConnectionTimeout(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
 
     # Connect
-    async def blind_connect(self):
+    async def connect(self):
         """Connect to the blind."""
         assert self._ble_device is not None
         device = self._ble_device
@@ -190,7 +191,7 @@ class TuissBlind:
             _LOGGER.debug("Failed to connect to blind: %s", e)
 
     # Disconnect
-    async def blind_disconnect(self):
+    async def disconnect(self):
         """Disconnect from the blind."""
         client = self._client
         if not client:
@@ -212,10 +213,16 @@ class TuissBlind:
                 self._current_cover_position,
                 self._moving,
             )
+            self._stopped_event.set()
 
-    ##################################################################################################
-    ## SET METHODS ############################################################################
-    ##################################################################################################
+    async def wait_for_stop(self):
+                """Wait for the blind to stop moving."""
+                self._stopped_event.clear()
+                await self._stopped_event.wait()
+        
+            ##################################################################################################
+            ## SET METHODS ############################################################################
+            ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
 
@@ -285,7 +292,7 @@ class TuissBlind:
         try:
             if self._client and self._client.is_connected:
                 await self.send_command(UUID, command)
-                await self.blind_disconnect()
+                await self.disconnect()
         except (BleakError, RuntimeError) as e:
             _LOGGER.debug("%s: Unable to set the speed: %s", self.name, e)
             raise RuntimeError(
@@ -351,7 +358,7 @@ class TuissBlind:
             else:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
                 self._battery_status = None
-            await self.blind_disconnect()
+            await self.disconnect()
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
@@ -364,7 +371,7 @@ class TuissBlind:
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
-        await self.blind_disconnect()
+        await self.disconnect()
 
     async def set_position_callback(
         self, sender: BleakGATTCharacteristic, data: bytearray
@@ -373,7 +380,7 @@ class TuissBlind:
         _LOGGER.debug(
             "%s: Disconnecting based on response %s", self.name, self.split_data(data)
         )
-        await self.blind_disconnect()
+        await self.disconnect()
 
     ##################################################################################################
     ## DATA METHODS ############################################################################

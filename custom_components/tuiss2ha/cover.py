@@ -26,7 +26,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 
 
-from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS
+from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS
 from .hub import TuissBlind
 
 _LOGGER = logging.getLogger(__name__)
@@ -255,10 +255,11 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_move_cover(self, movement_direction, target_position):
         await self._blind.attempt_connection()
-        if self._blind._client.is_connected and self._locked == False:
+        if self._blind._client.is_connected and not self._locked:
             self._locked = True
             self._blind._is_stopping = False
             start_position = self._blind._current_cover_position
+            corrected_target_position = 100 - target_position
             self._blind._moving = movement_direction
 
             # Update the state and trigger the moving
@@ -267,32 +268,44 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._end_time = None
             self._start_time = datetime.datetime.now()
 
-            while self._blind._client and self._blind._client.is_connected and not self._blind._is_stopping and self._blind._current_cover_position != 100-target_position:
-                # Update the position in realtime based on average traversal time
-                if self._attr_traversal_time is not None:
-                    _LOGGER.debug("StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
-                        start_position,self._blind._current_cover_position, target_position,
-                        (datetime.datetime.now() - self._start_time).total_seconds()
-                    )
-                    traversalDelta = (
-                        (datetime.datetime.now() - self._start_time).total_seconds()
-                        * self._attr_traversal_time
-                        * movement_direction
-                    )
-                    self._blind._current_cover_position = round(sorted(
-                        [start_position, start_position + traversalDelta, 100 - target_position]
-                    )[1],2)
-                    await self.async_scheduled_update_request()
-                await asyncio.sleep(1)
+            async def _update_position_in_realtime():
+                """Task to update the position while the blind is moving."""
+                while self._blind._client and self._blind._client.is_connected and not self._blind._is_stopping:
+                    if self._attr_traversal_time is not None:
+                        _LOGGER.debug("StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                            start_position, self._blind._current_cover_position, corrected_target_position,
+                            (datetime.datetime.now() - self._start_time).total_seconds()
+                        )
+                        traversalDelta = (
+                            (datetime.datetime.now() - self._start_time).total_seconds()
+                            * self._attr_traversal_time
+                            * movement_direction
+                        )
+                        self._blind._current_cover_position = round(sorted(
+                            [0, start_position + traversalDelta, 100]
+                        )[1], 2)
+                        await self.async_scheduled_update_request()
+                    await asyncio.sleep(1)
+
+            update_task = self.hass.async_create_task(_update_position_in_realtime())
+            
+            try:
+                await asyncio.wait_for(self._blind.wait_for_stop(), timeout=self._attr_traversal_time * abs(corrected_target_position - start_position) * 1.5 if self._attr_traversal_time else TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
+                await self._blind.get_blind_position()
+                await self._blind.disconnect()
+            finally:
+                update_task.cancel()
             
 
             # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
-            _LOGGER.debug("%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s", self._attr_name, start_position, self._blind._current_cover_position, target_position, self._blind._is_stopping)
+            _LOGGER.debug("%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s", self._attr_name, start_position, self._blind._current_cover_position, corrected_target_position, self._blind._is_stopping)
             if not self._blind._is_stopping:
                 self._end_time = datetime.datetime.now()
-                await self.update_traversal_time(100 - target_position, start_position)
+                await self.update_traversal_time(corrected_target_position, start_position)
 
-                self._blind._current_cover_position = 100 - target_position
+                self._blind._current_cover_position = corrected_target_position
                 self._blind._moving = 0
                 await self.async_scheduled_update_request()
 
@@ -300,13 +313,13 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._locked = False
 
     async def update_traversal_time(self, target_position, start_position):
-        timeTaken = (self._end_time - self._start_time).total_seconds()
+        time_taken = (self._end_time - self._start_time).total_seconds()
         traversal_distance = abs(target_position - start_position)
-        self._attr_traversal_time = traversal_distance / timeTaken
+        self._attr_traversal_time = traversal_distance / time_taken
         _LOGGER.debug(
             "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
             self._attr_name,
-            timeTaken,
+            time_taken,
             start_position,
             target_position,
             traversal_distance,
