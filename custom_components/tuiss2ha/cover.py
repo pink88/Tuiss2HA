@@ -295,6 +295,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                 _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
                 await self._blind.get_blind_position()
                 await self._blind.disconnect()
+                return #stops blind updating traversal time if it timesout
             finally:
                 update_task.cancel()
             
