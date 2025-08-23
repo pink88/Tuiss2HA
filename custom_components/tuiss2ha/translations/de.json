@@ -18,14 +18,17 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "cannot_connect": "Verbindung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+            "invalid_auth": "Authentifizierung fehlgeschlagen. Dieser Fehler sollte nicht möglich sein, wenn Sie ihn erhalten, melden Sie bitte ein Problem.",
+            "unknown": "Unbekannter Fehler. Bitte versuchen Sie es erneut. Wenn Sie diesen Fehler ständig erhalten, melden Sie bitte ein Problem.",
             "device_not_found": "Das Gerät konnte nicht gefunden werden. Bitte stellen Sie sicher, dass es eingeschaltet und in Reichweite ist.",
-            "connection_timeout": "Die Verbindung ist nach mehreren Wiederholungsversuchen fehlgeschlagen. Bitte versuchen Sie es später erneut."
+            "connection_timeout": "Die Verbindung ist nach mehreren Wiederholungsversuchen fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+            "invalid_host": "Ihre MAC-Adresse muss das Format XX:XX:XX:XX:XX:XX haben",
+            "invalid_name": "Ihr Name muss länger als 0 Zeichen sein"
         },
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "already_configured_by_discovery": "Dieses Gerät wurde bereits erkannt. Bitte konfigurieren Sie es über die Liste der erkannten Geräte."
         }
     },
     "options":{

@@ -18,14 +18,17 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "cannot_connect": "Conexión fallida. Por favor, inténtelo de nuevo.",
+            "invalid_auth": "Autenticación fallida. Este error no debería ser posible, si lo obtiene, por favor, informe de un problema.",
+            "unknown": "Error desconocido. Por favor, inténtelo de nuevo. Si obtiene este error de forma consistente, por favor, informe de un problema.",
             "device_not_found": "No se pudo encontrar el dispositivo. Asegúrese de que esté encendido y dentro del alcance.",
-            "connection_timeout": "La conexión se agotó después de varios reintentos. Por favor, inténtelo de nuevo más tarde."
+            "connection_timeout": "La conexión se agotó después de varios reintentos. Por favor, inténtelo de nuevo más tarde.",
+            "invalid_host": "Su dirección MAC debe tener el formato XX:XX:XX:XX:XX:XX",
+            "invalid_name": "Su nombre debe tener más de 0 caracteres"
         },
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "already_configured_by_discovery": "Este dispositivo ya ha sido descubierto. Por favor, configúrelo a través de la lista de dispositivos descubiertos."
         }
     },
     "options":{

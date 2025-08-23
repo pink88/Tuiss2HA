@@ -18,14 +18,17 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "cannot_connect": "Échec de la connexion. Veuillez réessayer.",
+            "invalid_auth": "Échec de l'authentification. Cette erreur ne devrait pas être possible, si vous l'obtenez, veuillez signaler un problème.",
+            "unknown": "Erreur inconnue. Veuillez réessayer. Si vous obtenez constamment cette erreur, veuillez signaler un problème.",
             "device_not_found": "L'appareil est introuvable. Veuillez vous assurer qu'il est sous tension et à portée.",
-            "connection_timeout": "La connexion a expiré après plusieurs tentatives. Veuillez réessayer plus tard."
+            "connection_timeout": "La connexion a expiré après plusieurs tentatives. Veuillez réessayer plus tard.",
+            "invalid_host": "Votre adresse MAC doit être au format XX:XX:XX:XX:XX:XX",
+            "invalid_name": "Votre nom doit comporter plus de 0 caractères"
         },
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "already_configured_by_discovery": "Cet appareil a déjà été découvert. Veuillez le configurer via la liste des appareils découverts."
         }
     },
     "options":{

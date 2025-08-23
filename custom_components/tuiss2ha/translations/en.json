@@ -18,14 +18,17 @@
             }
         },
         "error": {
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-            "unknown": "[%key:common::config_flow::error::unknown%]",
+            "cannot_connect": "Connection failed. Please try again.",
+            "invalid_auth": "Authentication failed. This error should not be possible, if you get it please raise an issue.",
+            "unknown": "Unknown error. Please try again. If you consistently get this error please raise an issue.",
             "device_not_found": "The device could not be found. Please ensure it is powered on and in range.",
-            "connection_timeout": "The connection timed out after several retries. Please try again later."
+            "connection_timeout": "The connection timed out after several retries. Please try again later.",
+            "invalid_host": "Your mac address must be in the format XX:XX:XX:XX:XX:XX",
+            "invalid_name": "Your name must be longer than 0 characters"
         },
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "already_configured_by_discovery": "This device has already been discovered. Please configure it through the discovered devices list."
         }
     },
     "options":{
