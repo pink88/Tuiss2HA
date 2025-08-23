@@ -76,19 +76,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=STEP_DATA_SCHEMA)
 
-        await self.async_set_unique_id(user_input[CONF_BLIND_HOST])
+        host = user_input[CONF_BLIND_HOST].upper()
+
+        _LOGGER.debug("Starting user initiated flow")
+        # Check if a discovery flow is already in progress for this device
+        for progress_flow in self.hass.config_entries.flow.async_progress():
+            if (
+                progress_flow["context"].get("source") == config_entries.SOURCE_BLUETOOTH
+                and progress_flow["context"].get("unique_id") == host
+            ):
+                return self.async_abort(reason="already_configured_by_discovery")
+
+
+        await self.async_set_unique_id(host)
         self._abort_if_unique_id_configured()
 
         try:
             _title = await validate_input(self.hass, user_input)
         except CannotConnect:
-            errors[CONF_BLIND_NAME] = "Cannot connect"
+            errors["base"] = "cannot_connect"
         except InvalidHost:
-            errors[CONF_BLIND_HOST] = (
-                "Your mac address must be in the format XX:XX:XX:XX:XX:XX"
-            )
+            errors[CONF_BLIND_HOST] = "invalid_host"
         except InvalidName:
-            errors[CONF_BLIND_NAME] = "Your name must be longer than 0 characters"
+            errors[CONF_BLIND_NAME] = "invalid_name"
         except Exception:
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
@@ -155,7 +165,7 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     try:
         hub = Hub(hass, data[CONF_BLIND_HOST], data[CONF_BLIND_NAME])
         await hub.blinds[0].get_blind_position()
-        await hub.blinds[0].blind_disconnect()
+        await hub.blinds[0].disconnect()
     except DeviceNotFound:
         raise
     except ConnectionTimeout:

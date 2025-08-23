@@ -22,11 +22,12 @@ from homeassistant.const import STATE_CLOSED, STATE_OPEN, STATE_OPENING, STATE_C
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.components.persistent_notification import async_create
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 
 
-from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS
+from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS, ConnectionTimeout, DeviceNotFound
 from .hub import TuissBlind
 
 _LOGGER = logging.getLogger(__name__)
@@ -233,11 +234,17 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        await self.async_move_cover(movement_direction=1, target_position=0)
+        try:
+            await self.async_move_cover(movement_direction=1, target_position=0)
+        except (ConnectionTimeout, DeviceNotFound) as e:
+            async_create(self.hass, f"Failed to open {self.name}: {e}", "Tuiss Blind Error")
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        await self.async_move_cover(movement_direction=-1, target_position=100)
+        try:
+            await self.async_move_cover(movement_direction=-1, target_position=100)
+        except (ConnectionTimeout, DeviceNotFound) as e:
+            async_create(self.hass, f"Failed to close {self.name}: {e}", "Tuiss Blind Error")
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
@@ -248,15 +255,20 @@ class Tuiss(CoverEntity, RestoreEntity):
             movement_direction = 1
         else:
             movement_direction = -1
-        await self.async_move_cover(
-            movement_direction=movement_direction,
-            target_position= 100 - kwargs[ATTR_POSITION],
-        )
+        try:
+            await self.async_move_cover(
+                movement_direction=movement_direction,
+                target_position= 100 - kwargs[ATTR_POSITION],
+            )
+        except (ConnectionTimeout, DeviceNotFound) as e:
+            async_create(self.hass, f"Failed to set position for {self.name}: {e}", "Tuiss Blind Error")
 
     async def async_move_cover(self, movement_direction, target_position):
+        _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
         await self._blind.attempt_connection()
         if self._blind._client.is_connected and not self._locked:
             self._locked = True
+            _LOGGER.debug("%s: Lock acquired.", self.name)
             self._blind._is_stopping = False
             start_position = self._blind._current_cover_position
             corrected_target_position = 100 - target_position
@@ -272,8 +284,8 @@ class Tuiss(CoverEntity, RestoreEntity):
                 """Task to update the position while the blind is moving."""
                 while self._blind._client and self._blind._client.is_connected and not self._blind._is_stopping:
                     if self._attr_traversal_time is not None:
-                        _LOGGER.debug("StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
-                            start_position, self._blind._current_cover_position, corrected_target_position,
+                        _LOGGER.debug("%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                            self._blind.name, start_position, self._blind._current_cover_position, corrected_target_position,
                             (datetime.datetime.now() - self._start_time).total_seconds()
                         )
                         traversalDelta = (
@@ -290,11 +302,14 @@ class Tuiss(CoverEntity, RestoreEntity):
             update_task = self.hass.async_create_task(_update_position_in_realtime())
             
             try:
-                await asyncio.wait_for(self._blind.wait_for_stop(), timeout=self._attr_traversal_time * abs(corrected_target_position - start_position) * 1.5 if self._attr_traversal_time else TIMEOUT_SECONDS)
+                timeout_duration = self._attr_traversal_time * abs(corrected_target_position - start_position) * 1.5 if self._attr_traversal_time else TIMEOUT_SECONDS
+                _LOGGER.debug("%s: Waiting for stop event with timeout: %s seconds. Traversal time: %s", self.name, timeout_duration, self._attr_traversal_time)
+                await asyncio.wait_for(self._blind.wait_for_stop(), timeout=timeout_duration)
             except asyncio.TimeoutError:
                 _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
                 await self._blind.get_blind_position()
                 await self._blind.disconnect()
+                update_task.cancel()
                 return #stops blind updating traversal time if it timesout
             finally:
                 update_task.cancel()
@@ -312,6 +327,8 @@ class Tuiss(CoverEntity, RestoreEntity):
 
             # unlock the entity to allow more changes
             self._locked = False
+            _LOGGER.debug("%s: Lock released in async_stop_cover.", self.name)
+            _LOGGER.debug("%s: Lock released.", self.name)
 
     async def update_traversal_time(self, target_position, start_position):
         time_taken = (self._end_time - self._start_time).total_seconds()
@@ -330,8 +347,12 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
+        _LOGGER.debug("%s: Entering async_stop_cover. is_stopping: %s", self.name, self._blind._is_stopping)
         self._blind._is_stopping = True
-        await self._blind.stop()
+        try:
+            await self._blind.stop()
+        except (ConnectionTimeout, DeviceNotFound, RuntimeError) as e:
+            async_create(self.hass, f"Failed to stop {self.name}: {e}", "Tuiss Blind Error")
         if self._blind._client:
             while self._blind._client.is_connected:
                 await asyncio.sleep(1)
