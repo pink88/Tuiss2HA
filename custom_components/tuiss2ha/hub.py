@@ -196,9 +196,11 @@ class TuissBlind:
         client = self._client
         if not client:
             _LOGGER.debug("%s: Already disconnected", self.name)
+            self._stopped_event.set()
             return
         _LOGGER.debug("%s: Disconnecting", self.name)
         try:
+            await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await client.disconnect()
         except BLEAK_RETRY_EXCEPTIONS as ex:
             _LOGGER.warning(
@@ -220,9 +222,9 @@ class TuissBlind:
                 self._stopped_event.clear()
                 await self._stopped_event.wait()
         
-            ##################################################################################################
-            ## SET METHODS ############################################################################
-            ##################################################################################################
+    ##################################################################################################
+    ## SET METHODS ###################################################################################
+    ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
 
@@ -302,7 +304,7 @@ class TuissBlind:
 
 
     ##################################################################################################
-    ## GET METHODS ############################################################################
+    ## GET METHODS ###################################################################################
     ##################################################################################################
 
     async def get_from_blind(self, command, callback) -> None:

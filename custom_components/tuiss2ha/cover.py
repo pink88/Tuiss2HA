@@ -22,9 +22,9 @@ from homeassistant.const import STATE_CLOSED, STATE_OPEN, STATE_OPENING, STATE_C
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.components.persistent_notification import async_create
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.exceptions import HomeAssistantError
 
 
 from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS, ConnectionTimeout, DeviceNotFound
@@ -209,9 +209,11 @@ class Tuiss(CoverEntity, RestoreEntity):
             | CoverEntityFeature.STOP
         )
 
+
     async def async_scheduled_update_request(self, *_):
         """Request a state update from the blind at a scheduled point in time."""
         self.async_write_ha_state()
+
 
     async def async_added_to_hass(self) -> None:
         """Run when this Entity has been added to HA."""
@@ -228,23 +230,29 @@ class Tuiss(CoverEntity, RestoreEntity):
         
         self._blind.register_callback(self.async_write_ha_state)
 
+
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
         self._blind.remove_callback(self.async_write_ha_state)
+
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
         try:
             await self.async_move_cover(movement_direction=1, target_position=0)
         except (ConnectionTimeout, DeviceNotFound) as e:
-            async_create(self.hass, f"Failed to open {self.name}: {e}", "Tuiss Blind Error")
+            _LOGGER.debug("%s failed to open with error %s.", self._attr_name, e)
+            raise HomeAssistantError(f"{self._attr_name} failed to open with error {e}.")
+
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         try:
             await self.async_move_cover(movement_direction=-1, target_position=100)
         except (ConnectionTimeout, DeviceNotFound) as e:
-            async_create(self.hass, f"Failed to close {self.name}: {e}", "Tuiss Blind Error")
+            _LOGGER.debug("%s failed to close with error %s.", self._attr_name, e)
+            raise HomeAssistantError(f"{self._attr_name} failed to close with error {e}.")
+
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
@@ -261,7 +269,9 @@ class Tuiss(CoverEntity, RestoreEntity):
                 target_position= 100 - kwargs[ATTR_POSITION],
             )
         except (ConnectionTimeout, DeviceNotFound) as e:
-            async_create(self.hass, f"Failed to set position for {self.name}: {e}", "Tuiss Blind Error")
+            _LOGGER.debug("%s failed to set position with error %s.", self._attr_name, e)
+            raise HomeAssistantError(f"{self._attr_name} failed to set position with error {e}.")
+
 
     async def async_move_cover(self, movement_direction, target_position):
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
@@ -307,9 +317,11 @@ class Tuiss(CoverEntity, RestoreEntity):
                 await asyncio.wait_for(self._blind.wait_for_stop(), timeout=timeout_duration)
             except asyncio.TimeoutError:
                 _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
+                update_task.cancel()
                 await self._blind.get_blind_position()
                 await self._blind.disconnect()
-                update_task.cancel()
+                _LOGGER.debug("%s: Lock released following timeout", self._attr_name)
+                self._locked = False
                 return #stops blind updating traversal time if it timesout
             finally:
                 update_task.cancel()
@@ -327,9 +339,13 @@ class Tuiss(CoverEntity, RestoreEntity):
 
             # unlock the entity to allow more changes
             self._locked = False
-            _LOGGER.debug("%s: Lock released in async_stop_cover.", self.name)
-            _LOGGER.debug("%s: Lock released.", self.name)
+            _LOGGER.debug("%s: Lock released in async_move_cover.", self._attr_name)
 
+        elif self._locked:
+            _LOGGER.debug("%s is locked, please wait for currrent command to complete and then try again.", self._attr_name)
+            raise HomeAssistantError(f"{self._attr_name} is locked, please wait for currrent command to complete and then try again.")
+            
+            
     async def update_traversal_time(self, target_position, start_position):
         time_taken = (self._end_time - self._start_time).total_seconds()
         traversal_distance = abs(target_position - start_position)
@@ -345,6 +361,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         )
         await self.async_scheduled_update_request()
 
+
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         _LOGGER.debug("%s: Entering async_stop_cover. is_stopping: %s", self.name, self._blind._is_stopping)
@@ -352,10 +369,12 @@ class Tuiss(CoverEntity, RestoreEntity):
         try:
             await self._blind.stop()
         except (ConnectionTimeout, DeviceNotFound, RuntimeError) as e:
-            async_create(self.hass, f"Failed to stop {self.name}: {e}", "Tuiss Blind Error")
+            _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
+            raise HomeAssistantError("Failed to stop %s. Error %s", self._attr_name, e)
         if self._blind._client:
             while self._blind._client.is_connected:
                 await asyncio.sleep(1)
             self._blind._moving = 0
             await self.async_scheduled_update_request()
+        _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
         self._locked = False
