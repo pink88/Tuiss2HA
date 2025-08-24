@@ -307,9 +307,10 @@ class Tuiss(CoverEntity, RestoreEntity):
                 await asyncio.wait_for(self._blind.wait_for_stop(), timeout=timeout_duration)
             except asyncio.TimeoutError:
                 _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
+                update_task.cancel()
                 await self._blind.get_blind_position()
                 await self._blind.disconnect()
-                update_task.cancel()
+                self._locked = False
                 return #stops blind updating traversal time if it timesout
             finally:
                 update_task.cancel()
