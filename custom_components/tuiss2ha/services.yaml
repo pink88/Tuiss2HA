@@ -33,6 +33,28 @@ set_blind_position:
           step: 0.1
           mode: box
 
+simultaneous_blind_positioning:
+  # Sets the position of multiple blind at the same time.
+  # requires connection to two blinds simulataneoudly
+  fields:
+    entity_ids:
+      name: Blinds
+      description: The blinds to control.
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain: cover
+          multiple: true
+    position:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.1
+          mode: box
+
 set_blind_speed:
   target:
     entity:

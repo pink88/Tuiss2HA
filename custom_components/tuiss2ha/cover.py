@@ -19,7 +19,7 @@ from homeassistant.components.cover import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_CLOSED, STATE_OPEN, STATE_OPENING, STATE_CLOSING
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -43,6 +43,12 @@ SET_BLIND_POSITION_SCHEMA = cv.make_entity_service_schema(
 SET_BLIND_SPEED_SCHEMA = cv.make_entity_service_schema(
     {vol.Required("speed"): vol.In(BLIND_SPEED_LIST)}
 )
+SIMULTANEOUS_BLIND_POSITIONING_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_ids"): cv.entity_ids,
+        vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
+    }
+)
 
 
 async def async_setup_entry(
@@ -54,6 +60,14 @@ async def async_setup_entry(
     hub = hass.data[DOMAIN][config_entry.entry_id]
     blinds = [Tuiss(blind, config_entry) for blind in hub.blinds]
     async_add_entities(blinds)
+
+    # Store entities in hass.data[DOMAIN] for easy retrieval by entity_id
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    if "entities" not in hass.data[DOMAIN]:
+        hass.data[DOMAIN]["entities"] = {}
+    for blind_entity in blinds:
+        hass.data[DOMAIN]["entities"][blind_entity.entity_id] = blind_entity
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
@@ -67,12 +81,50 @@ async def async_setup_entry(
     )
     
     # Register the set_speed service only for supported models
-    for blind in blinds:
-        if blind._blind.model in SPEED_CONTROL_SUPPORTED_MODELS:
-            _LOGGER.debug("Adding blind speed service for %s, model %s",blind._blind.name, blind._blind.model)
+    for blind_entity in blinds:
+        if blind_entity._blind.model in SPEED_CONTROL_SUPPORTED_MODELS:
+            _LOGGER.debug("Adding blind speed service for %s, model %s",blind_entity._blind.name, blind_entity._blind.model)
             platform.async_register_entity_service(
                 "set_blind_speed", SET_BLIND_SPEED_SCHEMA, async_set_blind_speed
             )
+
+    # Register the new parallel blind position service as a domain service
+    async def async_simultaneous_blind_positioning(service_call: ServiceCall) -> None:
+        """Set the position of multiple blinds simultaneously."""
+        hass = service_call.hass
+        entity_ids = service_call.data["entity_ids"]
+        position = service_call.data["position"]
+
+        entities = []
+        for entity_id in entity_ids:
+            entity = hass.data[DOMAIN]["entities"].get(entity_id)
+            if entity:
+                entities.append(entity)
+            else:
+                _LOGGER.warning(
+                    "Entity %s not found for parallel blind position setting.", entity_id
+                )
+
+        if not entities:
+            _LOGGER.error("No valid entities found for parallel blind position setting.")
+            return
+
+        # Connect to all blinds in parallel
+        connect_tasks = [entity._blind.attempt_connection() for entity in entities]
+        await asyncio.gather(*connect_tasks)
+
+        # Set position for all blinds in parallel
+        set_position_tasks = [
+            entity.async_set_cover_position(position=position) for entity in entities
+        ]
+        await asyncio.gather(*set_position_tasks)
+
+    hass.services.async_register(
+        DOMAIN,
+        "simultaneous_blind_positioning",
+        async_simultaneous_blind_positioning,
+        schema=SIMULTANEOUS_BLIND_POSITIONING_SCHEMA,
+    )
 
 
 async def async_get_blind_position(entity, service_call):
@@ -108,7 +160,6 @@ async def async_set_blind_speed(entity, service_call):
     entity.hass.config_entries.async_update_entry(
         entity.config_entry, data=new_data, options=new_options
     )
-
 
 
 class Tuiss(CoverEntity, RestoreEntity):

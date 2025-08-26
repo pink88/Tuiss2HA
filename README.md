@@ -7,7 +7,7 @@ The following hardware versions have been tested and confirmed as working, but o
 
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
 - TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
--TS2600/TS2900/TS5001/TS5101: Roller blinds which support variable movement speeds.
+- TS2600/TS2900/TS5001/TS5101: Roller blinds which support variable movement speeds.
 
 
 ## Installation and adding your devices ##
@@ -31,7 +31,9 @@ The following hardware versions have been tested and confirmed as working, but o
 - Stop
 - Battery State (through action)
 - Signal Strength
+- Favourite position
 - Decimal Blind position (through action)
+- Simultaneous blind positioning (through action)
 
 ### Battery State ###
 An accurate battery percentage is not provided by the blind, but it is possible to return two states:
@@ -79,6 +81,9 @@ To overwrite Home Assistant's built in integer accuracy, you can use the 'tuiss2
 
 ### Set Blind Speed ###
 For supported models, you can set the speed of the blind motor using the 'tuiss2ha.set_blind_speed' action. This can be called manually from Developer tools -> Actions or from within automations. The available speeds are "Standard", "Comfort", and "Slow".
+
+### Simultaneous Blind Positioning ###
+To move multiple blinds to the same position at exactly the same time, you can use the 'tuiss2ha.simultaneous_blind_positioning' action. This is useful for creating synchronized scenes, like closing all blinds in a room at once. This action is designed specifically for simultaneous movement; for standard, sequential automations, it is better to use Home Assistant's built-in `cover.set_cover_position` action or this integrations 'tuiss2ha.set_blind_position' acton.
 
 ## Configuration Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
