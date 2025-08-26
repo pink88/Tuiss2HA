@@ -376,6 +376,9 @@ class Tuiss(CoverEntity, RestoreEntity):
                 return #stops blind updating traversal time if it timesout
             finally:
                 update_task.cancel()
+                # unlock the entity to allow more changes
+                self._locked = False
+                _LOGGER.debug("%s: Lock released in async_move_cover.", self._attr_name)
             
 
             # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
@@ -388,9 +391,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                 self._blind._moving = 0
                 await self.async_scheduled_update_request()
 
-            # unlock the entity to allow more changes
-            self._locked = False
-            _LOGGER.debug("%s: Lock released in async_move_cover.", self._attr_name)
+
 
         elif self._locked:
             _LOGGER.debug("%s is locked, please wait for currrent command to complete and then try again.", self._attr_name)
