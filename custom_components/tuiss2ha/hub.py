@@ -215,12 +215,13 @@ class TuissBlind:
                 self._current_cover_position,
                 self._moving,
             )
+        finally:
             self._stopped_event.set()
 
     async def wait_for_stop(self):
-                """Wait for the blind to stop moving."""
-                self._stopped_event.clear()
-                await self._stopped_event.wait()
+        """Wait for the blind to stop moving."""
+        self._stopped_event.clear()
+        await self._stopped_event.wait()
         
     ##################################################################################################
     ## SET METHODS ###################################################################################

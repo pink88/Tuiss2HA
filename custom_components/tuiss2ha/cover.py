@@ -27,7 +27,7 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, Device
 from homeassistant.exceptions import HomeAssistantError
 
 
-from .const import DOMAIN, OPT_BLIND_ORIENTATION, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS, ConnectionTimeout, DeviceNotFound
+from .const import DOMAIN, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, TIMEOUT_SECONDS, ConnectionTimeout, DeviceNotFound
 from .hub import TuissBlind
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,13 +71,13 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "get_blind_position", GET_BLIND_POSITION_SCHEMA, async_get_blind_position
+        "get_blind_position", GET_BLIND_POSITION_SCHEMA, async_action_get_blind_position
     )
 
     platform.async_register_entity_service(
         "set_blind_position",
         SET_BLIND_POSITION_SCHEMA,
-        async_set_blind_position,
+        async_action_set_blind_position,
     )
     
     # Register the set_speed service only for supported models
@@ -85,11 +85,11 @@ async def async_setup_entry(
         if blind_entity._blind.model in SPEED_CONTROL_SUPPORTED_MODELS:
             _LOGGER.debug("Adding blind speed service for %s, model %s",blind_entity._blind.name, blind_entity._blind.model)
             platform.async_register_entity_service(
-                "set_blind_speed", SET_BLIND_SPEED_SCHEMA, async_set_blind_speed
+                "set_blind_speed", SET_BLIND_SPEED_SCHEMA, async_action_set_blind_speed
             )
 
     # Register the new parallel blind position service as a domain service
-    async def async_simultaneous_blind_positioning(service_call: ServiceCall) -> None:
+    async def async_action_simultaneous_blind_positioning(service_call: ServiceCall) -> None:
         """Set the position of multiple blinds simultaneously."""
         hass = service_call.hass
         entity_ids = service_call.data["entity_ids"]
@@ -122,32 +122,24 @@ async def async_setup_entry(
     hass.services.async_register(
         DOMAIN,
         "simultaneous_blind_positioning",
-        async_simultaneous_blind_positioning,
+        async_action_simultaneous_blind_positioning,
         schema=SIMULTANEOUS_BLIND_POSITIONING_SCHEMA,
     )
 
 
-async def async_get_blind_position(entity, service_call):
+async def async_action_get_blind_position(entity, service_call):
     """Get the blind position when called by service."""
     await entity._blind.get_blind_position()
     entity.schedule_update_ha_state()
 
 
-async def async_set_blind_position(entity, service_call):
+async def async_action_set_blind_position(entity, service_call):
     """Set the blind position with decimal precision."""
     position = service_call.data["position"]
-    await entity._blind.set_position(100 - position)
-    if (
-        entity._blind_orientation
-    ):  # wokraround for some blinds working opposite for this service only?
-        entity._blind._current_cover_position = 100 - position
-    else:
-        entity._blind._current_cover_position = position
-    entity.schedule_update_ha_state()
+    await entity.async_set_cover_position(**{ATTR_POSITION: position})
 
 
-
-async def async_set_blind_speed(entity, service_call):
+async def async_action_set_blind_speed(entity, service_call):
     """Set the blind speed."""
     speed = service_call.data["speed"]
     entity._blind._blind_speed = speed
@@ -177,7 +169,6 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_traversal_time: float | None = None
         self._attr_mac_address = self._blind.host
         self._locked = False
-        self._blind_orientation = config.options.get(OPT_BLIND_ORIENTATION, False)
         self._blind._restart_attempts = config.options.get(OPT_RESTART_ATTEMPTS)
         self._blind._position_on_restart = config.options.get(OPT_RESTART_POSITION)
 
@@ -369,8 +360,11 @@ class Tuiss(CoverEntity, RestoreEntity):
             except asyncio.TimeoutError:
                 _LOGGER.warning("%s: Timeout waiting for blind to stop", self._attr_name)
                 update_task.cancel()
-                await self._blind.get_blind_position()
+                #await self._blind.get_blind_position()
                 await self._blind.disconnect()
+                self._blind._current_cover_position = corrected_target_position
+                self._blind._moving = 0
+                await self.async_scheduled_update_request()
                 _LOGGER.debug("%s: Lock released following timeout", self._attr_name)
                 self._locked = False
                 return #stops blind updating traversal time if it timesout

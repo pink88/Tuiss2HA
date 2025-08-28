@@ -18,8 +18,6 @@ from .const import (
     CONF_BLIND_HOST,
     CONF_BLIND_NAME,
     DOMAIN,
-    OPT_BLIND_ORIENTATION,
-    DEFAULT_BLIND_ORIENTATION,
     OPT_RESTART_POSITION,
     OPT_RESTART_ATTEMPTS,
     DEFAULT_RESTART_ATTEMPTS,
@@ -215,12 +213,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 break
 
         options_schema = {
-            vol.Optional(
-                OPT_BLIND_ORIENTATION,
-                default=self.config_entry.options.get(
-                    OPT_BLIND_ORIENTATION, DEFAULT_BLIND_ORIENTATION
-                ),
-            ): bool,
             vol.Optional(
                 OPT_RESTART_POSITION,
                 default=self.config_entry.options.get(

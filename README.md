@@ -87,7 +87,6 @@ To move multiple blinds to the same position at exactly the same time, you can u
 
 ## Configuration Options ##
 Configuration options can be set from the Tuiss2HA Integration screen in Home Assistant once you have added a blind.
-- **Invert `set_blind_position`**: If you notice that the provided `set_blind_position` action is giving you the opposite result to what you expect (e.g. instead of 75% open, it shows as 75% closed), then you can toggle this option.
 - **Reconnection attempts**: Sometimes devices take a few attempts to connect, so expect some delay to commands. This may also be a result of too many Bluetooth devices in your network, not enough adapters, or the distance between the blind and the adapter being too large. You can change the maximum number of retry attempts using this option. For connection issues, try moving devices closer or increasing the number of Bluetooth adapters/proxies.
 - **Check for blind position on restart**: If you use the Tuiss app or a remote control to move the blinds in addition to this integration, you may want Home Assistant to fetch the latest position of a blind when it is restarted using this option.
 - **Blind motor speed**: For supported models, the speed of the blind can be set. There are three speeds to select from: Standard (fastest), Comfort, and Slow (slowest). By default, the speed will be set to Standard.
