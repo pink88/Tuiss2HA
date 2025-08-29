@@ -16,6 +16,7 @@ from bleak_retry_connector import (
 
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     DOMAIN,
@@ -25,6 +26,7 @@ from .const import (
     DEFAULT_RESTART_ATTEMPTS,
     DeviceNotFound,
     ConnectionTimeout,
+    TIMEOUT_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,7 +87,8 @@ class TuissBlind:
         self._restart_attempts: int | None = None
         self._position_on_restart: bool | None = None
         self._blind_speed: str | None = None
-        
+        self._locked = False
+        self._attr_traversal_time: float | None = None
 
 
     @property
@@ -101,8 +104,12 @@ class TuissBlind:
     def set_rssi(self, rssi: int) -> None:
         """Update the RSSI for the blind."""
         self._rssi = rssi
+        self.publish_updates()
+
+    def publish_updates(self) -> None:
+        """Schedule call all registered callbacks."""
         for callback in self._callbacks:
-            callback()
+            self.hub._hass.async_add_job(callback)
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
@@ -459,3 +466,128 @@ class TuissBlind:
         _LOGGER.debug("%s: As string:%s", self.name, response)
         _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
         return decimals
+
+    
+    async def async_move_cover(
+        self,
+        movement_direction,
+        target_position
+    ):
+        """Move the cover."""
+        _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
+        await self.attempt_connection()
+        if self._client.is_connected and not self._locked:
+            self._locked = True
+            _LOGGER.debug("%s: Lock acquired.", self.name)
+            self._is_stopping = False
+            start_position = self._current_cover_position
+            corrected_target_position = 100 - target_position
+            self._moving = movement_direction
+
+            # Update the state and trigger the moving
+            self.publish_updates()
+            await self.set_position(target_position)
+            end_time = None
+            start_time = datetime.datetime.now()
+
+            async def _update_position_in_realtime():
+                """Task to update the position while the blind is moving."""
+                while self._client and self._client.is_connected and not self._is_stopping:
+                    if self._attr_traversal_time is not None:
+                        _LOGGER.debug(
+                            "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                            self.name,
+                            start_position,
+                            self._current_cover_position,
+                            corrected_target_position,
+                            (datetime.datetime.now() - start_time).total_seconds(),
+                        )
+                        traversalDelta = (
+                            (datetime.datetime.now() - start_time).total_seconds()
+                            * self._attr_traversal_time
+                            * movement_direction
+                        )
+                        self._current_cover_position = round(
+                            sorted([0, start_position + traversalDelta, 100])[1], 2
+                        )
+                        self.publish_updates()
+                    await asyncio.sleep(1)
+
+            update_task = self.hub._hass.async_create_task(_update_position_in_realtime())
+
+            try:
+                timeout_duration = (
+                    self._attr_traversal_time
+                    * abs(corrected_target_position - start_position)
+                    * 1.5
+                    if self._attr_traversal_time
+                    else TIMEOUT_SECONDS
+                )
+                _LOGGER.debug(
+                    "%s: Waiting for stop event with timeout: %s seconds. Traversal time: %s",
+                    self.name,
+                    timeout_duration,
+                    self._attr_traversal_time,
+                )
+                await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
+                update_task.cancel()
+                # await self.get_blind_position()
+                await self.disconnect()
+                self.set_final_state(corrected_target_position)
+                _LOGGER.debug("%s: Lock released following timeout", self.name)
+                self._locked = False
+                return  # stops blind updating traversal time if it timesout
+            finally:
+                update_task.cancel()
+                # unlock the entity to allow more changes
+                self._locked = False
+                _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
+
+            # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
+            _LOGGER.debug(
+                "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
+                self.name,
+                start_position,
+                self._current_cover_position,
+                corrected_target_position,
+                self._is_stopping,
+            )
+            if not self._is_stopping:
+                end_time = datetime.datetime.now()
+                self.update_traversal_time(
+                    corrected_target_position, start_position, start_time, end_time
+                )
+
+                self.set_final_state(corrected_target_position)
+
+        elif self._locked:
+            _LOGGER.debug(
+                "%s is locked, please wait for currrent command to complete and then try again.",
+                self.name,
+            )
+            raise HomeAssistantError(
+                f"{self.name} is locked, please wait for currrent command to complete and then try again."
+            )
+
+    def update_traversal_time(self, target_position, start_position, start_time, end_time):
+        """Update the traversal time."""
+        time_taken = (end_time - start_time).total_seconds()
+        traversal_distance = abs(target_position - start_position)
+        self._attr_traversal_time = traversal_distance / time_taken
+        _LOGGER.debug(
+            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
+            self.name,
+            time_taken,
+            start_position,
+            target_position,
+            traversal_distance,
+            self._attr_traversal_time,
+        )
+        
+    def set_final_state(self, position):
+        """Set the final state of the blind after a move."""
+        self._current_cover_position = position
+        self._moving = 0
+        self.publish_updates()
