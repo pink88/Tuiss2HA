@@ -271,7 +271,7 @@ class Tuiss(CoverEntity, RestoreEntity):
                 last_state.attributes.get(ATTR_CURRENT_POSITION)
             )
         if last_state and last_state.attributes.get(ATTR_TRAVERSAL_TIME) is not None:
-            self._attr_traversal_time = last_state.attributes.get(ATTR_TRAVERSAL_TIME)
+            self._blind._attr_traversal_time = last_state.attributes.get(ATTR_TRAVERSAL_TIME)
         
         self._blind.register_callback(self.async_update_state)
 

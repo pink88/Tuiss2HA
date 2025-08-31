@@ -490,7 +490,7 @@ class TuissBlind:
             end_time = None
             start_time = datetime.datetime.now()
 
-            async def _update_position_in_realtime():
+            async def aync_update_position_in_realtime():
                 """Task to update the position while the blind is moving."""
                 while self._client and self._client.is_connected and not self._is_stopping:
                     if self._attr_traversal_time is not None:
@@ -513,14 +513,14 @@ class TuissBlind:
                         self.publish_updates()
                     await asyncio.sleep(1)
 
-            update_task = self.hub._hass.async_create_task(_update_position_in_realtime())
+            update_task = self.hub._hass.async_create_task(aync_update_position_in_realtime())
 
             try:
                 timeout_duration = (
                     self._attr_traversal_time
                     * abs(corrected_target_position - start_position)
                     * 1.5
-                    if self._attr_traversal_time
+                    if self._attr_traversal_time is not None and self._attr_traversal_time >= 1
                     else TIMEOUT_SECONDS
                 )
                 _LOGGER.debug(
