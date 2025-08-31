@@ -86,7 +86,7 @@
         },
         "simultaneous_blind_positioning": {
             "name": "Gleichzeitige Jalousiepositionierung",
-            "description": "Stellen Sie die Position mehrerer Jalousien gleichzeitig ein. Für diese Aktion müssen mehrere Entitäten ausgewählt werden. Diese Aktion sollte nur verwendet werden, wenn Sie möchten, dass sich die Jalousien gleichzeitig bewegen.",
+            "description": "Stellen Sie die Position mehrerer Jalousien gleichzeitig ein. Für diese Aktion müssen mehrere Entitäten ausgewählt werden. Diese Aktion sollte nur verwendet werden, wenn Sie möchten, dass sich die Jalousien gleichzeitig bewegen und genügend BT-Geräte vorhanden sind, um die Anzahl der gewünschten Verbindungen zu verwalten (z. B. 3 Verbindungen pro ESPHome-Proxy).",
             "fields": {
                 "position": {
                     "name": "Position",

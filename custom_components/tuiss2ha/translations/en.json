@@ -86,7 +86,7 @@
         },
         "simultaneous_blind_positioning": {
             "name": "Simultaneous Blind Positioning",
-            "description": "Set the position of multiple blinds simultaneously. Multiple entities must be selected for this action to work. This action should only be used if you want blinds to move at the same time.",
+            "description": "Set the position of multiple blinds simultaneously. Multiple entities must be selected for this action to work. This action should only be used if you want blinds to move at the same time and have enough BT devices to handle the number of connections you want to make (e.g. 3 connections per esphome proxy).",
             "fields": {
                 "position": {
                     "name": "Position",

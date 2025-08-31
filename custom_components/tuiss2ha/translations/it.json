@@ -86,7 +86,7 @@
         },
         "simultaneous_blind_positioning": {
             "name": "Posizionamento simultaneo delle tende",
-            "description": "Imposta la posizione di più tende contemporaneamente. Per questa azione è necessario selezionare più entità. Questa azione dovrebbe essere utilizzata solo se si desidera che le tende si muovano contemporaneamente.",
+            "description": "Imposta la posizione di più tende contemporaneamente. Per questa azione è necessario selezionare più entità. Questa azione dovrebbe essere utilizzata solo se si desidera che le tende si muovano contemporaneamente e si dispone di un numero sufficiente di dispositivi BT per gestire il numero di connessioni che si desidera effettuare (ad esempio, 3 connessioni per proxy esphome).",
             "fields": {
                 "position": {
                     "name": "Posizione",
