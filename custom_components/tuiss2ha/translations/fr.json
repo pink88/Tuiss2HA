@@ -83,6 +83,20 @@
                     "description": "Vitesse cible pour le moteur du store"
                 }
             }
+        },
+        "simultaneous_blind_positioning": {
+            "name": "Positionnement simultané des stores",
+            "description": "Définissez la position de plusieurs stores simultanément. Plusieurs entités doivent être sélectionnées pour que cette action fonctionne. Cette action ne doit être utilisée que si vous souhaitez que les stores se déplacent en même temps et que vous disposez de suffisamment de périphériques BT pour gérer le nombre de connexions que vous souhaitez établir (par exemple, 3 connexions par proxy esphome).",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Position cible entre 0,0 (fermé) et 100,0 (ouvert) avec une précision de 1 décimale)"
+                },
+                "entity_ids": {
+                    "name": "Stores",
+                    "description": "Les stores à contrôler."
+                }
+            }
         }
     }
 }

@@ -83,6 +83,20 @@
                     "description": "Velocidad objetivo para el motor de la persiana"
                 }
             }
+        },
+        "simultaneous_blind_positioning": {
+            "name": "Posicionamiento simultáneo de persianas",
+            "description": "Establece la posición de varias persianas simultáneamente. Se deben seleccionar varias entidades para que esta acción funcione. Esta acción solo debe usarse si desea que las persianas se muevan al mismo tiempo y tenga suficientes dispositivos BT para manejar la cantidad de conexiones que desea realizar (por ejemplo, 3 conexiones por proxy esphome).",
+            "fields": {
+                "position": {
+                    "name": "Posición",
+                    "description": "Posición objetivo entre 0.0 (cerrado) y 100.0 (abierto) con una precisión de 1 punto decimal)"
+                },
+                "entity_ids": {
+                    "name": "Persianas",
+                    "description": "Las persianas a controlar."
+                }
+            }
         }
     }
 }
