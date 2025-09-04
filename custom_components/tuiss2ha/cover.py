@@ -173,14 +173,6 @@ class Tuiss(CoverEntity, RestoreEntity):
     @property
     def state(self):
         """Set state of object."""
-        # corrects the state if there is a disconnect during open or close
-        _LOGGER.debug(
-            "%s: Setting State from %s. Moving: %s. Client: %s",
-            self._attr_name,
-            self._state,
-            self._blind._moving,
-            self._blind._client,
-        )
         if self._blind._moving > 0:
             self._state = STATE_OPENING
         elif self._blind._moving < 0:
@@ -254,9 +246,9 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Request a state update from the blind at a scheduled point in time."""
         self.async_write_ha_state()
 
-    async def async_update_state(self):
+    def update_state(self):
         """Update the state of the blind."""
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
 
     async def async_added_to_hass(self) -> None:
@@ -272,12 +264,12 @@ class Tuiss(CoverEntity, RestoreEntity):
         if last_state and last_state.attributes.get(ATTR_TRAVERSAL_SPEED) is not None:
             self._blind._attr_traversal_speed = last_state.attributes.get(ATTR_TRAVERSAL_SPEED)
         
-        self._blind.register_callback(self.async_update_state)
+        self._blind.register_callback(self.update_state)
 
 
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
-        self._blind.remove_callback(self.async_update_state)
+        self._blind.remove_callback(self.update_state)
 
 
     async def async_open_cover(self, **kwargs: Any) -> None:

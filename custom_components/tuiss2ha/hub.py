@@ -111,7 +111,7 @@ class TuissBlind:
     def publish_updates(self) -> None:
         """Schedule call all registered callbacks."""
         for callback in self._callbacks:
-            self.hub._hass.async_add_job(callback)
+            self.hub._hass.loop.call_soon(callback)
 
     def register_callback(self, callback) -> None:
         """Register callback, called when blind changes state."""
