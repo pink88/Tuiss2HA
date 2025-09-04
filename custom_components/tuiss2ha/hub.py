@@ -88,7 +88,7 @@ class TuissBlind:
         self._position_on_restart: bool | None = None
         self._blind_speed: str | None = None
         self._locked = False
-        self._attr_traversal_time: float | None = None
+        self._attr_traversal_speed: float | None = None
 
 
     @property
@@ -493,7 +493,7 @@ class TuissBlind:
             async def aync_update_position_in_realtime():
                 """Task to update the position while the blind is moving."""
                 while self._client and self._client.is_connected and not self._is_stopping:
-                    if self._attr_traversal_time is not None:
+                    if self._attr_traversal_speed is not None:
                         _LOGGER.debug(
                             "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
                             self.name,
@@ -502,13 +502,13 @@ class TuissBlind:
                             corrected_target_position,
                             (datetime.datetime.now() - start_time).total_seconds(),
                         )
-                        traversalDelta = (
+                        traversal_difference = (
                             (datetime.datetime.now() - start_time).total_seconds()
-                            * self._attr_traversal_time
+                            * self._attr_traversal_speed
                             * movement_direction
                         )
                         self._current_cover_position = round(
-                            sorted([0, start_position + traversalDelta, 100])[1], 2
+                            sorted([0, start_position + traversal_difference, 100])[1], 2
                         )
                         self.publish_updates()
                     await asyncio.sleep(1)
@@ -517,17 +517,17 @@ class TuissBlind:
 
             try:
                 timeout_duration = (
-                    self._attr_traversal_time
+                    self._attr_traversal_speed
                     * abs(corrected_target_position - start_position)
-                    * 1.5
-                    if self._attr_traversal_time is not None and self._attr_traversal_time >= 1
+                    * 1.2
+                    if self._attr_traversal_speed is not None and self._attr_traversal_speed >= 1 and self._attr_traversal_speed < 6
                     else TIMEOUT_SECONDS
                 )
                 _LOGGER.debug(
-                    "%s: Waiting for stop event with timeout: %s seconds. Traversal time: %s",
+                    "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
                     self.name,
                     timeout_duration,
-                    self._attr_traversal_time,
+                    self._attr_traversal_speed,
                 )
                 await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
             except asyncio.TimeoutError:
@@ -538,14 +538,14 @@ class TuissBlind:
                 self.set_final_state(corrected_target_position)
                 _LOGGER.debug("%s: Lock released following timeout", self.name)
                 self._locked = False
-                return  # stops blind updating traversal time if it timesout
+                return  # stops blind updating traversal speed if it timesout
             finally:
                 update_task.cancel()
                 # unlock the entity to allow more changes
                 self._locked = False
                 _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
 
-            # set the traversal time average and update final states only if the blind has not been stopped, as that updates itself
+            # set the traversal speed average and update final states only if the blind has not been stopped, as that updates itself
             _LOGGER.debug(
                 "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
                 self.name,
@@ -556,7 +556,7 @@ class TuissBlind:
             )
             if not self._is_stopping:
                 end_time = datetime.datetime.now()
-                self.update_traversal_time(
+                self.update_traversal_speed(
                     corrected_target_position, start_position, start_time, end_time
                 )
 
@@ -571,19 +571,19 @@ class TuissBlind:
                 f"{self.name} is locked, please wait for currrent command to complete and then try again."
             )
 
-    def update_traversal_time(self, target_position, start_position, start_time, end_time):
-        """Update the traversal time."""
+    def update_traversal_speed(self, target_position, start_position, start_time, end_time):
+        """Update the traversal speed."""
         time_taken = (end_time - start_time).total_seconds()
         traversal_distance = abs(target_position - start_position)
-        self._attr_traversal_time = traversal_distance / time_taken
+        self._attr_traversal_speed = traversal_distance / time_taken
         _LOGGER.debug(
-            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Time: %s",
+            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Speed: %s",
             self.name,
             time_taken,
             start_position,
             target_position,
             traversal_distance,
-            self._attr_traversal_time,
+            self._attr_traversal_speed,
         )
         
     def set_final_state(self, position):
