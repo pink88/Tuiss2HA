@@ -3,10 +3,6 @@
   "name": "Tuiss Smartview",
   "bluetooth": [
     {
-      "service_uuid": "00010203-0405-0607-0809-0a0b0c0d1910",
-      "connectable" : true
-    },
-    {
       "local_name": "TS3000",
       "connectable" : true
     },

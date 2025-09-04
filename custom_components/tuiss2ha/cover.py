@@ -33,7 +33,7 @@ from .hub import TuissBlind
 _LOGGER = logging.getLogger(__name__)
 
 
-ATTR_TRAVERSAL_TIME = "traversal_time"
+ATTR_TRAVERSAL_SPEED = "traversal_speed"
 ATTR_MAC_ADDRESS = "mac_address"
 
 GET_BLIND_POSITION_SCHEMA = cv.make_entity_service_schema({})
@@ -166,7 +166,6 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._state = None
         self._start_time: datetime.datetime | None = None
         self._end_time: datetime.datetime | None = None
-        self._attr_traversal_time: float | None = None
         self._attr_mac_address = self._blind.host
         self._blind._restart_attempts = config.options.get(OPT_RESTART_ATTEMPTS)
         self._blind._position_on_restart = config.options.get(OPT_RESTART_POSITION)
@@ -174,14 +173,6 @@ class Tuiss(CoverEntity, RestoreEntity):
     @property
     def state(self):
         """Set state of object."""
-        # corrects the state if there is a disconnect during open or close
-        _LOGGER.debug(
-            "%s: Setting State from %s. Moving: %s. Client: %s",
-            self._attr_name,
-            self._state,
-            self._blind._moving,
-            self._blind._client,
-        )
         if self._blind._moving > 0:
             self._state = STATE_OPENING
         elif self._blind._moving < 0:
@@ -222,7 +213,7 @@ class Tuiss(CoverEntity, RestoreEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Attributes for the traversal time of the blinds."""
         return {
-            ATTR_TRAVERSAL_TIME: self._blind._attr_traversal_time,
+            ATTR_TRAVERSAL_SPEED: self._blind._attr_traversal_speed,
             ATTR_MAC_ADDRESS: self._attr_mac_address,
         }
 
@@ -255,9 +246,9 @@ class Tuiss(CoverEntity, RestoreEntity):
         """Request a state update from the blind at a scheduled point in time."""
         self.async_write_ha_state()
 
-    async def async_update_state(self):
+    def update_state(self):
         """Update the state of the blind."""
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
 
     async def async_added_to_hass(self) -> None:
@@ -270,15 +261,15 @@ class Tuiss(CoverEntity, RestoreEntity):
             self._blind._current_cover_position = float(
                 last_state.attributes.get(ATTR_CURRENT_POSITION)
             )
-        if last_state and last_state.attributes.get(ATTR_TRAVERSAL_TIME) is not None:
-            self._blind._attr_traversal_time = last_state.attributes.get(ATTR_TRAVERSAL_TIME)
+        if last_state and last_state.attributes.get(ATTR_TRAVERSAL_SPEED) is not None:
+            self._blind._attr_traversal_speed = last_state.attributes.get(ATTR_TRAVERSAL_SPEED)
         
-        self._blind.register_callback(self.async_update_state)
+        self._blind.register_callback(self.update_state)
 
 
     async def async_will_remove_from_hass(self) -> None:
         """Entity being removed from hass."""
-        self._blind.remove_callback(self.async_update_state)
+        self._blind.remove_callback(self.update_state)
 
 
     async def async_open_cover(self, **kwargs: Any) -> None:
