@@ -103,6 +103,8 @@ class TuissBlind:
 
     def set_rssi(self, rssi: int) -> None:
         """Update the RSSI for the blind."""
+        if self._rssi == rssi:
+            return
         self._rssi = rssi
         self.publish_updates()
 
