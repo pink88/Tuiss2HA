@@ -519,9 +519,10 @@ class TuissBlind:
 
             try:
                 timeout_duration = (
-                    self._attr_traversal_speed
-                    * abs(corrected_target_position - start_position)
-                    * 1.2
+                    ((abs(corrected_target_position - start_position)
+                    * 1.2)
+                    / self._attr_traversal_speed)
+                    + 10
                     if self._attr_traversal_speed is not None and self._attr_traversal_speed >= 1 and self._attr_traversal_speed < 6
                     else TIMEOUT_SECONDS
                 )
