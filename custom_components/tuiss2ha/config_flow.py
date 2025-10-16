@@ -97,8 +97,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors[CONF_BLIND_HOST] = "invalid_host"
         except InvalidName:
             errors[CONF_BLIND_NAME] = "invalid_name"
-        except Exception:
-            _LOGGER.exception("Unexpected exception")
+        except Exception as exc:
+            _LOGGER.exception("Unexpected exception: %s", exc)
             errors["base"] = "unknown"
         else:
             _LOGGER.debug("Creating entry for %s", user_input[CONF_BLIND_HOST])
