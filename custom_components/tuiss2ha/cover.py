@@ -317,12 +317,14 @@ class Tuiss(CoverEntity, RestoreEntity):
         try:
             await self._blind.stop()
         except (ConnectionTimeout, DeviceNotFound, RuntimeError) as e:
-            _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
-            raise HomeAssistantError("Failed to stop %s. Error %s", self._attr_name, e)
-        if self._blind._client:
-            while self._blind._client.is_connected:
-                await asyncio.sleep(1)
-            self._blind._moving = 0
-            await self.async_scheduled_update_request()
-        _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
-        self._locked = False
+            if self._blind._moving != 0:
+                _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
+                raise HomeAssistantError(f"Failed to stop {self._attr_name}. With error {e}")
+        finally:
+            if self._blind._client:
+                while self._blind._client.is_connected:
+                    await asyncio.sleep(1)
+                self._blind._moving = 0
+                await self.async_scheduled_update_request()
+            _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
+            self._locked = False

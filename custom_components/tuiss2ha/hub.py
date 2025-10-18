@@ -274,14 +274,14 @@ class TuissBlind:
             await self.attempt_connection()
 
         # send the stop command
-        try:
-            if self._client and self._client.is_connected:
-                await self.send_command(UUID, command)
-        except (BleakError, RuntimeError) as e:
-            _LOGGER.debug("%s: Stop failed: %s", self.name, e)
-            raise RuntimeError(
-                "Unable to STOP as connection to your blind has been lost. Check has enough battery and within bluetooth range"
-            ) from e
+        if self._client and self._client.is_connected:
+            _LOGGER.debug("HERE - sending the stop command")
+            await self.send_command(UUID, command)
+            _LOGGER.debug("HERE - sent the stop command")
+        if self._client and self._client.is_connected:
+            _LOGGER.debug("HERE - getting the position")
+            await self.get_blind_position()
+            _LOGGER.debug("HERE - got the position")
 
 
     async def set_speed(self) -> None:
@@ -477,93 +477,94 @@ class TuissBlind:
     ):
         """Move the cover."""
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
-        await self.attempt_connection()
-        if self._client.is_connected and not self._locked:
-            self._locked = True
-            _LOGGER.debug("%s: Lock acquired.", self.name)
-            self._is_stopping = False
-            start_position = self._current_cover_position
-            corrected_target_position = 100 - target_position
-            self._moving = movement_direction
+        if not self._locked:
+            await self.attempt_connection()
+            if self._client.is_connected:
+                self._locked = True
+                _LOGGER.debug("%s: Lock acquired.", self.name)
+                self._is_stopping = False
+                start_position = self._current_cover_position
+                corrected_target_position = 100 - target_position
+                self._moving = movement_direction
 
-            # Update the state and trigger the moving
-            self.publish_updates()
-            await self.set_position(target_position)
-            end_time = None
-            start_time = datetime.datetime.now()
+                # Update the state and trigger the moving
+                self.publish_updates()
+                await self.set_position(target_position)
+                end_time = None
+                start_time = datetime.datetime.now()
 
-            async def aync_update_position_in_realtime():
-                """Task to update the position while the blind is moving."""
-                while self._client and self._client.is_connected and not self._is_stopping:
-                    if self._attr_traversal_speed is not None:
-                        _LOGGER.debug(
-                            "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
-                            self.name,
-                            start_position,
-                            self._current_cover_position,
-                            corrected_target_position,
-                            (datetime.datetime.now() - start_time).total_seconds(),
-                        )
-                        traversal_difference = (
-                            (datetime.datetime.now() - start_time).total_seconds()
-                            * self._attr_traversal_speed
-                            * movement_direction
-                        )
-                        self._current_cover_position = round(
-                            sorted([0, start_position + traversal_difference, 100])[1], 2
-                        )
-                        self.publish_updates()
-                    await asyncio.sleep(1)
+                async def aync_update_position_in_realtime():
+                    """Task to update the position while the blind is moving."""
+                    while self._client and self._client.is_connected and not self._is_stopping:
+                        if self._attr_traversal_speed is not None:
+                            _LOGGER.debug(
+                                "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                                self.name,
+                                start_position,
+                                self._current_cover_position,
+                                corrected_target_position,
+                                (datetime.datetime.now() - start_time).total_seconds(),
+                            )
+                            traversal_difference = (
+                                (datetime.datetime.now() - start_time).total_seconds()
+                                * self._attr_traversal_speed
+                                * movement_direction
+                            )
+                            self._current_cover_position = round(
+                                sorted([0, start_position + traversal_difference, 100])[1], 2
+                            )
+                            self.publish_updates()
+                        await asyncio.sleep(1)
 
-            update_task = self.hub._hass.async_create_task(aync_update_position_in_realtime())
+                update_task = self.hub._hass.async_create_task(aync_update_position_in_realtime())
 
-            try:
-                timeout_duration = (
-                    ((abs(corrected_target_position - start_position)
-                    * 1.2)
-                    / self._attr_traversal_speed)
-                    + 10
-                    if self._attr_traversal_speed is not None and self._attr_traversal_speed >= 1 and self._attr_traversal_speed < 6
-                    else TIMEOUT_SECONDS
-                )
+                try:
+                    timeout_duration = (
+                        ((abs(corrected_target_position - start_position)
+                        * 1.2)
+                        / self._attr_traversal_speed)
+                        + 10
+                        if self._attr_traversal_speed is not None and self._attr_traversal_speed >= 1 and self._attr_traversal_speed < 6
+                        else TIMEOUT_SECONDS
+                    )
+                    _LOGGER.debug(
+                        "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
+                        self.name,
+                        timeout_duration,
+                        self._attr_traversal_speed,
+                    )
+                    await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
+                except asyncio.TimeoutError:
+                    _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
+                    update_task.cancel()
+                    # await self.get_blind_position()
+                    await self.disconnect()
+                    self.set_final_state(corrected_target_position)
+                    _LOGGER.debug("%s: Lock released following timeout", self.name)
+                    self._locked = False
+                    return  # stops blind updating traversal speed if it timesout
+                finally:
+                    update_task.cancel()
+                    # unlock the entity to allow more changes
+                    self._locked = False
+                    _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
+
+                # set the traversal speed average and update final states only if the blind has not been stopped, as that updates itself
                 _LOGGER.debug(
-                    "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
+                    "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
                     self.name,
-                    timeout_duration,
-                    self._attr_traversal_speed,
+                    start_position,
+                    self._current_cover_position,
+                    corrected_target_position,
+                    self._is_stopping,
                 )
-                await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
-            except asyncio.TimeoutError:
-                _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
-                update_task.cancel()
-                # await self.get_blind_position()
-                await self.disconnect()
-                self.set_final_state(corrected_target_position)
-                _LOGGER.debug("%s: Lock released following timeout", self.name)
-                self._locked = False
-                return  # stops blind updating traversal speed if it timesout
-            finally:
-                update_task.cancel()
-                # unlock the entity to allow more changes
-                self._locked = False
-                _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
+                if not self._is_stopping:
+                    end_time = datetime.datetime.now()
+                    self.update_traversal_speed(
+                        corrected_target_position, start_position, start_time, end_time
+                    )
 
-            # set the traversal speed average and update final states only if the blind has not been stopped, as that updates itself
-            _LOGGER.debug(
-                "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
-                self.name,
-                start_position,
-                self._current_cover_position,
-                corrected_target_position,
-                self._is_stopping,
-            )
-            if not self._is_stopping:
-                end_time = datetime.datetime.now()
-                self.update_traversal_speed(
-                    corrected_target_position, start_position, start_time, end_time
-                )
-
-                self.set_final_state(corrected_target_position)
+                    self.set_final_state(corrected_target_position)
 
         elif self._locked:
             _LOGGER.debug(
