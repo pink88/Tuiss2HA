@@ -571,9 +571,13 @@ class TuissBlind:
                 "%s is locked, please wait for currrent command to complete and then try again.",
                 self.name,
             )
+            # Use translation placeholder so the frontend can localise the message
             raise HomeAssistantError(
-                f"{self.name} is locked, please wait for currrent command to complete and then try again."
-            )
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={
+                    "name": self.name,
+                })
 
     def update_traversal_speed(self, target_position, start_position, start_time, end_time):
         """Update the traversal speed."""

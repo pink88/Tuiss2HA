@@ -99,4 +99,22 @@
             }
         }
     }
+,
+    "exceptions": {
+        "failed_to_open": {
+            "message": "{name} failed to open, with error {error}"
+        },
+        "failed_to_close":{
+            "message": "{name} failed to close with error {error}"
+        },
+        "failed_set_position": {
+            "message": "{name} failed to set position with error {error}"
+        },
+        "failed_to_stop": {
+            "message": "{name} failed to stop with error {error}"
+        },
+        "device_locked": {
+            "message": "{name} is busy (locked). Please wait for current operation to finish."
+        }
+    }
 }

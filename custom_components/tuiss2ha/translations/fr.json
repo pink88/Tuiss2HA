@@ -99,4 +99,23 @@
             }
         }
     }
+
+    ,
+    "exceptions": {
+        "failed_to_open": {
+            "message": "{name} n'a pas pu être ouvert : {error}"
+        },
+        "failed_to_close": {
+            "message": "{name} n'a pas pu être fermé : {error}"
+        },
+        "failed_set_position": {
+            "message": "{name} n'a pas pu définir la position : {error}"
+        },
+        "failed_to_stop": {
+            "message": "{name} n'a pas pu être arrêté : {error}"
+        },
+        "device_locked": {
+            "message": "{name} est occupé (verrouillé). Veuillez attendre la fin de l'opération en cours."
+        }
+    }
 }
