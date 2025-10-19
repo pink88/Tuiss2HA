@@ -6,7 +6,7 @@ import asyncio
 import logging
 import voluptuous as vol
 import datetime
-from contextlib import asynccontextmanager
+# ...existing code... (removed unused asynccontextmanager import)
 
 from typing import Any
 
@@ -278,7 +278,14 @@ class Tuiss(CoverEntity, RestoreEntity):
             await self._blind.async_move_cover(movement_direction=1, target_position=0)
         except (ConnectionTimeout, DeviceNotFound) as e:
             _LOGGER.debug("%s failed to open with error %s.", self._attr_name, e)
-            raise HomeAssistantError(f"{self._attr_name} failed to open with error {e}.")
+            # Use translation placeholder so the frontend can localise the message
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="failed_to_open",
+                translation_placeholders={
+                    "name": self._attr_name,
+                    "error": str(e),
+                })
 
 
     async def async_close_cover(self, **kwargs: Any) -> None:
@@ -287,7 +294,15 @@ class Tuiss(CoverEntity, RestoreEntity):
             await self._blind.async_move_cover(movement_direction=-1, target_position=100)
         except (ConnectionTimeout, DeviceNotFound) as e:
             _LOGGER.debug("%s failed to close with error %s.", self._attr_name, e)
-            raise HomeAssistantError(f"{self._attr_name} failed to close with error {e}.")
+            # Use translation placeholder so the frontend can localise the message
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="failed_to_close",
+                translation_placeholders={
+                    "name": self._attr_name,
+                    "error": str(e),
+                })
+        
 
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
@@ -306,7 +321,15 @@ class Tuiss(CoverEntity, RestoreEntity):
             )
         except (ConnectionTimeout, DeviceNotFound) as e:
             _LOGGER.debug("%s failed to set position with error %s.", self._attr_name, e)
-            raise HomeAssistantError(f"{self._attr_name} failed to set position with error {e}.")
+            # Use translation placeholder so the frontend can localise the message
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="failed_set_position",
+                translation_placeholders={
+                    "name": self._attr_name,
+                    "error": str(e),
+                })
+
 
 
 
@@ -317,12 +340,21 @@ class Tuiss(CoverEntity, RestoreEntity):
         try:
             await self._blind.stop()
         except (ConnectionTimeout, DeviceNotFound, RuntimeError) as e:
-            _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
-            raise HomeAssistantError("Failed to stop %s. Error %s", self._attr_name, e)
-        if self._blind._client:
-            while self._blind._client.is_connected:
-                await asyncio.sleep(1)
-            self._blind._moving = 0
-            await self.async_scheduled_update_request()
-        _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
-        self._locked = False
+            if self._blind._moving != 0:
+                _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
+                # Use translation placeholder so the frontend can localise the message
+                raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="failed_to_stop",
+                translation_placeholders={
+                    "name": self._attr_name,
+                    "error": str(e),
+                })
+        finally:
+            if self._blind._client:
+                while self._blind._client.is_connected:
+                    await asyncio.sleep(1)
+                self._blind._moving = 0
+                await self.async_scheduled_update_request()
+            _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
+            self._locked = False

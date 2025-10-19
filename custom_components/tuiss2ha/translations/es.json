@@ -99,4 +99,23 @@
             }
         }
     }
+
+    ,
+    "exceptions": {
+        "failed_to_open": {
+            "message": "{name} no pudo abrirse: {error}"
+        },
+        "failed_to_close": {
+            "message": "{name} no pudo cerrarse: {error}"
+        },
+        "failed_set_position": {
+            "message": "{name} no pudo establecer la posición: {error}"
+        },
+        "failed_to_stop": {
+            "message": "{name} no pudo detenerse: {error}"
+        },
+        "device_locked": {
+            "message": "{name} está ocupado (bloqueado). Espere a que finalice la operación actual."
+        }
+    }
 }
