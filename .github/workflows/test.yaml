@@ -20,6 +20,9 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+        # Point the cache action to our test requirements file so it
+        # doesn't fail looking for a top-level requirements.txt or pyproject.toml
+        cache-dependency-path: requirements_test.txt
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
