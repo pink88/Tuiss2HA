@@ -1,12 +1,14 @@
 # Tuiss2HA
-This adds support for Tuiss Smartview BLE blinds. These blinds use Bluetooth Low Energy and are controlled through a simple cover interface. This integration does not support RF control.
+This adds support for Tuiss Smartview blinds. These blinds use Bluetooth Low Energy and are controlled through a simple cover interface. This integration does not support RF control as used by the Tuiss remote control. 
+
+For best results it is highly recommended to use [ESPHome Bluetooth Proxies](https://esphome.io/components/bluetooth_proxy.html) instead of and built in bluetooth adapter from Home Assitants own hardware or Raspberry Pi.
 
 
 ## Supported Tuiss Hardware Versions and Prerequisites ##
 The following hardware versions have been tested and confirmed as working, but other versions should be supported.
 
 - TS3000: has an external battery pack that must be connected to the blind before use via a cable. It is charged with a DC barrel plug.
-- TS5200: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
+- TS5200/TS5300: has a battery pack integrated with the blind housing and is charged via USB-C input on the bottom of the blind. Additionally, it has a button to the rear on the charge port allowing manual control of the blind. Supports variable movement speeds.
 - TS2600/TS2900/TS5001/TS5101: Roller blinds which support variable movement speeds.
 
 
@@ -94,11 +96,10 @@ Configuration options can be set from the Tuiss2HA Integration screen in Home As
 
 
 ## Troubleshooting ##
-- If the blind is slow to respond, failing to connect, it will usually be due to signal strength. -60dBm or higher is Excellent -61 to -75 dBm is Good, -76 dbM to -90 dBm is Weak and below -90 dBm is Very Weak. Improving this with more or closer Bluetooth adapter/proxies.
+- If the blind is slow to respond, failing to connect, it will usually be due to signal strength. -60dBm or higher is Excellent -61 to -75 dBm is Good, -76 dbM to -90 dBm is Weak and below -90 dBm is Very Weak. Improve this with more or closer Bluetooth adapter/proxies.
 - If you are getting errors when adding a blind, some users report that removing Shelly Bluetooth proxies resolves the issue. This appears to be a limitation of how Home Assistant decides which proxy to use and sometimes selects the Shelly proxy which cannot retain the active connection required by this integration.
 
 
 ## Limitations ##
-1. *Setting the top and bottom thresholds of the blind* - you still need to pair with and use the Tuiss Smartview app to set these values for older blind models.
+1. *Setting the top and bottom thresholds of the blind* - you may still need to pair with and use the Tuiss Smartview app to set these values for older blind models.
 2. *Real-time blind positioning* - only works after the first use as this initial run is required to calibrate the speed of your blind motor.
-I have tested this integration with HAOS installed on a Raspberry Pi 4B and the built-in Bluetooth module did not work. I had to use a few ESP32 devices with Bluetooth proxy software installed using the excellent ESPHome (See [this link](https://esphome.io/components/bluetooth_proxy.html))

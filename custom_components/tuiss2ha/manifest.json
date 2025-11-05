@@ -1,6 +1,7 @@
 {
   "domain": "tuiss2ha",
   "name": "Tuiss Smartview",
+  "after_dependencies": ["bluetooth","esphome"],
   "bluetooth": [
     {
       "local_name": "TS3000",
@@ -16,6 +17,10 @@
     },
     {
       "local_name": "TS5101",
+      "connectable" : true
+    },
+    {
+      "local_name": "TS5300",
       "connectable" : true
     },
     {
@@ -35,5 +40,5 @@
   "issue_tracker": "https://github.com/pink88/Tuiss2HA/issues",
   "loggers": ["custom_components.tuiss2ha"],
   "requirements": ["bleak>=0.21.1","bleak-retry-connector>=3.2.1"],
-  "version": "1.10.0"
+  "version": "1.11.1"
 }
