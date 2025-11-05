@@ -28,13 +28,24 @@ class MockConfigEntry:
 
 async def mock_validate_input(hass, data):
     """Mock validate_input that returns success."""
-    if not data.get(CONF_BLIND_HOST) or not re.match(r"^([A-F0-9]{2}:){5}[A-F0-9]{2}$", data[CONF_BLIND_HOST].upper()):
-        raise InvalidHost
+    # Mock the Hub class
+    with patch("custom_components.tuiss2ha.config_flow.Hub") as mock_hub:
+        # Set up mock blind instance
+        mock_blind = AsyncMock()
+        mock_blind.get_blind_position = AsyncMock()
+        mock_blind.disconnect = AsyncMock()
+        
+        # Set up mock hub instance
+        mock_hub_instance = mock_hub.return_value
+        mock_hub_instance.blinds = [mock_blind]
 
-    if not data.get(CONF_BLIND_NAME) or len(data[CONF_BLIND_NAME].strip()) == 0:
-        raise InvalidName
+        if not data.get(CONF_BLIND_HOST) or not re.match(r"^([A-F0-9]{2}:){5}[A-F0-9]{2}$", data[CONF_BLIND_HOST].upper()):
+            raise InvalidHost
 
-    return data[CONF_BLIND_NAME]
+        if not data.get(CONF_BLIND_NAME) or len(data[CONF_BLIND_NAME].strip()) == 0:
+            raise InvalidName
+
+        return data[CONF_BLIND_NAME]
 
 
 class MockConfigFlow(ConfigFlow):
@@ -249,6 +260,7 @@ async def test_form_device_not_found(mock_flow):
 
 
 @pytest.mark.asyncio
+#@pytest.mark.skip(reason="Runs too long")
 async def test_form_connection_timeout(mock_flow):
     """Test we handle connection timeout error."""
     # Initial form
@@ -271,16 +283,13 @@ async def test_form_connection_timeout(mock_flow):
     async def mock_validate_input(*args, **kwargs):
         raise ConnectionTimeout("Connection timed out")
 
-    with patch(
-        "custom_components.tuiss2ha.config_flow.validate_input",
-        side_effect=mock_validate_input
-    ):
+    with patch(__name__ + ".validate_input", side_effect=mock_validate_input):
         result = await mock_flow.async_step_user(
-            {
-                CONF_BLIND_HOST: "AA:BB:CC:DD:EE:FF",
-                CONF_BLIND_NAME: "Test Blind",
-            }
-        )
+        {
+            CONF_BLIND_HOST: "AA:BB:CC:DD:EE:FF",
+            CONF_BLIND_NAME: "Test Blind",
+        }
+    )
 
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}

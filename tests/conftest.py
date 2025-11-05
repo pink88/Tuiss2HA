@@ -27,6 +27,9 @@ def pytest_sessionstart(session):
     Mocks the Home Assistant modules required by the integration.
     This allows tests to be run standalone without a HA installation.
     """
+    # Mock bluetooth_adapters module
+    sys.modules["bluetooth_adapters"] = MagicMock()
+
     # Create a dummy base class for all entities. This is crucial to solve the
     # "metaclass conflict" error when a class inherits from multiple mocked
     # base classes (e.g., CoverEntity and RestoreEntity).
