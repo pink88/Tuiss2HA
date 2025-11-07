@@ -73,9 +73,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
 
-    return True
-
-
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Handle options update."""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from html import entities
 import logging
 import voluptuous as vol
 import datetime
@@ -87,6 +88,32 @@ async def async_setup_entry(
             platform.async_register_entity_service(
                 "set_blind_speed", SET_BLIND_SPEED_SCHEMA, async_action_set_blind_speed
             )
+
+    
+    async def handle_force_unlock(call):
+        """Handle the force unlock service call."""
+        entity_ids = call.data.get("entity_id")
+        if not entity_ids:
+            _LOGGER.error("No entity_id provided for force unlock")
+            return
+
+        # Handle both single string and list of entity_ids
+        if isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+
+        for entity_id in entity_ids:
+            entity = hass.data[DOMAIN]["entities"].get(entity_id)
+            if not entity:
+                _LOGGER.error("Entity %s not found for force unlock", entity_id)
+                continue
+            entity._blind._moving = 0
+            _LOGGER.info("Force unlocked blind %s", entity_id)
+
+    # Register our service with Home Assistant.
+    hass.services.async_register(DOMAIN, "force_unlock", handle_force_unlock)
+
+
+
 
     # Register the new parallel blind position service as a domain service
     async def async_action_simultaneous_blind_positioning(service_call: ServiceCall) -> None:

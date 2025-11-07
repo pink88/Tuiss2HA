@@ -41,12 +41,14 @@
                     "blind_restart_attempts": "Tentatives de reconnexion",
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
                     "blind_favorite_position": "Position Favorite"
+                        ,"force_unlock": "Déverrouillage forcé"
                 },
                 "data_description": {
                     "blind_orientation": "Inverse le résultat de l'action 'Set_Blind_Position'. Sélectionnez cette option si l'utilisation de l'action renvoie une valeur opposée à ce à quoi vous vous attendiez, par ex. 60% ouvert au lieu de 40% ouvert.",
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé."
+                        ,"force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'."
                 }
             }
         },
@@ -84,7 +86,7 @@
                 }
             }
         },
-        "simultaneous_blind_positioning": {
+    "simultaneous_blind_positioning": {
             "name": "Positionnement simultané des stores",
             "description": "Définissez la position de plusieurs stores simultanément. Plusieurs entités doivent être sélectionnées pour que cette action fonctionne. Cette action ne doit être utilisée que si vous souhaitez que les stores se déplacent en même temps et que vous disposez de suffisamment de périphériques BT pour gérer le nombre de connexions que vous souhaitez établir (par exemple, 3 connexions par proxy esphome).",
             "fields": {
@@ -95,6 +97,16 @@
                 "entity_ids": {
                     "name": "Stores",
                     "description": "Les stores à contrôler."
+                }
+            }
+        },
+        "force_unlock": {
+            "name": "Déverrouillage forcé",
+            "description": "Force le déverrouillage d'un store qui est coincé dans un état verrouillé",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité",
+                    "description": "Le store à déverrouiller"
                 }
             }
         }

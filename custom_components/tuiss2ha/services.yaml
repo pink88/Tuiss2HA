@@ -69,3 +69,10 @@ set_blind_speed:
             - "Standard"
             - "Comfort"
             - "Slow"
+
+force_unlock:
+  name: Force Unlock
+  description: Force unlock a blind that is stuck in a locked state
+  target:
+    entity:
+      domain: cover

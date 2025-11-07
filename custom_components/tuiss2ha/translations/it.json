@@ -41,12 +41,14 @@
                     "blind_restart_attempts": "Tentativi di riconnessione",
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
                     "blind_favorite_position": "Posizione Preferita"
+                        ,"force_unlock": "Sblocco forzato"
                 },
                 "data_description": {
                     "blind_orientation": "Inverte il risultato dell'azione 'Set_Blind_Position'. Seleziona questa opzione se l'uso dell'azione restituisce un valore opposto a quello che ti aspetteresti, ad es. 60% aperto invece del 40% aperto.",
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'."
+                        ,"force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'."
                 }
             }
         },
@@ -84,7 +86,7 @@
                 }
             }
         },
-        "simultaneous_blind_positioning": {
+    "simultaneous_blind_positioning": {
             "name": "Posizionamento simultaneo delle tende",
             "description": "Imposta la posizione di più tende contemporaneamente. Per questa azione è necessario selezionare più entità. Questa azione dovrebbe essere utilizzata solo se si desidera che le tende si muovano contemporaneamente e si dispone di un numero sufficiente di dispositivi BT per gestire il numero di connessioni che si desidera effettuare (ad esempio, 3 connessioni per proxy esphome).",
             "fields": {
@@ -95,6 +97,16 @@
                 "entity_ids": {
                     "name": "Tende",
                     "description": "Le tende da controllare."
+                }
+            }
+        },
+        "force_unlock": {
+            "name": "Sblocco forzato",
+            "description": "Forza lo sblocco di una tenda bloccata nello stato bloccato",
+            "fields": {
+                "entity_id": {
+                    "name": "Entità",
+                    "description": "La tenda da sbloccare"
                 }
             }
         }

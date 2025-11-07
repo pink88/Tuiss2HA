@@ -97,6 +97,16 @@
                     "description": "The blinds to control."
                 }
             }
+        },
+        "force_unlock": {
+            "name": "Force Unlock",
+            "description": "Force unlock a blind that is stuck in a locked state",
+            "fields": {
+                "entity_id": {
+                    "name": "Entity",
+                    "description": "The blind to force unlock"
+                }
+            }
         }
     }
 ,
