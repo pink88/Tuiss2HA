@@ -1,7 +1,7 @@
 # Tuiss2HA
 This adds support for Tuiss Smartview blinds. These blinds use Bluetooth Low Energy and are controlled through a simple cover interface. This integration does not support RF control as used by the Tuiss remote control. 
 
-For best results it is highly recommended to use [ESPHome Bluetooth Proxies](https://esphome.io/components/bluetooth_proxy.html) instead of and built in bluetooth adapter from Home Assitants own hardware or Raspberry Pi.
+For best results it is highly recommended to use [ESPHome Bluetooth Proxies](https://esphome.io/components/bluetooth_proxy.html) instead of and built in bluetooth adapter from Home Assistant's own hardware or Raspberry Pi.
 
 
 ## Supported Tuiss Hardware Versions and Prerequisites ##
