@@ -275,13 +275,10 @@ class TuissBlind:
 
         # send the stop command
         if self._client and self._client.is_connected:
-            _LOGGER.debug("HERE - sending the stop command")
             await self.send_command(UUID, command)
-            _LOGGER.debug("HERE - sent the stop command")
         if self._client and self._client.is_connected:
-            _LOGGER.debug("HERE - getting the position")
             await self.get_blind_position()
-            _LOGGER.debug("HERE - got the position")
+
 
 
     async def set_speed(self) -> None:

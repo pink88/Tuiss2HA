@@ -106,7 +106,7 @@ async def async_setup_entry(
             if not entity:
                 _LOGGER.error("Entity %s not found for force unlock", entity_id)
                 continue
-            entity._blind._moving = 0
+            entity._blind._locked = False
             _LOGGER.info("Force unlocked blind %s", entity_id)
 
     # Register our service with Home Assistant.
@@ -384,4 +384,4 @@ class Tuiss(CoverEntity, RestoreEntity):
                 self._blind._moving = 0
                 await self.async_scheduled_update_request()
             _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
-            self._locked = False
+            self._blind._locked = False
