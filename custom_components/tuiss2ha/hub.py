@@ -209,7 +209,11 @@ class TuissBlind:
             return
         _LOGGER.debug("%s: Disconnecting", self.name)
         try:
-            await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            try:
+                await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            except Exception as notify_ex:
+                # Characteristic might not exist or notifications not started
+                _LOGGER.debug("%s: Could not stop notifications: %s", self.name, notify_ex)
             await client.disconnect()
         except BLEAK_RETRY_EXCEPTIONS as ex:
             _LOGGER.warning(
@@ -344,6 +348,77 @@ class TuissBlind:
         """Get the current position of the blind."""
         command = bytes.fromhex("ff78ea41d10301")
         await self.get_from_blind(command, self.position_callback)
+
+    ##################################################################################################
+    ## LIMIT CONFIGURATION METHODS ##################################################################
+    ##################################################################################################
+
+    async def step_up(self) -> None:
+        """Move the blind up incrementally for manual positioning."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # TODO: Implement actual BLE command to move blind up
+
+
+    async def step_down(self) -> None:
+        """Move the blind down incrementally for manual positioning."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # TODO: Implement actual BLE command to move blind down
+
+
+    async def move_up(self) -> None:
+        """Move the blind up continuously for manual positioning (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # TODO: Implement actual BLE command to move blind up
+
+
+    async def move_down(self) -> None:
+        """Move the blind down continuously for manual positioning (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        # TODO: Implement actual BLE command to move blind down
+        
+
+
+    async def store_upper_limit(self) -> None:
+        """Store the current position as the upper limit (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        current_pos = self._current_cover_position
+        _LOGGER.info(
+            "%s: Storing current position (%s) as upper limit (BLE command stubbed)",
+            self.name,
+            current_pos
+        )
+        # TODO: Implement actual BLE command to store current position as upper limit
+
+
+    async def store_lower_limit(self) -> None:
+        """Store the current position as the lower limit (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+        
+        current_pos = self._current_cover_position
+        _LOGGER.info(
+            "%s: Storing current position (%s) as lower limit (BLE command stubbed)",
+            self.name,
+            current_pos
+        )
+        # TODO: Implement actual BLE command to store current position as lower limit
+
 
     ##################################################################################################
     ## CALLBACK METHODS ############################################################################

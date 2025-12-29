@@ -40,20 +40,26 @@
                     "blind_restart_position": "Controlla la posizione della tenda al riavvio",
                     "blind_restart_attempts": "Tentativi di riconnessione",
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
-                    "blind_favorite_position": "Posizione Preferita"
-                        ,"force_unlock": "Sblocco forzato"
+                    "blind_favorite_position": "Posizione Preferita",
+                    "force_unlock": "Sblocco forzato",
+                    "configure_limits": "Configura Limiti"
                 },
                 "data_description": {
                     "blind_orientation": "Inverte il risultato dell'azione 'Set_Blind_Position'. Seleziona questa opzione se l'uso dell'azione restituisce un valore opposto a quello che ti aspetteresti, ad es. 60% aperto invece del 40% aperto.",
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
-                    "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'."
-                        ,"force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'."
+                    "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
+                    "force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'.",
+                    "move_to_upper_limit": "Spostare la tenda alla posizione limite superiore memorizzata",
+                    "set_upper_limit": "Memorizzare la posizione corrente della tenda come limite massimo",
+                    "move_to_lower_limit": "Spostare la tenda alla posizione limite inferiore memorizzata",
+                    "set_lower_limit": "Memorizzare la posizione corrente della tenda come limite minimo"
                 }
             }
         },
         "error": {
-            "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità."
+            "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità.",
+            "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda."
         }
     }
 ,
@@ -97,6 +103,11 @@
                 "entity_ids": {
                     "name": "Tende",
                     "description": "Le tende da controllare."
+                }
+                ,
+                "favourite": {
+                    "name": "Posizione preferita",
+                    "description": "Sposta la tenda nella sua posizione preferita impostata nelle opzioni. Se impostato, ignorerà il campo 'position'."
                 }
             }
         },
