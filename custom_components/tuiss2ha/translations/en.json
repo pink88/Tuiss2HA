@@ -48,25 +48,31 @@
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
                     "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs.",
                     "blind_favorite_position": "The position (in percent, 0=closed, 100=open) that the blind will move to when the 'Go to Favorite Position' button is pressed.",
-                    "configure_limits": "Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions"
+                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
                 }
             },
-            "set_limits": {
-                "title": "Set Blind Limits",
-                "description": "Current Position: {current_position}\n\nLower Limit: {lower_limit_status}\nUpper Limit: {upper_limit_status}\n\nUse the up/down buttons to position the blind. Click 'Save Lower Limit' first, then position and click 'Save Upper Limit'.",
-                "data": {
-                    "move_up": "Move Up",
-                    "move_down": "Move Down",
-                    "save_lower_limit": "Save Lower Limit",
-                    "save_upper_limit": "Save Upper Limit",
-                    "done": "Done"
-                },
-                "data_description": {
-                    "move_up": "Move the blind up incrementally",
-                    "move_down": "Move the blind down incrementally",
-                    "save_lower_limit": "Save the current position as the lower (minimum) limit",
-                    "save_upper_limit": "Save the current position as the upper (maximum) limit",
-                    "done": "Complete the limit configuration and close the dialog"
+            "set_lower_limit": {
+                "title": "Set Lower Limit",
+                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Move Up",
+                    "limit_move_down_lower": "Move Down",
+                    "limit_step_up_lower": "Step Up",
+                    "limit_step_down_lower": "Step Down",
+                    "limit_stop_lower": "Stop",
+                    "save_lower_limit": "Save Lower Limit"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Set Upper Limit",
+                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Move Up",
+                    "limit_move_down_upper": "Move Down",
+                    "limit_step_up_upper": "Step Up",
+                    "limit_step_down_upper": "Step Down",
+                    "limit_stop_upper": "Stop",
+                    "save_upper_limit": "Save Upper Limit"
                 }
             }
         },

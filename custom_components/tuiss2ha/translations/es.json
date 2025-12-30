@@ -50,32 +50,38 @@
                     "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
                     "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'.",
                     "force_unlock": "Forzar el desbloqueo de la persiana si está atascada en el estado 'bloqueada'.",
-                    "configure_limits": "Abrir un diálogo para establecer los límites superior e inferior de la persiana moviéndola a las posiciones deseadas"
+                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
                 }
             },
-            "set_limits": {
-                "title": "Establecer Límites de Persiana",
-                "description": "Posición Actual: {current_position}\n\nLímite Inferior: {lower_limit_status}\nLímite Superior: {upper_limit_status}\n\nUse los botones arriba/abajo para posicionar la persiana. Haga clic en 'Guardar Límite Inferior' primero, luego posicione y haga clic en 'Guardar Límite Superior'.",
-                "data": {
-                    "move_up": "Mover Arriba",
-                    "move_down": "Mover Abajo",
-                    "save_lower_limit": "Guardar Límite Inferior",
-                    "save_upper_limit": "Guardar Límite Superior",
-                    "done": "Hecho"
-                },
-                "data_description": {
-                    "move_up": "Mover la persiana hacia arriba incrementalmente",
-                    "move_down": "Mover la persiana hacia abajo incrementalmente",
-                    "save_lower_limit": "Guardar la posición actual como límite inferior (mínimo)",
-                    "save_upper_limit": "Guardar la posición actual como límite superior (máximo)",
-                    "done": "Completar la configuración de límites y cerrar el diálogo"
+            "set_lower_limit": {
+                "title": "Set Lower Limit",
+                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Move Up",
+                    "limit_move_down_lower": "Move Down",
+                    "limit_step_up_lower": "Step Up",
+                    "limit_step_down_lower": "Step Down",
+                    "limit_stop_lower": "Stop",
+                    "save_lower_limit": "Save Lower Limit"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Set Upper Limit",
+                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Move Up",
+                    "limit_move_down_upper": "Move Down",
+                    "limit_step_up_upper": "Step Up",
+                    "limit_step_down_upper": "Step Down",
+                    "limit_stop_upper": "Stop",
+                    "save_upper_limit": "Save Upper Limit"
                 }
             }
         },
         "error": {
             "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad.",
             "position_unknown": "No se puede establecer el límite: se desconoce la posición de la persiana. Mueva la persiana primero.",
-            "limits_not_set": "Ambos límites, inferior y superior, deben establecerse antes de cerrar este diálogo."
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
         }
     }
 ,

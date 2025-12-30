@@ -1,6 +1,6 @@
 # Tuiss2HA
 
-This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi.
+This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi, as the majority of connection issues will be due to poor coverage of your bluetooth network.
 
 *This integration does not support RF control (used by the Tuiss remote); for RF control you can use a device such as the [Sonoff RF Bridge](https://esphome.io/components/rf_bridge/).*
 
@@ -90,7 +90,7 @@ Supported models allow setting the motor speed via `tuiss2ha.set_blind_speed`. A
 
 ### Simultaneous blind positioning
 
-Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the same position at the same time. This is useful for synchronized scenes, howver this requires sufficient Bluetooth proxies/adapters to handle multiple concurrent connections.
+Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the same position at the same time or move eacb blind to their defined favourite position (see *Configuration options*). This is useful for synchronized scenes, howver this requires sufficient Bluetooth proxies/adapters to handle multiple concurrent connections.
 
 ## Configuration options
 
@@ -100,17 +100,14 @@ From the integration's Options screen you can configure:
 - **Check position on restart**: fetch current position after Home Assistant restarts.
 - **Blind motor speed**: for supported models (Standard, Comfort, Slow).
 - **Favorite position**: a percentage value that can be triggered with the "Go to Favorite Position" action.
+- **Limits**: set the upper and lower boundaries of the blind which control how far the blind will move from open to closed.
 
 ## Troubleshooting
 
 - Weak or unreliable connections are usually caused by poor signal strength. Measured RSSI: -60 dBm or higher = Excellent; -61 to -75 dBm = Good; -76 to -90 dBm = Weak; below -90 dBm = Very weak. Improve coverage with more or closer Bluetooth adapters/proxies.
 - If adding a blind fails, some users have reported issues with Shelly Bluetooth proxies. If you have a Shelly proxy, try removing it to see if discovery improves.
-- If a blind is stuck in a locked state and not actively moving, you can either restart Home Assistant or call the `tuiss2ha.force_unlock` service (Developer Tools → Actions) or use an automation.
+- If a blind is stuck in a locked state and not actively moving, you can either restart Home Assistant or call the `tuiss2ha.force_unlock` action (Developer Tools → Actions) or from an automation.
 
-## Limitations
-
-1. Setting top/bottom thresholds: older models may still require pairing with the Tuiss SmartView app to configure these values.
-2. Real-time position updates: the first interaction is used to calibrate the motor speed; real-time positioning works reliably after that initial calibration.
 
 ## Contributing
 

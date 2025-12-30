@@ -50,16 +50,38 @@
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
                     "force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'.",
-                    "move_to_upper_limit": "Déplacer le store vers la position limite supérieure enregistrée",
-                    "set_upper_limit": "Enregistrer la position actuelle du store comme limite maximale",
-                    "move_to_lower_limit": "Déplacer le store vers la position limite inférieure enregistrée",
-                    "set_lower_limit": "Enregistrer la position actuelle du store comme limite minimale"
+                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
+                }
+            },
+            "set_lower_limit": {
+                "title": "Set Lower Limit",
+                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Move Up",
+                    "limit_move_down_lower": "Move Down",
+                    "limit_step_up_lower": "Step Up",
+                    "limit_step_down_lower": "Step Down",
+                    "limit_stop_lower": "Stop",
+                    "save_lower_limit": "Save Lower Limit"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Set Upper Limit",
+                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Move Up",
+                    "limit_move_down_upper": "Move Down",
+                    "limit_step_up_upper": "Step Up",
+                    "limit_step_down_upper": "Step Down",
+                    "limit_stop_upper": "Stop",
+                    "save_upper_limit": "Save Upper Limit"
                 }
             }
         },
         "error": {
             "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse.",
-            "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store."
+            "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store.",
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
         }
     }
 ,

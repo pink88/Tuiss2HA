@@ -50,16 +50,38 @@
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
                     "force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'.",
-                    "move_to_upper_limit": "Spostare la tenda alla posizione limite superiore memorizzata",
-                    "set_upper_limit": "Memorizzare la posizione corrente della tenda come limite massimo",
-                    "move_to_lower_limit": "Spostare la tenda alla posizione limite inferiore memorizzata",
-                    "set_lower_limit": "Memorizzare la posizione corrente della tenda come limite minimo"
+                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
+                }
+            },
+            "set_lower_limit": {
+                "title": "Set Lower Limit",
+                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Move Up",
+                    "limit_move_down_lower": "Move Down",
+                    "limit_step_up_lower": "Step Up",
+                    "limit_step_down_lower": "Step Down",
+                    "limit_stop_lower": "Stop",
+                    "save_lower_limit": "Save Lower Limit"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Set Upper Limit",
+                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Move Up",
+                    "limit_move_down_upper": "Move Down",
+                    "limit_step_up_upper": "Step Up",
+                    "limit_step_down_upper": "Step Down",
+                    "limit_stop_upper": "Stop",
+                    "save_upper_limit": "Save Upper Limit"
                 }
             }
         },
         "error": {
             "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità.",
-            "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda."
+            "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda.",
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
         }
     }
 ,

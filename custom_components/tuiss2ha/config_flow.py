@@ -192,8 +192,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input is not None:
             # Check if user wants to configure limits
-            # if user_input.get("configure_limits"):
-            #     return await self.async_step_set_limits()
+            if user_input.get("configure_limits"):
+                return await self.async_step_set_lower_limit(initial=True)
             
             # Check if the user is trying to change the speed while the blind is moving
             is_moving = blind_device._moving != 0
@@ -238,7 +238,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 selector.NumberSelectorConfig(min=0, max=100, step=1, mode="slider")
             ),
             # Limit configuration button
-            # vol.Optional("configure_limits", default=False): bool,
+            vol.Optional("configure_limits", default=False): bool,
         }
 
         # Add speed control option only for supported models
@@ -266,120 +266,118 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             errors=errors,
         )
 
-    async def async_step_set_limits(
-        self, user_input: dict[str, Any] | None = None
+
+    async def async_step_set_lower_limit(
+        self, user_input: dict[str, Any] | None = None, initial: bool = False
     ) -> FlowResult:
-        """Handle the limit configuration dialog."""
-        errors: dict[str, str] = {}
+        """Handle the lower limit configuration dialog."""
         hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
 
         if not hub:
             return self.async_abort(reason="hub_not_found")
 
         blind_device = hub.blinds[0]
-
-        # Track which limit has been set in the flow's context
-        if "lower_limit_set" not in self.context:
-            self.context["lower_limit_set"] = False
-        if "upper_limit_set" not in self.context:
-            self.context["upper_limit_set"] = False
-
-        if user_input is not None:
-            # Handle movement buttons - these should execute and redisplay
-            if user_input.get("move_up"):
-                await blind_device.move_up()
-                _LOGGER.info("Moving blind up")
-                # Redisplay the form after movement
-                return await self.async_step_set_limits()
-            
-            if user_input.get("move_down"):
-                await blind_device.move_down()
-                _LOGGER.info("Moving blind down")
-                # Redisplay the form after movement
-                return await self.async_step_set_limits()
-            
-            # Handle save buttons based on current state
-            if user_input.get("save_lower_limit"):
-                current_pos = blind_device._current_cover_position
-                if current_pos is None:
-                    errors["base"] = "position_unknown"
-                else:
-                    await blind_device.store_lower_limit()
-                    self.context["lower_limit_set"] = True
-                    _LOGGER.info("Lower limit set to current position: %s", current_pos)
-                    # Redisplay the form to show the next step
-                    return await self.async_step_set_limits()
-            
-            if user_input.get("save_upper_limit"):
-                current_pos = blind_device._current_cover_position
-                if current_pos is None:
-                    errors["base"] = "position_unknown"
-                else:
-                    await blind_device.store_upper_limit()
-                    self.context["upper_limit_set"] = True
-                    _LOGGER.info("Upper limit set to current position: %s", current_pos)
-                    # Redisplay the form to show the done button
-                    return await self.async_step_set_limits()
-            
-            # Handle done button - both limits must be set
-            if user_input.get("done"):
-                if self.context["lower_limit_set"] and self.context["upper_limit_set"]:
-                    # Reset the context for next time
-                    self.context["lower_limit_set"] = False
-                    self.context["upper_limit_set"] = False
-                    return self.async_create_entry(title="", data=self.config_entry.options)
-                else:
-                    errors["base"] = "limits_not_set"
-
-        # Build the form schema based on current state
-        current_pos = blind_device._current_cover_position
-        position_text = f"{current_pos:.1f}%" if current_pos is not None else "Unknown"
         
-        limits_schema = {
-            vol.Optional("move_up"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["Press"],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            ),
-            vol.Optional("move_down"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["Press"],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            ),
-        }
+        # connect to the blind and initialise limits setup
+        if initial:
+            await blind_device.limits_initialise()
 
-        # Show appropriate save button based on state
-        if not self.context["lower_limit_set"]:
-            limits_schema[vol.Optional("save_lower_limit")] = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["Press"],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            )
-        elif not self.context["upper_limit_set"]:
-            limits_schema[vol.Optional("save_upper_limit")] = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["Press"],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            )
-        else:
-            limits_schema[vol.Optional("done")] = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["Press"],
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            )
-
-        return self.async_show_form(
-            step_id="set_limits",
-            data_schema=vol.Schema(limits_schema),
-            errors=errors,
+        return self.async_show_menu(
+            step_id="set_lower_limit",
+            menu_options=[
+                "limit_move_up_lower",
+                "limit_move_down_lower",
+                "limit_step_up_lower",
+                "limit_step_down_lower",
+                "limit_stop_lower",
+                "save_lower_limit"
+            ],
             description_placeholders={
-                "current_position": position_text,
-                "lower_limit_status": "✓ Set" if self.context["lower_limit_set"] else "Not set",
-                "upper_limit_status": "✓ Set" if self.context["upper_limit_set"] else "Not set",
+                "placeholder text"
             },
         )
+
+    async def async_step_limit_move_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_up()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_move_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_down()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_step_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_up()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_step_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_down()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_stop_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_stop()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_save_lower_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].set_limit()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_set_upper_limit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the upper limit configuration dialog."""
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+
+        if not hub:
+            return self.async_abort(reason="hub_not_found")
+
+        return self.async_show_menu(
+            step_id="set_upper_limit",
+            menu_options=[
+                "limit_move_up_upper",
+                "limit_move_down_upper",
+                "limit_step_up_upper",
+                "limit_step_down_upper",
+                "limit_stop_upper",
+                "save_upper_limit"
+            ],
+            description_placeholders={
+                "placeholder text"
+            },
+        )
+
+    async def async_step_limit_move_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_up()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_move_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_down()
+        return await self.async_step_set_upper_limit()  
+
+    async def async_step_limit_step_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_up()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_step_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_down()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_stop_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_stop()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_save_upper_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].set_limit()
+        await hub.blinds[0].get_blind_position()
+        return self.async_create_entry(title="", data=self.config_entry.options)
