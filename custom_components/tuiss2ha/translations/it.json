@@ -36,7 +36,6 @@
             "init": {
                 "title": "Opzioni aggiuntive.",
                 "data": {
-                    "blind_orientation": "Inverti la risposta di 'Set_Blind_Position'",
                     "blind_restart_position": "Controlla la posizione della tenda al riavvio",
                     "blind_restart_attempts": "Tentativi di riconnessione",
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
@@ -45,36 +44,39 @@
                     "configure_limits": "Configura Limiti"
                 },
                 "data_description": {
-                    "blind_orientation": "Inverte il risultato dell'azione 'Set_Blind_Position'. Seleziona questa opzione se l'uso dell'azione restituisce un valore opposto a quello che ti aspetteresti, ad es. 60% aperto invece del 40% aperto.",
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
                     "force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'.",
-                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
+                    "configure_limits": "SPERIMENTALE (uso a proprio rischio): Apre una finestra di dialogo per impostare i limiti superiore e inferiore della tenda spostandola nelle posizioni desiderate."
                 }
             },
             "set_lower_limit": {
-                "title": "Set Lower Limit",
-                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "title": "Imposta limite inferiore",
+                "description": "Utilizzare le opzioni del menu in basso per spostare (movimento continuo) o passo (movimento incrementale) la tenda nella posizione limite inferiore desiderata. Selezionare 'Salva limite inferiore' al termine.\n\n**ATTENZIONE: Non chiudere questa finestra utilizzando il pulsante X. Utilizzare le opzioni di salvataggio per garantire che i limiti vengano salvati correttamente.**",
                 "menu_options": {
-                    "limit_move_up_lower": "Move Up",
-                    "limit_move_down_lower": "Move Down",
-                    "limit_step_up_lower": "Step Up",
-                    "limit_step_down_lower": "Step Down",
+                    "limit_move_up_lower": "Sposta su (Premi 'Stop' alla posizione desiderata)",
+                    "limit_move_down_lower": "Sposta giù (Premi 'Stop' alla posizione desiderata)",
                     "limit_stop_lower": "Stop",
-                    "save_lower_limit": "Save Lower Limit"
+                    "limit_spacer_1_lower": "--------------------------------------------------",
+                    "limit_step_up_lower": "Passo su",
+                    "limit_step_down_lower": "Passo giù",
+                    "limit_spacer_2_lower": "--------------------------------------------------",
+                    "save_lower_limit": "Salva limite inferiore"
                 }
             },
             "set_upper_limit": {
-                "title": "Set Upper Limit",
-                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "title": "Imposta limite superiore",
+                "description": "Utilizzare le opzioni del menu in basso per spostare (movimento continuo) o passo (movimento incrementale) la tenda nella posizione limite superiore desiderata. Selezionare 'Salva limite superiore' al termine.\n\n**ATTENZIONE: Non chiudere questa finestra utilizzando il pulsante X. Utilizzare le opzioni di salvataggio per garantire che i limiti vengano salvati correttamente.**",
                 "menu_options": {
-                    "limit_move_up_upper": "Move Up",
-                    "limit_move_down_upper": "Move Down",
-                    "limit_step_up_upper": "Step Up",
-                    "limit_step_down_upper": "Step Down",
+                    "limit_move_up_upper": "Sposta su (Premi 'Stop' alla posizione desiderata)",
+                    "limit_move_down_upper": "Sposta giù (Premi 'Stop' alla posizione desiderata)",
                     "limit_stop_upper": "Stop",
-                    "save_upper_limit": "Save Upper Limit"
+                    "limit_spacer_1_upper": "--------------------------------------------------",
+                    "limit_step_up_upper": "Passo su",
+                    "limit_step_down_upper": "Passo giù",
+                    "limit_spacer_2_upper": "--------------------------------------------------",
+                    "save_upper_limit": "Salva limite superiore"
                 }
             }
         },

@@ -287,9 +287,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             menu_options=[
                 "limit_move_up_lower",
                 "limit_move_down_lower",
+                "limit_stop_lower",
+                "limit_spacer_1_lower",
                 "limit_step_up_lower",
                 "limit_step_down_lower",
-                "limit_stop_lower",
+                "limit_spacer_2_lower",
                 "save_lower_limit"
             ],
             description_placeholders={
@@ -322,6 +324,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         await hub.blinds[0].limits_stop()
         return await self.async_step_set_lower_limit()
 
+    async def async_step_limit_spacer_1_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_spacer_2_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_lower_limit()
+
     async def async_step_save_lower_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
         await hub.blinds[0].set_limit()
@@ -341,9 +349,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             menu_options=[
                 "limit_move_up_upper",
                 "limit_move_down_upper",
+                "limit_stop_upper",
+                "limit_spacer_1_upper",
                 "limit_step_up_upper",
                 "limit_step_down_upper",
-                "limit_stop_upper",
+                "limit_spacer_2_upper",
                 "save_upper_limit"
             ],
             description_placeholders={
@@ -374,6 +384,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_limit_stop_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
         await hub.blinds[0].limits_stop()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_spacer_1_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_spacer_2_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_set_upper_limit()
 
     async def async_step_save_upper_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:

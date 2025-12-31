@@ -36,7 +36,6 @@
             "init": {
                 "title": "Options supplémentaires.",
                 "data": {
-                    "blind_orientation": "Inverser la réponse de 'Set_Blind_Position'",
                     "blind_restart_position": "Vérifier la position du store au redémarrage",
                     "blind_restart_attempts": "Tentatives de reconnexion",
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
@@ -45,36 +44,39 @@
                     "configure_limits": "Configurer les Limites"
                 },
                 "data_description": {
-                    "blind_orientation": "Inverse le résultat de l'action 'Set_Blind_Position'. Sélectionnez cette option si l'utilisation de l'action renvoie une valeur opposée à ce à quoi vous vous attendiez, par ex. 60% ouvert au lieu de 40% ouvert.",
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
                     "force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'.",
-                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
+                    "configure_limits": "EXPÉRIMENTAL (utilisation à vos risques et périls) : Ouvre une boîte de dialogue pour définir les limites supérieure et inférieure du store en le déplaçant vers les positions souhaitées."
                 }
             },
             "set_lower_limit": {
-                "title": "Set Lower Limit",
-                "description": "Use the menu options below to move the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "title": "Définir la limite inférieure",
+                "description": "Utilisez les options de menu ci-dessous pour déplacer (mouvement continu) ou par pas (mouvement incrémentiel) le store vers la position limite inférieure souhaitée. Sélectionnez 'Enregistrer la limite inférieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre à l'aide du bouton X. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
                 "menu_options": {
-                    "limit_move_up_lower": "Move Up",
-                    "limit_move_down_lower": "Move Down",
-                    "limit_step_up_lower": "Step Up",
-                    "limit_step_down_lower": "Step Down",
-                    "limit_stop_lower": "Stop",
-                    "save_lower_limit": "Save Lower Limit"
+                    "limit_move_up_lower": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_move_down_lower": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_stop_lower": "Arrêt",
+                    "limit_spacer_1_lower": "--------------------------------------------------",
+                    "limit_step_up_lower": "Pas vers le haut",
+                    "limit_step_down_lower": "Pas vers le bas",
+                    "limit_spacer_2_lower": "--------------------------------------------------",
+                    "save_lower_limit": "Enregistrer la limite inférieure"
                 }
             },
             "set_upper_limit": {
-                "title": "Set Upper Limit",
-                "description": "Use the menu options below to move the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "title": "Définir la limite supérieure",
+                "description": "Utilisez les options de menu ci-dessous pour déplacer (mouvement continu) ou par pas (mouvement incrémentiel) le store vers la position limite supérieure souhaitée. Sélectionnez 'Enregistrer la limite supérieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre à l'aide du bouton X. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
                 "menu_options": {
-                    "limit_move_up_upper": "Move Up",
-                    "limit_move_down_upper": "Move Down",
-                    "limit_step_up_upper": "Step Up",
-                    "limit_step_down_upper": "Step Down",
-                    "limit_stop_upper": "Stop",
-                    "save_upper_limit": "Save Upper Limit"
+                    "limit_move_up_upper": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_move_down_upper": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_stop_upper": "Arrêt",
+                    "limit_spacer_1_upper": "--------------------------------------------------",
+                    "limit_step_up_upper": "Pas vers le haut",
+                    "limit_step_down_upper": "Pas vers le bas",
+                    "limit_spacer_2_upper": "--------------------------------------------------",
+                    "save_upper_limit": "Enregistrer la limite supérieure"
                 }
             }
         },
