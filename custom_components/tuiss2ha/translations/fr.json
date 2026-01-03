@@ -53,7 +53,7 @@
             },
             "set_lower_limit": {
                 "title": "Définir la limite inférieure",
-                "description": "Utilisez les options de menu ci-dessous pour déplacer (mouvement continu) ou par pas (mouvement incrémentiel) le store vers la position limite inférieure souhaitée. Sélectionnez 'Enregistrer la limite inférieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre à l'aide du bouton X. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
+                "description": "Utilisez les options du menu ci-dessous pour déplacer le store par mouvement continu ou par pas (mouvement incrémentiel) jusqu'à la position de limite inférieure souhaitée. Sélectionnez 'Enregistrer la limite inférieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre avant d'avoir terminé la définition des limites — les stores risquent de ne pas fonctionner correctement. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
                 "menu_options": {
                     "limit_move_up_lower": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
                     "limit_move_down_lower": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",
@@ -67,7 +67,7 @@
             },
             "set_upper_limit": {
                 "title": "Définir la limite supérieure",
-                "description": "Utilisez les options de menu ci-dessous pour déplacer (mouvement continu) ou par pas (mouvement incrémentiel) le store vers la position limite supérieure souhaitée. Sélectionnez 'Enregistrer la limite supérieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre à l'aide du bouton X. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
+                "description": "Utilisez les options du menu ci-dessous pour déplacer le store par mouvement continu ou par pas (mouvement incrémentiel) jusqu'à la position de limite supérieure souhaitée. Sélectionnez 'Enregistrer la limite supérieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre avant d'avoir terminé la définition des limites — les stores risquent de ne pas fonctionner correctement. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
                 "menu_options": {
                     "limit_move_up_upper": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
                     "limit_move_down_upper": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",

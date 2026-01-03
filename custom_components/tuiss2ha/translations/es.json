@@ -53,7 +53,7 @@
             },
             "set_lower_limit": {
                 "title": "Establecer límite inferior",
-                "description": "Utilice las opciones del menú a continuación para mover (movimiento continuo) o paso (movimiento incremental) la persiana a la posición límite inferior deseada. Seleccione 'Guardar límite inferior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana usando el botón X. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
+                "description": "Utilice las opciones del menú a continuación para mover la persiana mediante movimiento continuo o por pasos (movimiento incremental) hasta la posición de límite inferior deseada. Seleccione 'Guardar límite inferior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana antes de terminar de establecer los límites; las persianas podrían no funcionar correctamente. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
                 "menu_options": {
                     "limit_move_up_lower": "Mover arriba (Presione 'Parar' en la posición deseada)",
                     "limit_move_down_lower": "Mover abajo (Presione 'Parar' en la posición deseada)",
@@ -67,7 +67,7 @@
             },
             "set_upper_limit": {
                 "title": "Establecer límite superior",
-                "description": "Utilice las opciones del menú a continuación para mover (movimiento continuo) o paso (movimiento incremental) la persiana a la posición límite superior deseada. Seleccione 'Guardar límite superior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana usando el botón X. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
+                "description": "Utilice las opciones del menú a continuación para mover la persiana mediante movimiento continuo o por pasos (movimiento incremental) hasta la posición de límite superior deseada. Seleccione 'Guardar límite superior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana antes de terminar de establecer los límites; las persianas podrían no funcionar correctamente. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
                 "menu_options": {
                     "limit_move_up_upper": "Mover arriba (Presione 'Parar' en la posición deseada)",
                     "limit_move_down_upper": "Mover abajo (Presione 'Parar' en la posición deseada)",

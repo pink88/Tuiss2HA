@@ -53,7 +53,7 @@
             },
             "set_lower_limit": {
                 "title": "Untere Grenze setzen",
-                "description": "Verwenden Sie die unten stehenden Menüoptionen, um das Rollo an die gewünschte untere Grenzposition zu bewegen (kontinuierliche Bewegung) oder schrittweise zu verstellen (inkrementelle Bewegung). Wählen Sie 'Untere Grenze speichern', wenn Sie fertig sind.\n\n**WARNUNG: Schließen Sie dieses Fenster nicht über die X-Schaltfläche. Verwenden Sie die Speicheroptionen, um sicherzustellen, dass die Grenzen korrekt gespeichert werden.**",
+                "description": "Verwenden Sie die untenstehenden Menüoptionen, um das Rollo durch kontinuierliche Bewegung oder in Schritten (inkrementelle Bewegung) an die gewünschte untere Grenzposition zu bringen. Wählen Sie 'Untere Grenze speichern', wenn Sie fertig sind.\n\n**WARNUNG: Schließen Sie dieses Fenster nicht, bevor Sie die Grenzen festgelegt haben — die Rollos könnten sonst nicht korrekt funktionieren. Verwenden Sie die Speichern-Optionen, um sicherzustellen, dass die Grenzen korrekt gespeichert werden.**",
                 "menu_options": {
                     "limit_move_up_lower": "Nach oben bewegen ('Stopp' an gewünschter Position drücken)",
                     "limit_move_down_lower": "Nach unten bewegen ('Stopp' an gewünschter Position drücken)",
@@ -67,7 +67,7 @@
             },
             "set_upper_limit": {
                 "title": "Obere Grenze setzen",
-                "description": "Verwenden Sie die unten stehenden Menüoptionen, um das Rollo an die gewünschte obere Grenzposition zu bewegen (kontinuierliche Bewegung) oder schrittweise zu verstellen (inkrementelle Bewegung). Wählen Sie 'Obere Grenze speichern', wenn Sie fertig sind.\n\n**WARNUNG: Schließen Sie dieses Fenster nicht über die X-Schaltfläche. Verwenden Sie die Speicheroptionen, um sicherzustellen, dass die Grenzen korrekt gespeichert werden.**",
+                "description": "Verwenden Sie die untenstehenden Menüoptionen, um das Rollo durch kontinuierliche Bewegung oder in Schritten (inkrementelle Bewegung) an die gewünschte obere Grenzposition zu bringen. Wählen Sie 'Obere Grenze speichern', wenn Sie fertig sind.\n\n**WARNUNG: Schließen Sie dieses Fenster nicht, bevor Sie die Grenzen festgelegt haben — die Rollos könnten sonst nicht korrekt funktionieren. Verwenden Sie die Speichern-Optionen, um sicherzustellen, dass die Grenzen korrekt gespeichert werden.**",
                 "menu_options": {
                     "limit_move_up_upper": "Nach oben bewegen ('Stopp' an gewünschter Position drücken)",
                     "limit_move_down_upper": "Nach unten bewegen ('Stopp' an gewünschter Position drücken)",

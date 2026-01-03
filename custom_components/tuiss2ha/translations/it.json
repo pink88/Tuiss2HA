@@ -53,7 +53,7 @@
             },
             "set_lower_limit": {
                 "title": "Imposta limite inferiore",
-                "description": "Utilizzare le opzioni del menu in basso per spostare (movimento continuo) o passo (movimento incrementale) la tenda nella posizione limite inferiore desiderata. Selezionare 'Salva limite inferiore' al termine.\n\n**ATTENZIONE: Non chiudere questa finestra utilizzando il pulsante X. Utilizzare le opzioni di salvataggio per garantire che i limiti vengano salvati correttamente.**",
+                "description": "Usa le opzioni del menu qui sotto per muovere la tenda tramite movimento continuo o a passi (movimento incrementale) fino alla posizione del limite inferiore desiderata. Seleziona 'Salva limite inferiore' quando hai finito.\n\n**ATTENZIONE: Non chiudere questa finestra prima di aver terminato di impostare i limiti; le tende potrebbero non funzionare correttamente. Usa le opzioni Salva per assicurarti che i limiti vengano salvati correttamente.**",
                 "menu_options": {
                     "limit_move_up_lower": "Sposta su (Premi 'Stop' alla posizione desiderata)",
                     "limit_move_down_lower": "Sposta giù (Premi 'Stop' alla posizione desiderata)",
@@ -67,7 +67,7 @@
             },
             "set_upper_limit": {
                 "title": "Imposta limite superiore",
-                "description": "Utilizzare le opzioni del menu in basso per spostare (movimento continuo) o passo (movimento incrementale) la tenda nella posizione limite superiore desiderata. Selezionare 'Salva limite superiore' al termine.\n\n**ATTENZIONE: Non chiudere questa finestra utilizzando il pulsante X. Utilizzare le opzioni di salvataggio per garantire che i limiti vengano salvati correttamente.**",
+                "description": "Usa le opzioni del menu qui sotto per muovere la tenda tramite movimento continuo o a passi (movimento incrementale) fino alla posizione del limite superiore desiderata. Seleziona 'Salva limite superiore' quando hai finito.\n\n**ATTENZIONE: Non chiudere questa finestra prima di aver terminato di impostare i limiti; le tende potrebbero non funzionare correttamente. Usa le opzioni Salva per assicurarti che i limiti vengano salvati correttamente.**",
                 "menu_options": {
                     "limit_move_up_upper": "Sposta su (Premi 'Stop' alla posizione desiderata)",
                     "limit_move_down_upper": "Sposta giù (Premi 'Stop' alla posizione desiderata)",

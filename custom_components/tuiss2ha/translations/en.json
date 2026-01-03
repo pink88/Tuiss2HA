@@ -51,7 +51,7 @@
             },
             "set_lower_limit": {
                 "title": "Set Lower Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits of the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_lower": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_lower": "Move Down (Press 'Stop' at desired position)",
@@ -65,7 +65,7 @@
             },
             "set_upper_limit": {
                 "title": "Set Upper Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window using the X button. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits of the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_upper": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_upper": "Move Down (Press 'Stop' at desired position)",

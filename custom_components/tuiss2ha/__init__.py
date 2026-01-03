@@ -72,6 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             BluetoothScanningMode.PASSIVE,
         )
     )
+    return True
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
