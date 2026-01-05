@@ -89,6 +89,7 @@ class TuissBlind:
         self._blind_speed: str | None = None
         self._locked = False
         self._attr_traversal_speed: float | None = None
+        self._heartbeat_task: asyncio.Task | None = None
 
 
     @property
@@ -120,6 +121,27 @@ class TuissBlind:
     def remove_callback(self, callback) -> None:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
+
+    async def _heartbeat(self):
+        """Send heartbeat command periodically."""
+        _LOGGER.debug("%s: Starting heartbeat task", self.name)
+        heartbeat_cmd = bytes.fromhex("ff010101010101")
+        try:
+            while True:
+                await asyncio.sleep(2.0)
+                if self._client and self._client.is_connected:
+                    try:
+                        await self._client.write_gatt_char(UUID, heartbeat_cmd)
+                        _LOGGER.debug("%s: Heartbeat sent", self.name)
+                    except Exception as e:
+                        _LOGGER.debug("%s: Heartbeat failed: %s", self.name, e)
+                else:
+                    _LOGGER.debug("%s: Client not connected, stopping heartbeat", self.name)
+                    break
+        except asyncio.CancelledError:
+            _LOGGER.debug("%s: Heartbeat task cancelled", self.name)
+        except Exception as e:
+            _LOGGER.error("%s: Heartbeat task error: %s", self.name, e)
 
     ##################################################################################################
     ## CONNECTION METHODS ############################################################################
@@ -190,6 +212,23 @@ class TuissBlind:
             self._client = client
             # send the maintain connection message
             await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+
+            # send the connection timestamp message
+            now = datetime.datetime.now()
+            year = now.year - 2000 
+            month = now.month
+            day = now.day
+            hour = now.hour
+            minute = now.minute
+            second = now.second
+
+            await self._client.write_gatt_char(UUID, bytes.fromhex("ff78ea410200" + f"{year:02x}{month:02x}{day:02x}{hour:02x}{minute:02x}{second:02x}"))
+    
+            # # Start heartbeat
+            # if self._heartbeat_task:
+            #     self._heartbeat_task.cancel()
+            # self._heartbeat_task = self.hub._hass.loop.create_task(self._heartbeat())
+
             _LOGGER.debug(
                 "%s: Connected. Current Position: %s. Current Moving: %s",
                 self.name,
@@ -202,6 +241,10 @@ class TuissBlind:
     # Disconnect
     async def disconnect(self):
         """Disconnect from the blind."""
+        # if self._heartbeat_task:
+        #     self._heartbeat_task.cancel()
+        #     self._heartbeat_task = None
+
         client = self._client
         if not client:
             _LOGGER.debug("%s: Already disconnected", self.name)
@@ -209,7 +252,11 @@ class TuissBlind:
             return
         _LOGGER.debug("%s: Disconnecting", self.name)
         try:
-            await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            try:
+                await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            except Exception as notify_ex:
+                # Characteristic might not exist or notifications not started
+                _LOGGER.debug("%s: Could not stop notifications: %s", self.name, notify_ex)
             await client.disconnect()
         except BLEAK_RETRY_EXCEPTIONS as ex:
             _LOGGER.warning(
@@ -275,13 +322,10 @@ class TuissBlind:
 
         # send the stop command
         if self._client and self._client.is_connected:
-            _LOGGER.debug("HERE - sending the stop command")
             await self.send_command(UUID, command)
-            _LOGGER.debug("HERE - sent the stop command")
         if self._client and self._client.is_connected:
-            _LOGGER.debug("HERE - getting the position")
             await self.get_blind_position()
-            _LOGGER.debug("HERE - got the position")
+
 
 
     async def set_speed(self) -> None:
@@ -349,6 +393,88 @@ class TuissBlind:
         await self.get_from_blind(command, self.position_callback)
 
     ##################################################################################################
+    ## LIMIT CONFIGURATION METHODS ##################################################################
+    ##################################################################################################
+
+    async def limits_initialise(self) -> None:
+        """Initialise the limit configuration by connecting to the blind."""
+        # Connect to the blind first
+        _LOGGER.debug("Starting Limits Config. Attempting Connection")
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+            
+        # Set the initialisation commands
+        _LOGGER.debug("Sending initialisation commands")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
+    
+
+
+
+    async def limits_step_up(self) -> None:
+        """Move the blind up incrementally for manual positioning."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Stepping up")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41220301"))    
+        
+
+
+    async def limits_step_down(self) -> None:
+        """Move the blind down incrementally for manual positioning."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Stepping down")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41230301"))
+
+
+    async def limits_move_up(self) -> None:
+        """Move the blind up continuously for manual positioning (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Moving up")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41cf0301"))
+
+
+    async def limits_move_down(self) -> None:
+        """Move the blind down continuously for manual positioning (stubbed for now)."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")  
+        
+        _LOGGER.debug("Moving down")
+        await self.send_command(UUID, bytes.fromhex("ff78ea411f0301"))
+        
+    async def limits_stop(self) -> None:
+        """Stop the blind movement."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")  
+        
+        _LOGGER.debug("Stopping movement")
+        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
+        
+        
+    async def set_limit(self) -> None:
+        """Sets the limit."""
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Setting the limit")
+        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
+
+
+
+
+    ##################################################################################################
     ## CALLBACK METHODS ############################################################################
     ##################################################################################################
 
@@ -379,7 +505,6 @@ class TuissBlind:
         decimals = self.split_data(data)
 
         blindPos = (decimals[7] + (256 * decimals[8])) / 10
-        # blindPos = decimals[6]
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
@@ -409,7 +534,7 @@ class TuissBlind:
                 self._client.is_connected,
             )
             try:
-                _LOGGER.debug("%s: Sending the command", self.name)
+                _LOGGER.debug("%s: Sending the command %s", self.name, command)
                 await self._client.write_gatt_char(UUID, command)
             except BleakError as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from html import entities
 import logging
 import voluptuous as vol
 import datetime
-# ...existing code... (removed unused asynccontextmanager import)
+
 
 from typing import Any
 
@@ -27,7 +28,18 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, Device
 from homeassistant.exceptions import HomeAssistantError
 
 
-from .const import DOMAIN, OPT_RESTART_ATTEMPTS, OPT_RESTART_POSITION, BLIND_SPEED_LIST, OPT_BLIND_SPEED, SPEED_CONTROL_SUPPORTED_MODELS, ConnectionTimeout, DeviceNotFound
+from .const import (
+    DOMAIN,
+    OPT_RESTART_ATTEMPTS,
+    OPT_RESTART_POSITION,
+    BLIND_SPEED_LIST,
+    OPT_BLIND_SPEED,
+    SPEED_CONTROL_SUPPORTED_MODELS,
+    OPT_FAVORITE_POSITION,
+    DEFAULT_FAVORITE_POSITION,
+    ConnectionTimeout,
+    DeviceNotFound,
+)
 from .hub import TuissBlind
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +58,8 @@ SET_BLIND_SPEED_SCHEMA = cv.make_entity_service_schema(
 SIMULTANEOUS_BLIND_POSITIONING_SCHEMA = vol.Schema(
     {
         vol.Required("entity_ids"): cv.entity_ids,
-        vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
+        vol.Optional("favourite"): bool,
+        vol.Optional("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
     }
 )
 
@@ -88,36 +101,94 @@ async def async_setup_entry(
                 "set_blind_speed", SET_BLIND_SPEED_SCHEMA, async_action_set_blind_speed
             )
 
+    
+    async def handle_force_unlock(call):
+        """Handle the force unlock service call."""
+        entity_ids = call.data.get("entity_id")
+        if not entity_ids:
+            _LOGGER.error("No entity_id provided for force unlock")
+            return
+
+        # Handle both single string and list of entity_ids
+        if isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+
+        for entity_id in entity_ids:
+            entity = hass.data[DOMAIN]["entities"].get(entity_id)
+            if not entity:
+                _LOGGER.error("Entity %s not found for force unlock", entity_id)
+                continue
+            entity._blind._locked = False
+            _LOGGER.info("Force unlocked blind %s", entity_id)
+
+    # Register our service with Home Assistant.
+    hass.services.async_register(DOMAIN, "force_unlock", handle_force_unlock)
+
+
+
+
     # Register the new parallel blind position service as a domain service
     async def async_action_simultaneous_blind_positioning(service_call: ServiceCall) -> None:
         """Set the position of multiple blinds simultaneously."""
         hass = service_call.hass
         entity_ids = service_call.data["entity_ids"]
-        position = service_call.data["position"]
+        position = service_call.data.get("position")
+        favourite = service_call.data.get("favourite", False)
 
-        entities = []
+        # Validate inputs
+        if not favourite and position is None:
+            _LOGGER.error("Position is required when 'favourite' is False.")
+            return
+
+        target_entities = []
         for entity_id in entity_ids:
             entity = hass.data[DOMAIN]["entities"].get(entity_id)
             if entity:
-                entities.append(entity)
+                target_entities.append(entity)
             else:
                 _LOGGER.warning(
                     "Entity %s not found for parallel blind position setting.", entity_id
                 )
 
-        if not entities:
+        if not target_entities:
             _LOGGER.error("No valid entities found for parallel blind position setting.")
             return
 
-        # Connect to all blinds in parallel
-        connect_tasks = [entity._blind.attempt_connection() for entity in entities]
-        await asyncio.gather(*connect_tasks)
+        # Try to connect to all blinds in parallel, but continue on individual failures
+        connect_tasks = [asyncio.create_task(entity._blind.attempt_connection()) for entity in target_entities]
+        connect_results = await asyncio.gather(*connect_tasks, return_exceptions=True)
 
-        # Set position for all blinds in parallel
-        set_position_tasks = [
-            entity.async_set_cover_position(position=position) for entity in entities
-        ]
-        await asyncio.gather(*set_position_tasks)
+        connected_entities: list[Tuiss] = []
+        for entity, res in zip(target_entities, connect_results):
+            if isinstance(res, Exception):
+                _LOGGER.warning("Failed to connect to %s: %s", entity.entity_id, res)
+            else:
+                connected_entities.append(entity)
+
+        if not connected_entities:
+            _LOGGER.error("No blinds connected for simultaneous positioning.")
+            return
+
+        # Build and dispatch set-position tasks
+        set_position_tasks = []
+        if favourite:
+            for entity in connected_entities:
+                fav_pos = entity.config_entry.options.get(
+                    OPT_FAVORITE_POSITION, DEFAULT_FAVORITE_POSITION
+                )
+                set_position_tasks.append(
+                    entity.async_set_cover_position(**{ATTR_POSITION: fav_pos})
+                )
+        else:
+            for entity in connected_entities:
+                set_position_tasks.append(
+                    entity.async_set_cover_position(**{ATTR_POSITION: position})
+                )
+
+        results = await asyncio.gather(*set_position_tasks, return_exceptions=True)
+        for entity, res in zip(connected_entities, results):
+            if isinstance(res, Exception):
+                _LOGGER.warning("Failed to set position for %s: %s", entity.entity_id, res)
 
     hass.services.async_register(
         DOMAIN,
@@ -357,4 +428,4 @@ class Tuiss(CoverEntity, RestoreEntity):
                 self._blind._moving = 0
                 await self.async_scheduled_update_request()
             _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
-            self._locked = False
+            self._blind._locked = False

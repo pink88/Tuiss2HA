@@ -36,22 +36,54 @@
             "init": {
                 "title": "Opciones adicionales.",
                 "data": {
-                    "blind_orientation": "Invertir la respuesta de 'Set_Blind_Position'",
                     "blind_restart_position": "Comprobar la posición de la persiana al reiniciar",
                     "blind_restart_attempts": "Intentos de reconexión",
                     "blind_speed": "A qué velocidad debe moverse la persiana a la posición",
-                    "blind_favorite_position": "Posición Favorita"
+                    "blind_favorite_position": "Posición Favorita",
+                    "force_unlock": "Desbloqueo forzado",
+                    "configure_limits": "Configurar Límites"
                 },
                 "data_description": {
-                    "blind_orientation": "Invierte el resultado de la acción 'Set_Blind_Position'. Selecciona esta opción si al usar la acción se devuelve un valor opuesto al que esperarías, p. ej. 60% abierto en lugar de 40% abierto.",
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
                     "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
-                    "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'."
+                    "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'.",
+                    "force_unlock": "Forzar el desbloqueo de la persiana si está atascada en el estado 'bloqueada'.",
+                    "configure_limits": "EXPERIMENTAL (usar bajo su propio riesgo): Abre un diálogo para establecer los límites superior e inferior de la persiana moviéndola a las posiciones deseadas."
+                }
+            },
+            "set_lower_limit": {
+                "title": "Establecer límite inferior",
+                "description": "Utilice las opciones del menú a continuación para mover la persiana mediante movimiento continuo o por pasos (movimiento incremental) hasta la posición de límite inferior deseada. Seleccione 'Guardar límite inferior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana antes de terminar de establecer los límites; las persianas podrían no funcionar correctamente. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Mover arriba (Presione 'Parar' en la posición deseada)",
+                    "limit_move_down_lower": "Mover abajo (Presione 'Parar' en la posición deseada)",
+                    "limit_stop_lower": "Parar",
+                    "limit_spacer_1_lower": "--------------------------------------------------",
+                    "limit_step_up_lower": "Paso arriba",
+                    "limit_step_down_lower": "Paso abajo",
+                    "limit_spacer_2_lower": "--------------------------------------------------",
+                    "save_lower_limit": "Guardar límite inferior"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Establecer límite superior",
+                "description": "Utilice las opciones del menú a continuación para mover la persiana mediante movimiento continuo o por pasos (movimiento incremental) hasta la posición de límite superior deseada. Seleccione 'Guardar límite superior' cuando haya terminado.\n\n**ADVERTENCIA: No cierre esta ventana antes de terminar de establecer los límites; las persianas podrían no funcionar correctamente. Utilice las opciones de Guardar para asegurarse de que los límites se guarden correctamente.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Mover arriba (Presione 'Parar' en la posición deseada)",
+                    "limit_move_down_upper": "Mover abajo (Presione 'Parar' en la posición deseada)",
+                    "limit_stop_upper": "Parar",
+                    "limit_spacer_1_upper": "--------------------------------------------------",
+                    "limit_step_up_upper": "Paso arriba",
+                    "limit_step_down_upper": "Paso abajo",
+                    "limit_spacer_2_upper": "--------------------------------------------------",
+                    "save_upper_limit": "Guardar límite superior"
                 }
             }
         },
         "error": {
-            "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad."
+            "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad.",
+            "position_unknown": "No se puede establecer el límite: se desconoce la posición de la persiana. Mueva la persiana primero.",
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
         }
     }
 ,
@@ -84,7 +116,7 @@
                 }
             }
         },
-        "simultaneous_blind_positioning": {
+    "simultaneous_blind_positioning": {
             "name": "Posicionamiento simultáneo de persianas",
             "description": "Establece la posición de varias persianas simultáneamente. Se deben seleccionar varias entidades para que esta acción funcione. Esta acción solo debe usarse si desea que las persianas se muevan al mismo tiempo y tenga suficientes dispositivos BT para manejar la cantidad de conexiones que desea realizar (por ejemplo, 3 conexiones por proxy esphome).",
             "fields": {
@@ -95,6 +127,21 @@
                 "entity_ids": {
                     "name": "Persianas",
                     "description": "Las persianas a controlar."
+                }
+                ,
+                "favourite": {
+                    "name": "Posición favorita",
+                    "description": "Mueve la persiana a su posición favorita establecida en las opciones. Si se establece, ignorará el campo 'position'."
+                }
+            }
+        },
+        "force_unlock": {
+            "name": "Desbloqueo forzado",
+            "description": "Forzar el desbloqueo de una persiana que está atascada en estado bloqueado",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad",
+                    "description": "La persiana a desbloquear"
                 }
             }
         }

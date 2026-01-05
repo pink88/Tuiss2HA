@@ -38,16 +38,16 @@ simultaneous_blind_positioning:
   # requires connection to two blinds simulataneoudly
   fields:
     entity_ids:
-      name: Blinds
-      description: The blinds to control.
       required: true
       selector:
         entity:
           integration: tuiss2ha
           domain: cover
           multiple: true
+    favourite:
+      selector:
+        boolean:
     position:
-      required: true
       selector:
         number:
           min: 0
@@ -69,3 +69,8 @@ set_blind_speed:
             - "Standard"
             - "Comfort"
             - "Slow"
+
+force_unlock:
+  target:
+    entity:
+      domain: cover

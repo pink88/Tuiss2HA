@@ -36,22 +36,54 @@
             "init": {
                 "title": "Options supplémentaires.",
                 "data": {
-                    "blind_orientation": "Inverser la réponse de 'Set_Blind_Position'",
                     "blind_restart_position": "Vérifier la position du store au redémarrage",
                     "blind_restart_attempts": "Tentatives de reconnexion",
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
-                    "blind_favorite_position": "Position Favorite"
+                    "blind_favorite_position": "Position Favorite",
+                    "force_unlock": "Déverrouillage forcé",
+                    "configure_limits": "Configurer les Limites"
                 },
                 "data_description": {
-                    "blind_orientation": "Inverse le résultat de l'action 'Set_Blind_Position'. Sélectionnez cette option si l'utilisation de l'action renvoie une valeur opposée à ce à quoi vous vous attendiez, par ex. 60% ouvert au lieu de 40% ouvert.",
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
-                    "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé."
+                    "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
+                    "force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'.",
+                    "configure_limits": "EXPÉRIMENTAL (utilisation à vos risques et périls) : Ouvre une boîte de dialogue pour définir les limites supérieure et inférieure du store en le déplaçant vers les positions souhaitées."
+                }
+            },
+            "set_lower_limit": {
+                "title": "Définir la limite inférieure",
+                "description": "Utilisez les options du menu ci-dessous pour déplacer le store par mouvement continu ou par pas (mouvement incrémentiel) jusqu'à la position de limite inférieure souhaitée. Sélectionnez 'Enregistrer la limite inférieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre avant d'avoir terminé la définition des limites — les stores risquent de ne pas fonctionner correctement. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
+                "menu_options": {
+                    "limit_move_up_lower": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_move_down_lower": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_stop_lower": "Arrêt",
+                    "limit_spacer_1_lower": "--------------------------------------------------",
+                    "limit_step_up_lower": "Pas vers le haut",
+                    "limit_step_down_lower": "Pas vers le bas",
+                    "limit_spacer_2_lower": "--------------------------------------------------",
+                    "save_lower_limit": "Enregistrer la limite inférieure"
+                }
+            },
+            "set_upper_limit": {
+                "title": "Définir la limite supérieure",
+                "description": "Utilisez les options du menu ci-dessous pour déplacer le store par mouvement continu ou par pas (mouvement incrémentiel) jusqu'à la position de limite supérieure souhaitée. Sélectionnez 'Enregistrer la limite supérieure' lorsque vous avez terminé.\n\n**ATTENTION : Ne fermez pas cette fenêtre avant d'avoir terminé la définition des limites — les stores risquent de ne pas fonctionner correctement. Utilisez les options d'enregistrement pour vous assurer que les limites sont enregistrées correctement.**",
+                "menu_options": {
+                    "limit_move_up_upper": "Monter (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_move_down_upper": "Descendre (Appuyez sur 'Arrêt' à la position désirée)",
+                    "limit_stop_upper": "Arrêt",
+                    "limit_spacer_1_upper": "--------------------------------------------------",
+                    "limit_step_up_upper": "Pas vers le haut",
+                    "limit_step_down_upper": "Pas vers le bas",
+                    "limit_spacer_2_upper": "--------------------------------------------------",
+                    "save_upper_limit": "Enregistrer la limite supérieure"
                 }
             }
         },
         "error": {
-            "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse."
+            "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse.",
+            "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store.",
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
         }
     }
 ,
@@ -84,7 +116,7 @@
                 }
             }
         },
-        "simultaneous_blind_positioning": {
+    "simultaneous_blind_positioning": {
             "name": "Positionnement simultané des stores",
             "description": "Définissez la position de plusieurs stores simultanément. Plusieurs entités doivent être sélectionnées pour que cette action fonctionne. Cette action ne doit être utilisée que si vous souhaitez que les stores se déplacent en même temps et que vous disposez de suffisamment de périphériques BT pour gérer le nombre de connexions que vous souhaitez établir (par exemple, 3 connexions par proxy esphome).",
             "fields": {
@@ -95,6 +127,21 @@
                 "entity_ids": {
                     "name": "Stores",
                     "description": "Les stores à contrôler."
+                }
+                ,
+                "favourite": {
+                    "name": "Position favorite",
+                    "description": "Déplace le store à sa position favorite définie dans les options. Si défini, ignorera le champ 'position'."
+                }
+            }
+        },
+        "force_unlock": {
+            "name": "Déverrouillage forcé",
+            "description": "Force le déverrouillage d'un store qui est coincé dans un état verrouillé",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité",
+                    "description": "Le store à déverrouiller"
                 }
             }
         }

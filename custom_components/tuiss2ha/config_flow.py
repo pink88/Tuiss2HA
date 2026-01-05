@@ -8,7 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries, exceptions
+from homeassistant import config_entries
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
@@ -191,6 +191,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         blind_device = hub.blinds[0]
 
         if user_input is not None:
+            # Check if user wants to configure limits
+            if user_input.get("configure_limits"):
+                return await self.async_step_set_lower_limit(initial=True)
+            
             # Check if the user is trying to change the speed while the blind is moving
             is_moving = blind_device._moving != 0
             current_speed = self.config_entry.options.get(
@@ -201,7 +205,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             if is_moving and speed_has_changed:
                 errors["base"] = "blind_is_moving"
-            else:
+            elif not errors:
                 return self.async_create_entry(title="", data=user_input)
 
         # Build the options form
@@ -233,6 +237,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=100, step=1, mode="slider")
             ),
+            # Limit configuration button
+            vol.Optional("configure_limits", default=False): bool,
         }
 
         # Add speed control option only for supported models
@@ -259,3 +265,135 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(options_schema),
             errors=errors,
         )
+
+
+    async def async_step_set_lower_limit(
+        self, user_input: dict[str, Any] | None = None, initial: bool = False
+    ) -> FlowResult:
+        """Handle the lower limit configuration dialog."""
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+
+        if not hub:
+            return self.async_abort(reason="hub_not_found")
+
+        blind_device = hub.blinds[0]
+        
+        # connect to the blind and initialise limits setup
+        if initial:
+            await blind_device.limits_initialise()
+
+        return self.async_show_menu(
+            step_id="set_lower_limit",
+            menu_options=[
+                "limit_move_up_lower",
+                "limit_move_down_lower",
+                "limit_stop_lower",
+                "limit_spacer_1_lower",
+                "limit_step_up_lower",
+                "limit_step_down_lower",
+                "limit_spacer_2_lower",
+                "save_lower_limit"
+            ],
+            description_placeholders={
+                "placeholder text"
+            },
+        )
+
+    async def async_step_limit_move_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_up()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_move_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_down()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_step_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_up()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_step_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_down()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_stop_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_stop()
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_spacer_1_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_limit_spacer_2_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_lower_limit()
+
+    async def async_step_save_lower_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].set_limit()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_set_upper_limit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the upper limit configuration dialog."""
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+
+        if not hub:
+            return self.async_abort(reason="hub_not_found")
+
+        return self.async_show_menu(
+            step_id="set_upper_limit",
+            menu_options=[
+                "limit_move_up_upper",
+                "limit_move_down_upper",
+                "limit_stop_upper",
+                "limit_spacer_1_upper",
+                "limit_step_up_upper",
+                "limit_step_down_upper",
+                "limit_spacer_2_upper",
+                "save_upper_limit"
+            ],
+            description_placeholders={
+                "placeholder text"
+            },
+        )
+
+    async def async_step_limit_move_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_up()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_move_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_move_down()
+        return await self.async_step_set_upper_limit()  
+
+    async def async_step_limit_step_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_up()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_step_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_step_down()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_stop_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].limits_stop()
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_spacer_1_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_limit_spacer_2_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        return await self.async_step_set_upper_limit()
+
+    async def async_step_save_upper_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        await hub.blinds[0].set_limit()
+        await hub.blinds[0].get_blind_position()
+        return self.async_create_entry(title="", data=self.config_entry.options)
