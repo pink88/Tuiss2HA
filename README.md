@@ -1,6 +1,6 @@
 # Tuiss2HA
 
-This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi, as the majority of connection issues will be due to poor coverage of your bluetooth network.
+This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy and provides an alternative to the Tuiss app. With this integration you will be able to  operate one or more blinds, check battery status, set movement limits and control speeds. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi, as the majority of connection issues will be due to poor coverage of your bluetooth network.
 
 *This integration does not support RF control (used by the Tuiss remote); for RF control you can use a device such as the [Sonoff RF Bridge](https://esphome.io/components/rf_bridge/).*
 
@@ -25,20 +25,30 @@ The following hardware versions have been tested and confirmed to work. Other ve
 8. Give the blind a name.
 9. Click **Submit**.
 
+### Entities provided ###
+- Cover
+- Battery sensor
+- Signal Strength sensor
+- Favourite position button
 
-## Features ##
+### Cover features ###
 - Set position
-- Open 
+- Open
 - Close
 - Stop
-- Battery State (through action)
-- Signal Strength
-- Favourite position
-- Decimal Blind position (through action)
-- Simultaneous blind positioning (through action)
-- Force Unlock blind (through action)
 
-*Note: All actions can be run manually from (Developer Tools → Actions) or included in an automation.
+## Configuration options
+
+From the integration's Options screen you can configure:
+
+- **Reconnection attempts**: number of retries before giving up on a connection.
+- **Check position on restart**: fetch current position after Home Assistant restarts.
+- **Blind motor speed**: for supported models (Standard, Comfort, Slow).
+- **Favorite position**: a percentage value that can be triggered with the "Go to Favorite Position" action.
+- **Limits**: set the upper and lower boundaries of the blind which control how far the blind will move from open to closed.
+
+## Actions 
+All actions can be run manually from (Developer Tools → Actions) or included in an automation.
 
 ### Battery State ###
 Tuiss blinds do not provide an accurate battery percentage. Instead, the integration exposes a binary battery state:
@@ -91,16 +101,6 @@ Supported models allow setting the motor speed via `tuiss2ha.set_blind_speed`. A
 ### Simultaneous blind positioning
 
 Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the same position at the same time or move eacb blind to their defined favourite position (see *Configuration options*). This is useful for synchronized scenes, howver this requires sufficient Bluetooth proxies/adapters to handle multiple concurrent connections.
-
-## Configuration options
-
-From the integration's Options screen you can configure:
-
-- **Reconnection attempts**: number of retries before giving up on a connection.
-- **Check position on restart**: fetch current position after Home Assistant restarts.
-- **Blind motor speed**: for supported models (Standard, Comfort, Slow).
-- **Favorite position**: a percentage value that can be triggered with the "Go to Favorite Position" action.
-- **Limits**: set the upper and lower boundaries of the blind which control how far the blind will move from open to closed.
 
 ## Troubleshooting
 
