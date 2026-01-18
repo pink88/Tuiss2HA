@@ -47,9 +47,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         if blind._position_on_restart:
             try:
-                await blind.get_blind_position()
+                # Add a timeout to prevent hanging indefinitely waiting for bluetooth response
+                await asyncio.wait_for(blind.get_blind_position(), timeout=15.0)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("%s: Timeout getting blind position on startup. Retrying later.", blind.name)
+                raise ConfigEntryNotReady("Timeout getting blind position - retrying later") from None
             except (DeviceNotFound, ConnectionTimeout) as e:
                 raise ConfigEntryNotReady("Cannot connect to blind") from e
+            except Exception as e:
+                _LOGGER.warning("%s: Error getting blind position on startup: %s. Retrying later.", blind.name, e)
+                raise ConfigEntryNotReady(f"Error getting blind position: {e}") from e
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
     entry.async_on_unload(entry.add_update_listener(update_listener))
