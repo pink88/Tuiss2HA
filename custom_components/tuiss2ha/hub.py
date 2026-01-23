@@ -369,14 +369,31 @@ class TuissBlind:
             await self.attempt_connection()
 
         assert self._client is not None
+        notify_started = False
         try:
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-        except BleakError:
-            # when need to overwrite the existing notification
-            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-        finally:
-            await self.send_command(UUID, command)
+            notify_started = True
+        except BleakError as e:
+            _LOGGER.debug("%s: Failed to start notify: %s. Attempting to stop and restart.", self.name, e)
+            try:
+                # when need to overwrite the existing notification
+                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+                await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+                notify_started = True
+            except BleakError as retry_error:
+                _LOGGER.warning("%s: Could not establish notifications: %s", self.name, retry_error)
+                # Characteristic may not exist or device disconnected; don't attempt write
+                return
+
+        # Only send command if we successfully started notifications and are still connected
+        if notify_started and self._client and self._client.is_connected:
+            try:
+                await self.send_command(UUID, command)
+            except Exception as e:
+                _LOGGER.error("%s: Error sending command during get_from_blind: %s", self.name, e)
+                return
+
+            # Wait for the response/callback to complete
             if self._client:
                 while self._client.is_connected:
                     await asyncio.sleep(1)
@@ -614,7 +631,24 @@ class TuissBlind:
 
                 # Update the state and trigger the moving
                 self.publish_updates()
-                await self.set_position(target_position)
+                
+                try:
+                    # Timeout on set_position to prevent hanging indefinitely
+                    await asyncio.wait_for(self.set_position(target_position), timeout=30.0)
+                except asyncio.TimeoutError:
+                    _LOGGER.error("%s: set_position() timed out after 30s. Unsticking blind.", self.name)
+                    self._moving = 0
+                    self._locked = False
+                    self.publish_updates()
+                    return
+                except Exception as e:
+                    _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
+                    # Command failed; unstick the blind immediately
+                    self._moving = 0
+                    self._locked = False
+                    self.publish_updates()
+                    return
+                
                 end_time = None
                 start_time = datetime.datetime.now()
 
@@ -644,14 +678,14 @@ class TuissBlind:
                 update_task = self.hub._hass.async_create_task(aync_update_position_in_realtime())
 
                 try:
-                    timeout_duration = (
-                        ((abs(corrected_target_position - start_position)
-                        * 1.2)
-                        / self._attr_traversal_speed)
-                        + 10
-                        if self._attr_traversal_speed is not None and self._attr_traversal_speed >= 1 and self._attr_traversal_speed < 6
-                        else TIMEOUT_SECONDS
-                    )
+                    # Calculate timeout based on traversal speed or use default
+                    if (self._attr_traversal_speed is not None and 
+                        self._attr_traversal_speed >= 1 and 
+                        self._attr_traversal_speed < 6):
+                        timeout_duration = ((abs(corrected_target_position - start_position) * 1.2) / self._attr_traversal_speed) + 10
+                    else:
+                        timeout_duration = TIMEOUT_SECONDS or 120
+                    
                     _LOGGER.debug(
                         "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
                         self.name,
