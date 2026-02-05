@@ -26,6 +26,7 @@ from .const import (
     DEFAULT_RESTART_ATTEMPTS,
     DeviceNotFound,
     ConnectionTimeout,
+    NoConnectableBluetoothAdapter,
     TIMEOUT_SECONDS,
 )
 
@@ -73,6 +74,10 @@ class TuissBlind:
         self._ble_device = bluetooth.async_ble_device_from_address(
             self.hub._hass, self.host, connectable=True
         )
+        if self._ble_device is None:
+            self._ble_device = bluetooth.async_ble_device_from_address(
+                self.hub._hass, self.host, connectable=False
+            )
         self.model = self._ble_device.name if self._ble_device else None
         self._rssi: int | None = None
         self._client: BleakClientWithServiceCache | None = None
@@ -90,6 +95,7 @@ class TuissBlind:
         self._locked = False
         self._attr_traversal_speed: float | None = None
         self._heartbeat_task: asyncio.Task | None = None
+        self._last_connection_error: str | None = None  # For logging when connection fails
 
 
     @property
@@ -164,7 +170,13 @@ class TuissBlind:
             self._ble_device = bluetooth.async_ble_device_from_address(
                 self.hub._hass, self.host, connectable=True
             )
+            if self._ble_device is None:
+                self._ble_device = bluetooth.async_ble_device_from_address(
+                    self.hub._hass, self.host, connectable=False
+                )
             rediscover_attempts += 1
+            if self._ble_device is None and rediscover_attempts < self._restart_attempts:
+                await asyncio.sleep(2)
         if self._ble_device is None:
             _LOGGER.error(
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
@@ -190,9 +202,26 @@ class TuissBlind:
                 return
 
             retry_count += 1
+            if retry_count <= self._restart_attempts:
+                await asyncio.sleep(2)
 
-        # If we reach here, we have exceeded max retries
-        _LOGGER.error("%s: Connection failed too many times [%d]", self.name, self._restart_attempts)
+        # If we reach here, we have exceeded max retries - log the actual error at ERROR so it's visible
+        last_err = self._last_connection_error or "unknown (no error captured)"
+        _LOGGER.error(
+            "%s: Connection failed after %d attempts. Last error: %s",
+            self.name,
+            self._restart_attempts,
+            last_err,
+        )
+        # Give a clear error when user has only passive Bluetooth (e.g. Shelly)
+        if last_err and (
+            "passive-only" in last_err.lower()
+            or "no connectable bluetooth" in last_err.lower()
+        ):
+            raise NoConnectableBluetoothAdapter(
+                "No connectable Bluetooth adapter. Shelly and similar devices are passive-only. "
+                "You need an ESPHome Bluetooth proxy or a USB Bluetooth adapter to control Tuiss blinds."
+            )
         raise ConnectionTimeout(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
 
     # Connect
@@ -236,7 +265,11 @@ class TuissBlind:
                 self._moving,
             )
         except (BleakError, asyncio.TimeoutError) as e:
+            self._last_connection_error = str(e)
             _LOGGER.debug("Failed to connect to blind: %s", e)
+        except Exception as e:
+            self._last_connection_error = f"{type(e).__name__}: {e}"
+            _LOGGER.debug("%s: Unexpected error during connect: %s", self.name, e)
 
     # Disconnect
     async def disconnect(self):

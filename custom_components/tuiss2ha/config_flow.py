@@ -31,6 +31,7 @@ from .const import (
     InvalidName,
     DeviceNotFound,
     ConnectionTimeout,
+    NoConnectableBluetoothAdapter,
     OPT_FAVORITE_POSITION,
     DEFAULT_FAVORITE_POSITION,
 )
@@ -97,6 +98,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors[CONF_BLIND_HOST] = "invalid_host"
         except InvalidName:
             errors[CONF_BLIND_NAME] = "invalid_name"
+        except NoConnectableBluetoothAdapter:
+            errors["base"] = "no_connectable_bluetooth"
+        except DeviceNotFound:
+            errors["base"] = "device_not_found"
+        except ConnectionTimeout:
+            errors["base"] = "connection_timeout"
         except Exception as exc:
             _LOGGER.exception("Unexpected exception: %s", exc)
             errors["base"] = "unknown"
@@ -167,6 +174,8 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     except DeviceNotFound:
         raise
     except ConnectionTimeout:
+        raise
+    except NoConnectableBluetoothAdapter:
         raise
     except Exception as e:
         raise CannotConnect() from e
