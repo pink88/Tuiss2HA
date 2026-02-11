@@ -105,6 +105,7 @@ Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the sam
 ## Troubleshooting
 
 - Weak or unreliable connections are usually caused by poor signal strength. Measured RSSI: -60 dBm or higher = Excellent; -61 to -75 dBm = Good; -76 to -90 dBm = Weak; below -90 dBm = Very weak. Improve coverage with more or closer Bluetooth adapters/proxies.
+- For supported models, check that your blinds firmware is up-to-date from within the Tuiss app
 - If adding a blind fails, some users have reported issues with Shelly Bluetooth proxies. If you have a Shelly proxy, try removing it to see if discovery improves.
 - If a blind is stuck in a locked state and not actively moving, you can either restart Home Assistant or call the `tuiss2ha.force_unlock` action (Developer Tools → Actions) or from an automation.
 
