@@ -348,12 +348,15 @@ class TuissBlind:
         try:
             if self._client and self._client.is_connected:
                 await self.send_command(UUID, command)
-                await self.disconnect()
         except (BleakError, RuntimeError) as e:
             _LOGGER.debug("%s: Unable to set the speed: %s", self.name, e)
+            await self.disconnect()
             raise RuntimeError(
                 "Unable to set the speed. Check has enough battery and within bluetooth range or that blind supports speed changes"
             ) from e
+        finally:
+            # Always disconnect after set_speed operation
+            await self.disconnect()
         
 
 
@@ -382,7 +385,8 @@ class TuissBlind:
                 notify_started = True
             except BleakError as retry_error:
                 _LOGGER.warning("%s: Could not establish notifications: %s", self.name, retry_error)
-                # Characteristic may not exist or device disconnected; don't attempt write
+                # Characteristic may not exist or device disconnected; ensure cleanup
+                await self.disconnect()
                 return
 
         # Only send command if we successfully started notifications and are still connected
@@ -391,12 +395,20 @@ class TuissBlind:
                 await self.send_command(UUID, command)
             except Exception as e:
                 _LOGGER.error("%s: Error sending command during get_from_blind: %s", self.name, e)
+                await self.disconnect()
                 return
 
-            # Wait for the response/callback to complete
+            # Wait for the response/callback to complete with timeout to prevent hanging
             if self._client:
-                while self._client.is_connected:
-                    await asyncio.sleep(1)
+                try:
+                    await asyncio.wait_for(self.wait_for_stop(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    _LOGGER.warning("%s: Timeout waiting for response in get_from_blind", self.name)
+                    await self.disconnect()
+        else:
+            # If we couldn't start notify, ensure we disconnect
+            if not notify_started:
+                await self.disconnect()
                     
 
     async def get_battery_status(self) -> None:
@@ -640,6 +652,7 @@ class TuissBlind:
                     self._moving = 0
                     self._locked = False
                     self.publish_updates()
+                    await self.disconnect()
                     return
                 except Exception as e:
                     _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
@@ -647,6 +660,7 @@ class TuissBlind:
                     self._moving = 0
                     self._locked = False
                     self.publish_updates()
+                    await self.disconnect()
                     return
                 
                 end_time = None
@@ -704,6 +718,8 @@ class TuissBlind:
                     return  # stops blind updating traversal speed if it timesout
                 finally:
                     update_task.cancel()
+                    # Ensure disconnect is called in all cases
+                    await self.disconnect()
                     # unlock the entity to allow more changes
                     self._locked = False
                     _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
