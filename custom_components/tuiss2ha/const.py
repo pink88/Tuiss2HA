@@ -44,4 +44,8 @@ class DeviceNotFound(Exception):
 
 
 class ConnectionTimeout(Exception):
-    """Error to indicate a connection timeout.""" 
+    """Error to indicate a connection timeout."""
+
+
+class NoConnectableBluetoothAdapter(Exception):
+    """Error to indicate no Bluetooth adapter can connect (e.g. Shelly is passive-only)."""
