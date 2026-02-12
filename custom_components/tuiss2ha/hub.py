@@ -684,6 +684,14 @@ class TuissBlind:
 
                 # Update the state and trigger the moving
                 self.publish_updates()
+                
+                _LOGGER.debug(
+                            "%s: Battery check age (%s days). Last check: %s.",
+                            self.name,
+                            self._battery_check_days,
+                            self._last_battery_check,
+                        )
+                
                 # Perform a battery check before moving if configured
                 try:
                     if self._battery_check_days and (
