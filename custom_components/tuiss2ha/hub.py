@@ -96,6 +96,9 @@ class TuissBlind:
         self._attr_traversal_speed: float | None = None
         self._heartbeat_task: asyncio.Task | None = None
         self._last_connection_error: str | None = None  # For logging when connection fails
+        # Battery check configuration
+        self._battery_check_days: int = 0
+        self._last_battery_check: datetime.datetime | None = None
 
 
     @property
@@ -558,6 +561,11 @@ class TuissBlind:
             else:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
                 self._battery_status = None
+            # Record time of this battery check
+            try:
+                self._last_battery_check = datetime.datetime.now()
+            except Exception:
+                self._last_battery_check = None
             await self.disconnect()
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
@@ -676,6 +684,29 @@ class TuissBlind:
 
                 # Update the state and trigger the moving
                 self.publish_updates()
+                # Perform a battery check before moving if configured
+                try:
+                    if self._battery_check_days and (
+                        self._last_battery_check is None
+                        or (
+                            (datetime.datetime.now() - self._last_battery_check).total_seconds()
+                            / 86400
+                        )
+                        > float(self._battery_check_days)
+                    ):
+                        _LOGGER.debug(
+                            "%s: Battery check age exceeded (%s days). Checking battery.",
+                            self.name,
+                            self._battery_check_days,
+                        )
+                        # It's OK if this fails — we still proceed with the movement
+                        try:
+                            await self.get_battery_status()
+                        except Exception as e:
+                            _LOGGER.debug("%s: Battery check failed: %s", self.name, e)
+                except Exception:
+                    # Defensive: don't let battery-check logic break movement
+                    _LOGGER.debug("%s: Error while evaluating battery check timing", self.name)
                 
                 try:
                     # Timeout on set_position to prevent hanging indefinitely

@@ -27,6 +27,9 @@ OPT_FAVORITE_POSITION = "blind_favorite_position"
 DEFAULT_FAVORITE_POSITION = 50
 
 #Exceptions
+OPT_BATTERY_CHECK_DAYS = "blind_battery_check_days"
+DEFAULT_BATTERY_CHECK_DAYS = 0
+
 class CannotConnect(Exception):
     """Error to indicate we cannot connect."""
 

@@ -23,6 +23,7 @@
             "unknown": "Errore sconosciuto. Riprova. Se ottieni costantemente questo errore, segnala un problema.",
             "device_not_found": "Impossibile trovare il dispositivo. Assicurarsi che sia acceso e nel raggio d'azione.",
             "connection_timeout": "La connessione è scaduta dopo diversi tentativi. Riprova più tardi.",
+            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
             "invalid_host": "Il tuo indirizzo MAC deve essere nel formato XX:XX:XX:XX:XX:XX",
             "invalid_name": "Il tuo nome deve contenere più di 0 caratteri"
         },
@@ -40,6 +41,7 @@
                     "blind_restart_attempts": "Tentativi di riconnessione",
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
                     "blind_favorite_position": "Posizione Preferita",
+                    "blind_battery_check_days": "Intervallo controllo batteria (giorni)",
                     "force_unlock": "Sblocco forzato",
                     "configure_limits": "Configura Limiti"
                 },
@@ -47,6 +49,7 @@
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
+                    "blind_battery_check_days": "Numero di giorni tra i controlli automatici della batteria quando la tenda si sposta. Impostare 0 per disabilitare i controlli automatici.",
                     "force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'.",
                     "configure_limits": "SPERIMENTALE (uso a proprio rischio): Apre una finestra di dialogo per impostare i limiti superiore e inferiore della tenda spostandola nelle posizioni desiderate."
                 }

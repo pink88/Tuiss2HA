@@ -23,6 +23,7 @@
             "unknown": "Erreur inconnue. Veuillez réessayer. Si vous obtenez constamment cette erreur, veuillez signaler un problème.",
             "device_not_found": "L'appareil est introuvable. Veuillez vous assurer qu'il est sous tension et à portée.",
             "connection_timeout": "La connexion a expiré après plusieurs tentatives. Veuillez réessayer plus tard.",
+            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
             "invalid_host": "Votre adresse MAC doit être au format XX:XX:XX:XX:XX:XX",
             "invalid_name": "Votre nom doit comporter plus de 0 caractères"
         },
@@ -40,6 +41,7 @@
                     "blind_restart_attempts": "Tentatives de reconnexion",
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
                     "blind_favorite_position": "Position Favorite",
+                    "blind_battery_check_days": "Intervalle de vérification de la batterie (jours)",
                     "force_unlock": "Déverrouillage forcé",
                     "configure_limits": "Configurer les Limites"
                 },
@@ -47,6 +49,7 @@
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
+                    "blind_battery_check_days": "Nombre de jours entre les vérifications automatiques de la batterie lorsque le store se déplace. Réglez sur 0 pour désactiver les vérifications automatiques.",
                     "force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'.",
                     "configure_limits": "EXPÉRIMENTAL (utilisation à vos risques et périls) : Ouvre une boîte de dialogue pour définir les limites supérieure et inférieure du store en le déplaçant vers les positions souhaitées."
                 }

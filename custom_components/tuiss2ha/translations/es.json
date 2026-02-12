@@ -23,6 +23,7 @@
             "unknown": "Error desconocido. Por favor, inténtelo de nuevo. Si obtiene este error de forma consistente, por favor, informe de un problema.",
             "device_not_found": "No se pudo encontrar el dispositivo. Asegúrese de que esté encendido y dentro del alcance.",
             "connection_timeout": "La conexión se agotó después de varios reintentos. Por favor, inténtelo de nuevo más tarde.",
+            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
             "invalid_host": "Su dirección MAC debe tener el formato XX:XX:XX:XX:XX:XX",
             "invalid_name": "Su nombre debe tener más de 0 caracteres"
         },
@@ -40,6 +41,7 @@
                     "blind_restart_attempts": "Intentos de reconexión",
                     "blind_speed": "A qué velocidad debe moverse la persiana a la posición",
                     "blind_favorite_position": "Posición Favorita",
+                    "blind_battery_check_days": "Intervalo de comprobación de batería (días)",
                     "force_unlock": "Desbloqueo forzado",
                     "configure_limits": "Configurar Límites"
                 },
@@ -47,6 +49,7 @@
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
                     "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
                     "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'.",
+                    "blind_battery_check_days": "Número de días entre comprobaciones automáticas de batería cuando la persiana se mueve. Establezca 0 para desactivar las comprobaciones automáticas.",
                     "force_unlock": "Forzar el desbloqueo de la persiana si está atascada en el estado 'bloqueada'.",
                     "configure_limits": "EXPERIMENTAL (usar bajo su propio riesgo): Abre un diálogo para establecer los límites superior e inferior de la persiana moviéndola a las posiciones deseadas."
                 }
