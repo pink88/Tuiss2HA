@@ -34,6 +34,8 @@ from .const import (
     NoConnectableBluetoothAdapter,
     OPT_FAVORITE_POSITION,
     DEFAULT_FAVORITE_POSITION,
+    OPT_BATTERY_CHECK_DAYS,
+    DEFAULT_BATTERY_CHECK_DAYS,
 )
 from .hub import Hub
 
@@ -238,6 +240,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
                 ),
             ): int,
+            vol.Optional(
+                OPT_BATTERY_CHECK_DAYS,
+                default=self.config_entry.options.get(
+                    OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=365, step=1, mode="box")
+            ),
             vol.Required(
                 OPT_FAVORITE_POSITION,
                 default=self.config_entry.options.get(

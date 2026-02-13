@@ -37,6 +37,8 @@ from .const import (
     SPEED_CONTROL_SUPPORTED_MODELS,
     OPT_FAVORITE_POSITION,
     DEFAULT_FAVORITE_POSITION,
+    OPT_BATTERY_CHECK_DAYS,
+    DEFAULT_BATTERY_CHECK_DAYS,
     ConnectionTimeout,
     DeviceNotFound,
 )
@@ -240,6 +242,10 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._attr_mac_address = self._blind.host
         self._blind._restart_attempts = config.options.get(OPT_RESTART_ATTEMPTS)
         self._blind._position_on_restart = config.options.get(OPT_RESTART_POSITION)
+        # Number of days between automatic battery checks when blinds move (0 = disabled)
+        self._blind._battery_check_days = config.options.get(
+            OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS
+        )
 
     @property
     def state(self):

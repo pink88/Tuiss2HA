@@ -16,7 +16,22 @@ from homeassistant.components.bluetooth import (
 from homeassistant.const import CONF_ADDRESS, Platform
 
 from .hub import Hub
-from .const import DOMAIN,CONF_BLIND_HOST,CONF_BLIND_NAME, OPT_RESTART_POSITION, DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED, DeviceNotFound, ConnectionTimeout
+from .const import (
+    DOMAIN,
+    CONF_BLIND_HOST,
+    CONF_BLIND_NAME,
+    OPT_RESTART_POSITION,
+    DEFAULT_RESTART_POSITION,
+    OPT_RESTART_ATTEMPTS,
+    DEFAULT_RESTART_ATTEMPTS,
+    OPT_BLIND_SPEED,
+    DEFAULT_BLIND_SPEED,
+    OPT_BATTERY_CHECK_DAYS,
+    DEFAULT_BATTERY_CHECK_DAYS,
+    DeviceNotFound,
+    ConnectionTimeout,
+    SPEED_CONTROL_SUPPORTED_MODELS,
+)
 
 
 
@@ -39,7 +54,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not entry.options:
             hass.config_entries.async_update_entry(
             entry,
-            options={OPT_RESTART_POSITION: DEFAULT_RESTART_POSITION, OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS, OPT_BLIND_SPEED: DEFAULT_BLIND_SPEED},
+            options={
+                OPT_RESTART_POSITION: DEFAULT_RESTART_POSITION,
+                OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS,
+                OPT_BLIND_SPEED: DEFAULT_BLIND_SPEED,
+                OPT_BATTERY_CHECK_DAYS: DEFAULT_BATTERY_CHECK_DAYS,
+            },
         )
 
         #only attempt to get the current position of the blind on boot if required. Required when using tuiss app or bluetooth remotes
@@ -92,9 +112,26 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 
     blind_device = hub.blinds[0]
 
-    # Retrieve the updated option value
+    # Apply battery check days option to all blinds immediately so changes take effect
+    battery_days = entry.options.get(OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS)
+    for b in hub.blinds:
+        try:
+            b._battery_check_days = battery_days
+        except Exception:
+            _LOGGER.debug("Failed to apply battery_check_days to blind %s", getattr(b, "name", "unknown"))
+
+    # Retrieve the updated option value for speed
     new_blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
     current_blind_speed = blind_device._blind_speed
+
+    # If the blind model does not support speed control, ignore speed option changes
+    if blind_device.model not in SPEED_CONTROL_SUPPORTED_MODELS:
+        _LOGGER.debug(
+            "Model %s does not support speed control; ignoring blind_speed option for %s",
+            blind_device.model,
+            entry.entry_id,
+        )
+        return
 
     # Check if the speed actually changed
     if new_blind_speed == current_blind_speed:

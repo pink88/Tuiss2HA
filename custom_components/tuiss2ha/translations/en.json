@@ -41,12 +41,14 @@
                     "blind_restart_attempts": "Reconnection attempts",
                     "blind_speed": "How fast should the blind move to position",
                     "blind_favorite_position": "Favorite Position",
+                    "blind_battery_check_days": "Battery check interval (days)",
                     "configure_limits": "Configure Limits"
                 },
                 "data_description": {
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
                     "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs.",
                     "blind_favorite_position": "The position (in percent, 0=closed, 100=open) that the blind will move to when the 'Go to Favorite Position' button is pressed.",
+                    "blind_battery_check_days": "The number of days between automatic battery checks (checks are made when the blind moves). Set to 0 to disable automatic checks.",
                     "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
                 }
             },
