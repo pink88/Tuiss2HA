@@ -340,8 +340,7 @@ class TuissBlind:
             await self._client.start_notify(
                 BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
             )
-        finally:
-            await self.send_command(UUID, command)  # send the command
+        await self.send_command(UUID, command)  # send the command
 
     async def stop(self) -> None:
         """Stop the blind at current position."""
@@ -674,7 +673,7 @@ class TuissBlind:
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
         if not self._locked:
             await self.attempt_connection()
-            if self._client.is_connected:
+            if self._client and self._client.is_connected:
                 self._locked = True
                 _LOGGER.debug("%s: Lock acquired.", self.name)
                 self._is_stopping = False
