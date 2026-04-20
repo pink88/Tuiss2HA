@@ -25,9 +25,9 @@ from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import (
-    CONNECTION_NETWORK_MAC,
     CONNECTION_BLUETOOTH,
     DeviceInfo,
+    format_mac,
 )
 from homeassistant.exceptions import HomeAssistantError
 
@@ -288,8 +288,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             model=self._blind.model,
             manufacturer=self._blind.hub.manufacturer,
             connections={
-                (CONNECTION_NETWORK_MAC, self._blind.host),
-                (CONNECTION_BLUETOOTH, self._blind.host),
+                (CONNECTION_BLUETOOTH, format_mac(self._blind.host)),
             },
         )
 

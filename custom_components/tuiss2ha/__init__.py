@@ -14,6 +14,7 @@ from homeassistant.components.bluetooth import (
     async_register_callback,
 )
 from homeassistant.const import CONF_ADDRESS, Platform
+from homeassistant.helpers import device_registry as dr
 
 from .hub import Hub
 from .const import (
@@ -43,6 +44,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hub = Hub(hass, entry.data[CONF_BLIND_HOST], entry.data[CONF_BLIND_NAME])
 
     for blind in hub.blinds:
+        
+        # Clean up old duplicate network MAC connections from the device registry DEPRICATE IN FUTURE RELEASE
+        device_registry = dr.async_get(hass)
+        device = device_registry.async_get_device(identifiers={(DOMAIN, blind.blind_id)})
+        if device:
+            # Create a new set of connections, keeping only bluetooth and ensuring it's lowercase
+            clean_connections = set()
+            for conn_type, conn_val in device.connections:
+                if conn_type == dr.CONNECTION_BLUETOOTH:
+                    # Add the formatted (lowercase) bluetooth connection.
+                    # The set will handle deduplication if there are already upper/lower case versions.
+                    clean_connections.add((dr.CONNECTION_BLUETOOTH, dr.format_mac(conn_val)))
+
+            if clean_connections != device.connections:
+                _LOGGER.debug("Cleaning up device connections for %s", blind.name)
+                device_registry.async_update_device(
+                    device.id, new_connections=clean_connections
+                )
         
         #add missing unique_ids TO DEPRICATE IN FUTURE RELEASE
         if entry.unique_id is None:
