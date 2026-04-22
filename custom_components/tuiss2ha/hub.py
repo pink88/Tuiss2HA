@@ -660,7 +660,8 @@ class TuissBlind:
     async def async_move_cover(
         self,
         movement_direction,
-        target_position
+        target_position,
+        skip_battery_check=False
     ):
         """Move the cover."""
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
@@ -686,7 +687,7 @@ class TuissBlind:
                 
                 # Perform a battery check before moving if configured
                 try:
-                    if self._battery_check_days and (
+                    if not skip_battery_check and self._battery_check_days and (
                         self._last_battery_check is None
                         or (
                             (datetime.datetime.now() - self._last_battery_check).total_seconds()
