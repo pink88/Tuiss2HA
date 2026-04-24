@@ -46,7 +46,7 @@ From the integration's Options screen you can configure:
 - **Blind motor speed**: for supported models (Standard, Comfort, Slow).
 - **Favorite position**: a percentage value that can be triggered with the "Go to Favorite Position" action.
 - **Limits**: set the upper and lower boundaries of the blind which control how far the blind will move from open to closed.
-- **Battery check interval (days)**: number of days between automatic battery checks performed when the blind next moves. Set to `0` (default) to disable automatic checks. If set, the blind will perform a battery check on the next movement when the last automatic check is older than this value.
+- **Battery check interval (days)**: number of days between automatic battery checks performed when the blind next moves. Set to `0` (default) to disable automatic checks. If set, the blind will perform a battery check on the next movement when the last automatic check is older than this value. *NOTE: This doesn't work alongside the Simultaneous blind positioning action. If you want to use that feature, then check for the battery using the get_battery_status action detailed below instead.*
 
 ## Actions 
 All actions can be run manually from (Developer Tools → Actions) or included in an automation.

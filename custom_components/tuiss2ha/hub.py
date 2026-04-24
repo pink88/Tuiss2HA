@@ -615,23 +615,16 @@ class TuissBlind:
         # Tuiss uses an inverted percentage (0=open, 100=closed)
         tuiss_percent = 100 - user_percent
 
-        # Calculate the position value for the hex command
-        position_value = int(round((tuiss_percent * 10) % 256))
-        if position_value == 256:  # handle edge case
-            position_value = 0
+        # Calculate the absolute position value (0-1000)
+        total_val = int(round(tuiss_percent * 10))
 
-        # Determine the "group" byte based on the HA percentage
-        if user_percent > 74.4:
-            group_str = "00"
-        elif user_percent > 48.8:
-            group_str = "01"
-        elif user_percent > 23.2:
-            group_str = "02"
-        else:
-            group_str = "03"
+        # Extract lower byte (position) and upper byte (group)
+        position_value = total_val % 256
+        group_value = total_val // 256
 
         # Format the position value as a two-character hex (e.g., 0A, FF)
         hex_val = f"{position_value:02x}"
+        group_str = f"{group_value:02x}"
 
         # Build the final command
         command_prefix = "ff78ea41bf03"
@@ -667,7 +660,8 @@ class TuissBlind:
     async def async_move_cover(
         self,
         movement_direction,
-        target_position
+        target_position,
+        skip_battery_check=False
     ):
         """Move the cover."""
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
@@ -693,7 +687,7 @@ class TuissBlind:
                 
                 # Perform a battery check before moving if configured
                 try:
-                    if self._battery_check_days and (
+                    if not skip_battery_check and self._battery_check_days and (
                         self._last_battery_check is None
                         or (
                             (datetime.datetime.now() - self._last_battery_check).total_seconds()

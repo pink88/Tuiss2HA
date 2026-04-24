@@ -25,9 +25,9 @@ from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.device_registry import (
-    CONNECTION_NETWORK_MAC,
     CONNECTION_BLUETOOTH,
     DeviceInfo,
+    format_mac,
 )
 from homeassistant.exceptions import HomeAssistantError
 
@@ -183,12 +183,12 @@ async def async_setup_entry(
                     OPT_FAVORITE_POSITION, DEFAULT_FAVORITE_POSITION
                 )
                 set_position_tasks.append(
-                    entity.async_set_cover_position(**{ATTR_POSITION: fav_pos})
+                    entity.async_set_cover_position(**{ATTR_POSITION: fav_pos, "skip_battery_check": True})
                 )
         else:
             for entity in connected_entities:
                 set_position_tasks.append(
-                    entity.async_set_cover_position(**{ATTR_POSITION: position})
+                    entity.async_set_cover_position(**{ATTR_POSITION: position, "skip_battery_check": True})
                 )
 
         results = await asyncio.gather(*set_position_tasks, return_exceptions=True)
@@ -288,8 +288,7 @@ class Tuiss(CoverEntity, RestoreEntity):
             model=self._blind.model,
             manufacturer=self._blind.hub.manufacturer,
             connections={
-                (CONNECTION_NETWORK_MAC, self._blind.host),
-                (CONNECTION_BLUETOOTH, self._blind.host),
+                (CONNECTION_BLUETOOTH, format_mac(self._blind.host)),
             },
         )
 
@@ -398,10 +397,14 @@ class Tuiss(CoverEntity, RestoreEntity):
             movement_direction = 1
         else:
             movement_direction = -1
+            
+        skip_battery_check = kwargs.get("skip_battery_check", False)
+
         try:
             await self._blind.async_move_cover(
                 movement_direction=movement_direction,
                 target_position= 100 - kwargs[ATTR_POSITION],
+                skip_battery_check=skip_battery_check,
             )
         except (ConnectionTimeout, DeviceNotFound) as e:
             _LOGGER.debug("%s failed to set position with error %s.", self._attr_name, e)
