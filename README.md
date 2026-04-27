@@ -1,6 +1,6 @@
 # Tuiss2HA
 
-This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy and provides an alternative to the Tuiss app. With this integration you will be able to  operate one or more blinds, check battery status, set movement limits and control speeds. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi, as the majority of connection issues will be due to poor coverage of your bluetooth network.
+This integration adds support for Tuiss SmartView blinds over Bluetooth Low Energy and provides an alternative to the Tuiss app. With this integration you will be able to  operate one or more blinds, check battery status, set movement limits, set local timers and control speeds. For best results, I strongly recommend using [ESPHome Bluetooth proxies](https://esphome.io/components/bluetooth_proxy.html) rather than the built-in Bluetooth adapter on Home Assistant hardware or a Raspberry Pi, as the majority of connection issues will be due to poor coverage of your bluetooth network.
 
 *This integration does not support RF control (used by the Tuiss remote); for RF control you can use a device such as the [Sonoff RF Bridge](https://esphome.io/components/rf_bridge/).*
 
@@ -25,11 +25,15 @@ The following hardware versions have been tested and confirmed to work. Other ve
 8. Give the blind a name.
 9. Click **Submit**.
 
+Add to HACS: [![](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pink88&repository=Tuiss2HA&category=Integration)
+Add to Home Assistant: [![](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=tuiss2ha)
+
 ### Entities provided ###
 - Cover
 - Battery sensor
 - Signal Strength sensor
 - Favourite position button
+- Timers (see Actions section below)
 
 ### Cover features ###
 - Set position
@@ -104,6 +108,16 @@ Supported models allow setting the motor speed via `tuiss2ha.set_blind_speed`. A
 ### Simultaneous blind positioning
 
 Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the same position at the same time or move eacb blind to their defined favourite position (see *Configuration options*). This is useful for synchronized scenes, howver this requires sufficient Bluetooth proxies/adapters to handle multiple concurrent connections.
+
+
+### Add and Delete Timers
+
+Timers allow the blind to store a position, time of day and day or week locally in its memory. Up to 6 timers can be set using this integration. 
+You can add a timer using the `tuiss2ha.add_blind_timer` action and remove one using the `tuiss2ha.delete_blind_timer` action.
+And timers that run will not update the position in Home Assistant, so you will need to run the `tuiss2ha.get_blind_position` manually or via an automation to update Home Assistant with the correct positions. 
+The blinds allow for up to 16 timers to be set, however the first 10 are for exclusive use by the Tuiss app. Any timers set in the app will not appear in Home Assistant and vice versa, due to technical limitations.
+
+
 
 ## Troubleshooting
 
