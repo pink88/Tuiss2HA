@@ -143,6 +143,34 @@
                     "description": "The blind to force unlock"
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Add Blind Timer",
+            "description": "Add a timer for the blind to move to a specific position on selected days at a specific time, independently of Home Assistant or other any other automations you may have set up. This is useful if you want to set a recurring schedule for your blinds that is not dependent on sunrise/sunset or other triggers. Please note, this timer will run locally on the blind and you can set a maximum of 6 timers per blind using this action. The blind can support up to 16 timers, but I have left the first 10 to be used exclusively by the Tuiss app. Timers set here and on the app will not be shared.",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Target position between 0.00 (Closed) and 100.00 (Open) with 2 decimal point accuracy"
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week to run this timer"
+                },
+                "time": {
+                    "name": "Time",
+                    "description": "Time of day to trigger the action"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Delete Blind Timer",
+                "description": "Delete an existing timer from a blind. You can select the specific timer entity to remove directly.",
+                "fields": {
+                    "entity_id": {
+                        "name": "Timer Entity",
+                        "description": "Select the timer you wish to remove."
+                    }
+                }
         }
     }
 ,
@@ -161,6 +189,21 @@
         },
         "device_locked": {
             "message": "{name} is busy (locked). Please wait for current operation to finish."
+        },
+        "max_timers_reached": {
+            "message": "Maximum number of timers ({max_timers}) reached for this blind."
+        },
+        "no_entity_id": {
+            "message": "No entity_id provided."
+        },
+        "entity_not_found": {
+            "message": "Entity {entity_id} not found in registry."
+        },
+        "not_a_timer": {
+            "message": "The selected entity is not a timer. Please select a valid Timer entity."
+        },
+        "blind_not_found": {
+            "message": "Associated blind for this timer could not be found."
         }
     }
 }

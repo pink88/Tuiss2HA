@@ -45,6 +45,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     for blind in hub.blinds:
         
+        # Load timers
+        await blind.async_load_timers()
+        
         # Clean up old duplicate network MAC connections from the device registry DEPRICATE IN FUTURE RELEASE
         device_registry = dr.async_get(hass)
         device = device_registry.async_get_device(identifiers={(DOMAIN, blind.blind_id)})

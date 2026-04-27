@@ -147,10 +147,36 @@
                     "description": "Le store à déverrouiller"
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Ajouter un minuteur de store",
+            "description": "Ajoutez un minuteur pour que le store se déplace vers une position spécifique les jours sélectionnés à une heure précise, indépendamment de Home Assistant ou de toute autre automatisation que vous auriez pu configurer. Cela est utile si vous souhaitez définir une programmation récurrente pour vos stores qui ne dépend pas du lever/coucher du soleil ou d'autres déclencheurs. Veuillez noter que ce minuteur s'exécutera localement sur le store et que vous pouvez définir un maximum de 6 minuteurs par store en utilisant cette action. Le store peut prendre en charge jusqu'à 16 minuteurs, mais j'ai laissé les 10 premiers pour qu'ils soient utilisés exclusivement par l'application Tuiss. Les minuteurs définis ici et sur l'application ne seront pas partagés.",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Position cible entre 0,00 (fermé) et 100,00 (ouvert) avec une précision de 2 décimales"
+                },
+                "days": {
+                    "name": "Jours",
+                    "description": "Jours de la semaine pour exécuter ce minuteur"
+                },
+                "time": {
+                    "name": "Heure",
+                    "description": "Heure de la journée pour déclencher l'action"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Supprimer le minuteur de store",
+            "description": "Supprimer un minuteur existant d'un store. Vous pouvez sélectionner l'entité minuteur spécifique à supprimer directement.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité minuteur",
+                    "description": "Sélectionnez le minuteur que vous souhaitez supprimer."
+                }
+            }
         }
-    }
-
-    ,
+    },
     "exceptions": {
         "failed_to_open": {
             "message": "{name} n'a pas pu être ouvert : {error}"
@@ -166,6 +192,21 @@
         },
         "device_locked": {
             "message": "{name} est occupé (verrouillé). Veuillez attendre la fin de l'opération en cours."
+        },
+        "max_timers_reached": {
+            "message": "Nombre maximum de minuteurs ({max_timers}) atteint pour ce store."
+        },
+        "no_entity_id": {
+            "message": "Aucun entity_id fourni."
+        },
+        "entity_not_found": {
+            "message": "L'entité {entity_id} est introuvable dans le registre."
+        },
+        "not_a_timer": {
+            "message": "L'entité sélectionnée n'est pas un minuteur. Veuillez sélectionner une entité Minuteur valide."
+        },
+        "blind_not_found": {
+            "message": "Le store associé à ce minuteur est introuvable."
         }
     }
 }

@@ -147,10 +147,36 @@
                     "description": "Die Jalousie, die entsperrt werden soll"
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Jalousie-Timer hinzufügen",
+            "description": "Fügen Sie einen Timer hinzu, damit sich die Jalousie an ausgewählten Tagen zu einer bestimmten Zeit an eine bestimmte Position bewegt, unabhängig von Home Assistant oder anderen von Ihnen eingerichteten Automatisierungen. Dies ist nützlich, wenn Sie einen wiederkehrenden Zeitplan für Ihre Jalousien festlegen möchten, der nicht von Sonnenaufgang/-untergang oder anderen Auslösern abhängt. Bitte beachten Sie, dass dieser Timer lokal auf der Jalousie ausgeführt wird und Sie mit dieser Aktion maximal 6 Timer pro Jalousie einstellen können. Die Jalousie unterstützt bis zu 16 Timer, aber die ersten 10 sind ausschließlich für die Tuiss-App reserviert. Hier und in der App eingestellte Timer werden nicht geteilt.",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Zielposition zwischen 0,00 (geschlossen) und 100,00 (geöffnet) mit einer Genauigkeit von 2 Dezimalstellen"
+                },
+                "days": {
+                    "name": "Tage",
+                    "description": "Wochentage, an denen dieser Timer ausgeführt werden soll"
+                },
+                "time": {
+                    "name": "Zeit",
+                    "description": "Tageszeit zum Auslösen der Aktion"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Jalousie-Timer löschen",
+            "description": "Löschen Sie einen vorhandenen Timer aus einer Jalousie. Sie können die spezifische Timer-Entität zum direkten Entfernen auswählen.",
+            "fields": {
+                "entity_id": {
+                    "name": "Timer-Entität",
+                    "description": "Wählen Sie den Timer aus, den Sie entfernen möchten."
+                }
+            }
         }
-    }
-
-    ,
+    },
     "exceptions": {
         "failed_to_open": {
             "message": "{name} konnte nicht geöffnet werden: {error}"
@@ -166,6 +192,21 @@
         },
         "device_locked": {
             "message": "{name} ist beschäftigt (gesperrt). Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist."
+        },
+        "max_timers_reached": {
+            "message": "Maximale Anzahl an Timern ({max_timers}) für diese Jalousie erreicht."
+        },
+        "no_entity_id": {
+            "message": "Keine entity_id angegeben."
+        },
+        "entity_not_found": {
+            "message": "Entität {entity_id} in der Registry nicht gefunden."
+        },
+        "not_a_timer": {
+            "message": "Die ausgewählte Entität ist kein Timer. Bitte wählen Sie eine gültige Timer-Entität aus."
+        },
+        "blind_not_found": {
+            "message": "Die zugehörige Jalousie für diesen Timer konnte nicht gefunden werden."
         }
     }
 }

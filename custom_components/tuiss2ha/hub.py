@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import datetime
+import uuid
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakError
@@ -16,6 +17,8 @@ from bleak_retry_connector import (
 
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
@@ -99,6 +102,8 @@ class TuissBlind:
         # Battery check configuration
         self._battery_check_days: int = 0
         self._last_battery_check: datetime.datetime | None = None
+        self.timers = {}
+        self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
 
 
     @property
@@ -394,7 +399,6 @@ class TuissBlind:
             await self.disconnect()
         
 
-
     ##################################################################################################
     ## GET METHODS ###################################################################################
     ##################################################################################################
@@ -536,10 +540,115 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
 
 
+    ##################################################################################################
+    ## TIMER METHODS #################################################################################
+    ##################################################################################################
+
+    async def async_load_timers(self) -> None:
+        """Load stored schedules."""
+        stored = await self._store.async_load()
+        if stored:
+            self.timers = stored
+        else:
+            self.timers = {}
+
+    async def async_save_timer(self) -> None:
+        """Save schedules to storage."""
+        await self._store.async_save(self.timers)
+
+
+    async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
+        """Add a new schedule."""
+        existing_ids = {int(k) for k in self.timers.keys()}
+        available_ids = set(range(10, 15)) - existing_ids
+        
+        if not available_ids:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="max_timers_reached",
+                translation_placeholders={"max_timers": "6"}
+            )
+            
+        timer_id = str(min(available_ids))
+        self.timers[timer_id] = {
+            "timer_id": timer_id,
+            "days": days,
+            "time": time_str,
+            "position": position}
+            
+        timer_command = self.create_timer_command(timer_id, days, time_str, position)
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
+        
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()      
+        
+        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))   
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))   
+        await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
+        await self.send_command(UUID, bytes.fromhex(timer_command))   
+        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))   
+                
+        
+        await self.async_save_timer()
+        self.publish_updates()
+        async_dispatcher_send(self.hub._hass, f"{DOMAIN}_add_timer_{self.blind_id}", timer_id)
+        return timer_id
+    
+
+    async def async_delete_timer(self, timer_id: str) -> None:
+        """Remove an existing schedule."""
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()     
+            
+        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))    
+        delete_hex = "ff78ea410301" #delete at index A-10 15-F
+        delete_hex += f"{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
+        await self.send_command(UUID, bytes.fromhex(delete_hex))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        
+        if timer_id in self.timers:
+            del self.timers[timer_id]
+            await self.async_save_timer()
+            async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+            self.publish_updates()
+
+
+    def create_timer_command(self, index: str, days: list[str], time: str, position: float) -> str:
+        # Convert days to bitmask
+        day_map = {"sun": 1, "mon": 2, "tue": 4, "wed": 8, "thu": 16, "fri": 32, "sat": 64}
+        day_bits = sum(day_map[day] for day in days if day in day_map)
+
+        # Convert time to minutes since midnight
+        time_parts = time.split(":")
+        hours = int(time_parts[0])
+        minutes = int(time_parts[1])
+
+        # Convert position to fixed-point (e.g., multiply by 10)
+        target_position_value = int(float(position) * 10)
+        position_byte_1 = target_position_value % 256
+        position_byte_2 = target_position_value // 256
+        
+
+        # Construct the command (example format)
+        cmd_hex = "ff78ea410300"
+        cmd_hex += f"{int(index):02x}"   # Timer index converted to hex
+        cmd_hex += "b2"   # not sure
+        cmd_hex += "3f"   # not sure
+        cmd_hex += f"{day_bits:02x}" # Days bitmask
+        cmd_hex += f"{hours:02x}" # Time hours
+        cmd_hex += f"{minutes:02x}" # Time minutes
+        cmd_hex += "00"  # Padding
+        cmd_hex += f"{position_byte_1:02x}" # Position byte
+        cmd_hex += f"{position_byte_2:02x}" # Position byte
+
+        return cmd_hex
+
+
 
 
     ##################################################################################################
-    ## CALLBACK METHODS ############################################################################
+    ## CALLBACK METHODS ##############################################################################
     ##################################################################################################
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):

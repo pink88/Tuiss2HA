@@ -74,3 +74,53 @@ force_unlock:
   target:
     entity:
       domain: cover
+
+add_blind_timer:
+  target:
+    entity:
+      integration: tuiss2ha
+      domain: cover
+  fields:
+    position:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.01
+          mode: slider
+    days:
+      required: true
+      selector:
+        select:
+          multiple: true
+          mode: list
+          options:
+            - label: "Monday"
+              value: "mon"
+            - label: "Tuesday"
+              value: "tue"
+            - label: "Wednesday"
+              value: "wed"
+            - label: "Thursday"
+              value: "thu"
+            - label: "Friday"
+              value: "fri"
+            - label: "Saturday"
+              value: "sat"
+            - label: "Sunday"
+              value: "sun"
+    time:
+      required: true
+      selector:
+        time: {}
+
+delete_blind_timer:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain: sensor
+          multiple: false
