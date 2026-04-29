@@ -560,7 +560,7 @@ class TuissBlind:
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
         """Add a new schedule."""
         existing_ids = {int(k) for k in self.timers.keys()}
-        available_ids = set(range(10, 15)) - existing_ids
+        available_ids = set(range(10, 16)) - existing_ids
         
         if not available_ids:
             raise HomeAssistantError(
