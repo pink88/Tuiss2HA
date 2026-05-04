@@ -575,18 +575,23 @@ class TuissBlind:
             "days": days,
             "time": time_str,
             "position": position}
-            
-        timer_command = self.create_timer_command(timer_id, days, time_str, position)
-        current_time = datetime.datetime.now()
-        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
         
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()      
+
+            
+        timer_command = self.create_timer_command(timer_id, days, time_str, position)
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"        
         
         await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))   
+        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex(timestamp_command))   
+        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
+        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex(timer_command))   
+        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))   
                 
         
@@ -600,11 +605,19 @@ class TuissBlind:
         """Remove an existing schedule."""
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()     
-            
-        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))    
-        delete_hex = "ff78ea410301" #delete at index A-10 15-F
-        delete_hex += f"{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
+        
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
+        
+        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))
+        await asyncio.sleep(0.7)
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))      
+        await asyncio.sleep(0.7)
+        await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
+        await asyncio.sleep(0.7)
+        delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
         await self.send_command(UUID, bytes.fromhex(delete_hex))
+        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
         
         if timer_id in self.timers:
@@ -712,7 +725,7 @@ class TuissBlind:
                 self._client.is_connected,
             )
             try:
-                _LOGGER.debug("%s: Sending the command %s", self.name, command)
+                _LOGGER.debug("%s: Sending the command %s", self.name, command.hex())
                 await self._client.write_gatt_char(UUID, command)
             except BleakError as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
