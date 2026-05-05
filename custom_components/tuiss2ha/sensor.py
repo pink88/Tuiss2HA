@@ -139,14 +139,17 @@ class TuissTimerSensor(SensorEntity):
         self._timer_id = timer_id
         self._attr_unique_id = f"{blind.blind_id}_timer_{timer_id}"
         
+        timer = self._blind.timers.get(self._timer_id)
         try:
-            timer_index = int(timer_id) - 9
+            if timer and "ha_index" in timer:
+                timer_index = timer["ha_index"]
+            else:
+                timer_index = int(timer_id) - 9
         except ValueError:
             timer_index = timer_id
             
         prefix = f"Timer {timer_index} - "
         
-        timer = self._blind.timers.get(self._timer_id)
         if timer:
             day_map = {"mon": "Mo", "tue": "Tu", "wed": "We", "thu": "Th", "fri": "Fr", "sat": "Sa", "sun": "Su"}
             timer_days = timer.get("days", [])

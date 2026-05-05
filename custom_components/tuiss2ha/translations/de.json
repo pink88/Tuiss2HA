@@ -150,7 +150,7 @@
         },
         "add_blind_timer": {
             "name": "Jalousie-Timer hinzufügen",
-            "description": "Fügen Sie einen Timer hinzu, damit sich die Jalousie an ausgewählten Tagen zu einer bestimmten Zeit an eine bestimmte Position bewegt, unabhängig von Home Assistant oder anderen von Ihnen eingerichteten Automatisierungen. Dies ist nützlich, wenn Sie einen wiederkehrenden Zeitplan für Ihre Jalousien festlegen möchten, der nicht von Sonnenaufgang/-untergang oder anderen Auslösern abhängt. Bitte beachten Sie, dass dieser Timer lokal auf der Jalousie ausgeführt wird und Sie mit dieser Aktion maximal 6 Timer pro Jalousie einstellen können. Die Jalousie unterstützt bis zu 16 Timer, aber die ersten 10 sind ausschließlich für die Tuiss-App reserviert. Hier und in der App eingestellte Timer werden nicht geteilt.",
+            "description": "Fügen Sie einen Timer hinzu, damit sich die Jalousie an ausgewählten Tagen zu einer bestimmten Zeit an eine bestimmte Position bewegt, unabhängig von Home Assistant oder anderen von Ihnen eingerichteten Automatisierungen. Dies ist nützlich, wenn Sie einen wiederkehrenden Zeitplan für Ihre Jalousien festlegen möchten, der nicht von Sonnenaufgang/-untergang oder anderen Auslösern abhängt. Bitte beachten Sie, dass dieser Timer lokal auf der Jalousie ausgeführt wird und die Jalousie insgesamt maximal 16 Timer unterstützt. Die hier und in der Tuiss-App eingestellten Timer teilen sich die gleichen verfügbaren Speicherplätze.",
             "fields": {
                 "position": {
                     "name": "Position",

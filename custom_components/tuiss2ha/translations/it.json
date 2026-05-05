@@ -150,7 +150,7 @@
         },
         "add_blind_timer": {
             "name": "Aggiungi timer tenda",
-            "description": "Aggiungi un timer affinché la tenda si sposti in una posizione specifica nei giorni selezionati a un'ora specifica, indipendentemente da Home Assistant o da qualsiasi altra automazione che potresti aver impostato. Questo è utile se desideri impostare un programma ricorrente per le tue tende che non dipenda da alba/tramonto o altri trigger. Tieni presente che questo timer verrà eseguito localmente sulla tenda e puoi impostare un massimo di 6 timer per tenda utilizzando questa azione. La tenda può supportare fino a 16 timer, ma ho lasciato i primi 10 per essere utilizzati esclusivamente dall'app Tuiss. I timer impostati qui e sull'app non verranno condivisi.",
+            "description": "Aggiungi un timer affinché la tenda si sposti in una posizione specifica nei giorni selezionati a un'ora specifica, indipendentemente da Home Assistant o da qualsiasi altra automazione che potresti aver impostato. Questo è utile se desideri impostare un programma ricorrente per le tue tende che non dipenda da alba/tramonto o altri trigger. Tieni presente che questo timer verrà eseguito localmente sulla tenda e la tenda può supportare un massimo di 16 timer in totale. I timer impostati qui e sull'app Tuiss condivideranno gli stessi slot disponibili.",
             "fields": {
                 "position": {
                     "name": "Posizione",

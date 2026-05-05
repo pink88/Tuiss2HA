@@ -150,7 +150,7 @@
         },
         "add_blind_timer": {
             "name": "Añadir temporizador de persiana",
-            "description": "Añade un temporizador para que la persiana se mueva a una posición específica en los días seleccionados a una hora específica, independientemente de Home Assistant o cualquier otra automatización que hayas configurado. Esto es útil si deseas establecer un horario recurrente para tus persianas que no dependa del amanecer/atardecer u otros disparadores. Ten en cuenta que este temporizador se ejecutará localmente en la persiana y puedes establecer un máximo de 6 temporizadores por persiana utilizando esta acción. La persiana puede soportar hasta 16 temporizadores, pero he dejado los primeros 10 para que los use exclusivamente la aplicación Tuiss. Los temporizadores configurados aquí y en la aplicación no se compartirán.",
+            "description": "Añade un temporizador para que la persiana se mueva a una posición específica en los días seleccionados a una hora específica, independientemente de Home Assistant o cualquier otra automatización que hayas configurado. Esto es útil si deseas establecer un horario recurrente para tus persianas que no dependa del amanecer/atardecer u otros disparadores. Ten en cuenta que este temporizador se ejecutará localmente en la persiana y la persiana puede soportar un máximo de 16 temporizadores en total. Los temporizadores configurados aquí y en la aplicación Tuiss compartirán los mismos espacios disponibles.",
             "fields": {
                 "position": {
                     "name": "Posición",

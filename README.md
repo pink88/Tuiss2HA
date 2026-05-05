@@ -112,11 +112,11 @@ Use `tuiss2ha.simultaneous_blind_positioning` to move multiple blinds to the sam
 
 ### Add and Delete Timers
 
-Timers allow the blind to store a position, time of day and day or week locally in its memory. Up to 6 timers can be set using this integration. 
-You can add a timer using the `tuiss2ha.add_blind_timer` action and remove one using the `tuiss2ha.delete_blind_timer` action.
-And timers that run will not update the position in Home Assistant, so you will need to run the `tuiss2ha.get_blind_position` manually or via an automation to update Home Assistant with the correct positions. 
-The blinds allow for up to 16 timers to be set, however the first 10 are for exclusive use by the Tuiss app. Any timers set in the app will not appear in Home Assistant and vice versa, due to technical limitations.
-
+Timers allow the blind to store a position, time of day and day or week locally in its memory.
+- Up to 16 timers can be set using this integration.
+- Timers set in the Tuiss app will not be synced to Home Assistant and vice versa.
+- You can add a timer using the `tuiss2ha.add_blind_timer` action and remove one using the `tuiss2ha.delete_blind_timer` action.
+- Timers that run will not update the position in Home Assistant. You will need to run the `tuiss2ha.get_blind_position` manually or via an automation to update Home Assistant with the correct positions.
 
 
 ## Troubleshooting

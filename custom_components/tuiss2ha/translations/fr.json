@@ -150,7 +150,7 @@
         },
         "add_blind_timer": {
             "name": "Ajouter un minuteur de store",
-            "description": "Ajoutez un minuteur pour que le store se déplace vers une position spécifique les jours sélectionnés à une heure précise, indépendamment de Home Assistant ou de toute autre automatisation que vous auriez pu configurer. Cela est utile si vous souhaitez définir une programmation récurrente pour vos stores qui ne dépend pas du lever/coucher du soleil ou d'autres déclencheurs. Veuillez noter que ce minuteur s'exécutera localement sur le store et que vous pouvez définir un maximum de 6 minuteurs par store en utilisant cette action. Le store peut prendre en charge jusqu'à 16 minuteurs, mais j'ai laissé les 10 premiers pour qu'ils soient utilisés exclusivement par l'application Tuiss. Les minuteurs définis ici et sur l'application ne seront pas partagés.",
+            "description": "Ajoutez un minuteur pour que le store se déplace vers une position spécifique les jours sélectionnés à une heure précise, indépendamment de Home Assistant ou de toute autre automatisation que vous auriez pu configurer. Cela est utile si vous souhaitez définir une programmation récurrente pour vos stores qui ne dépend pas du lever/coucher du soleil ou d'autres déclencheurs. Veuillez noter que ce minuteur s'exécutera localement sur le store et que le store peut prendre en charge un maximum de 16 minuteurs au total. Les minuteurs définis ici et sur l'application Tuiss partageront les mêmes emplacements disponibles.",
             "fields": {
                 "position": {
                     "name": "Position",

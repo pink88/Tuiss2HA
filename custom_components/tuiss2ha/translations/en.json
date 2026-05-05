@@ -146,7 +146,7 @@
         },
         "add_blind_timer": {
             "name": "Add Blind Timer",
-            "description": "Add a timer for the blind to move to a specific position on selected days at a specific time, independently of Home Assistant or other any other automations you may have set up. This is useful if you want to set a recurring schedule for your blinds that is not dependent on sunrise/sunset or other triggers. Please note, this timer will run locally on the blind and you can set a maximum of 6 timers per blind using this action. The blind can support up to 16 timers, but I have left the first 10 to be used exclusively by the Tuiss app. Timers set here and on the app will not be shared.",
+            "description": "Add a timer for the blind to move to a specific position on selected days at a specific time, independently of Home Assistant or other any other automations you may have set up. This is useful if you want to set a recurring schedule for your blinds that is not dependent on sunrise/sunset or other triggers. Please note, this timer will run locally on the blind and the blind can support a maximum of 16 timers in total. Timers set here and on the Tuiss app will share the same available slots.",
             "fields": {
                 "position": {
                     "name": "Position",

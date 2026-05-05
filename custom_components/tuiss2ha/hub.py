@@ -559,41 +559,76 @@ class TuissBlind:
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
         """Add a new schedule."""
-        existing_ids = {int(k) for k in self.timers.keys()}
-        available_ids = set(range(10, 16)) - existing_ids
-        
-        if not available_ids:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="max_timers_reached",
-                translation_placeholders={"max_timers": "6"}
-            )
-            
-        timer_id = str(min(available_ids))
-        self.timers[timer_id] = {
-            "timer_id": timer_id,
-            "days": days,
-            "time": time_str,
-            "position": position}
-        
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()      
 
-            
-        timer_command = self.create_timer_command(timer_id, days, time_str, position)
+        new_timer_id = None
+        timer_id_event = asyncio.Event()
+
+        async def timer_id_callback(sender, data):
+            nonlocal new_timer_id
+            decimals = self.split_data(data)
+            # Filter for the correct response: 7 bytes long, where the 5th byte is 0xd6 (214)
+            if len(decimals) >= 7 and decimals[4] == 214:
+                new_timer_id = str(decimals[6])
+                timer_id_event.set()
+
+        try:
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
+        except BleakError:
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
+
         current_time = datetime.datetime.now()
         timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"        
         
         await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))   
-        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex(timestamp_command))   
-        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
-        await asyncio.sleep(0.7)
+        
+        try:
+            await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            await self.disconnect()
+            raise HomeAssistantError("Timeout waiting for timer ID from blind.")
+
+        await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+
+        _LOGGER.debug("Received timer ID from blind: %s", new_timer_id)
+
+        if not new_timer_id:
+            await self.disconnect()
+            _LOGGER.debug("Failed to obtain timer ID from the blind.")
+            raise HomeAssistantError("Failed to obtain timer ID from the blind.")
+            
+        if int(new_timer_id) >= 17:
+            await self.disconnect()
+            _LOGGER.debug("Maximum number of timers reached.")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="max_timers_reached",
+                translation_placeholders={"max_timers": "16"}
+            )
+
+        timer_id = new_timer_id
+        timer_command = self.create_timer_command(timer_id, days, time_str, position)
+        
         await self.send_command(UUID, bytes.fromhex(timer_command))   
-        await asyncio.sleep(0.7)
-        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))   
-                
+        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        await self.disconnect()       
+        
+        existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
+        available_indices = set(range(1, 17)) - existing_ha_indices
+        ha_index = min(available_indices) if available_indices else len(self.timers) + 1
+
+        self.timers[timer_id] = {
+            "timer_id": timer_id,
+            "ha_index": ha_index,
+            "days": days,
+            "time": time_str,
+            "position": position
+        }
         
         await self.async_save_timer()
         self.publish_updates()
@@ -610,15 +645,12 @@ class TuissBlind:
         timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
         
         await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))
-        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex(timestamp_command))      
-        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
-        await asyncio.sleep(0.7)
         delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
         await self.send_command(UUID, bytes.fromhex(delete_hex))
-        await asyncio.sleep(0.7)
         await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        await self.disconnect()
         
         if timer_id in self.timers:
             del self.timers[timer_id]

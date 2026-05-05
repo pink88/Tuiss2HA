@@ -51,6 +51,14 @@ async def test_async_add_timer_success(mock_hass, tuiss_blind):
     tuiss_blind._client = MagicMock()
     tuiss_blind._client.is_connected = True
     
+    async def mock_start_notify(char, callback):
+        # simulate a response to ff78ea4104 where the last byte is the index (e.g., 10 => 0x0a)
+        mock_data = bytearray.fromhex("ff010203d6000a")
+        await callback(char, mock_data)
+        
+    tuiss_blind._client.start_notify = AsyncMock(side_effect=mock_start_notify)
+    tuiss_blind._client.stop_notify = AsyncMock()
+    
     with patch("custom_components.tuiss2ha.hub.async_dispatcher_send") as mock_dispatch:
         timer_id = await tuiss_blind.async_add_timer(["mon"], "08:00", 50.0)
         
@@ -59,6 +67,7 @@ async def test_async_add_timer_success(mock_hass, tuiss_blind):
         assert tuiss_blind.timers["10"]["days"] == ["mon"]
         assert tuiss_blind.timers["10"]["time"] == "08:00"
         assert tuiss_blind.timers["10"]["position"] == 50.0
+        assert tuiss_blind.timers["10"]["ha_index"] == 1
         
         # Verify it sent all 5 setup commands to the blind
         assert tuiss_blind.send_command.call_count == 5
@@ -72,8 +81,19 @@ async def test_async_add_timer_success(mock_hass, tuiss_blind):
 @pytest.mark.asyncio
 async def test_async_add_timer_max_reached(mock_hass, tuiss_blind):
     """Test adding a timer when the hardware maximum has been reached."""
-    # Simulate having all 6 timers (10 through 15) allocated
-    tuiss_blind.timers = {str(i): {} for i in range(10, 16)}
+    tuiss_blind.attempt_connection = AsyncMock()
+    tuiss_blind.send_command = AsyncMock()
+    
+    tuiss_blind._client = MagicMock()
+    tuiss_blind._client.is_connected = True
+    
+    async def mock_start_notify(char, callback):
+        # simulate a response to ff78ea4104 where the last byte is the index (e.g., 17 => 0x11)
+        mock_data = bytearray.fromhex("ff010203d60011")
+        await callback(char, mock_data)
+        
+    tuiss_blind._client.start_notify = AsyncMock(side_effect=mock_start_notify)
+    tuiss_blind._client.stop_notify = AsyncMock()
     
     with pytest.raises(HomeAssistantError) as exc:
         await tuiss_blind.async_add_timer(["mon"], "08:00", 50.0)
@@ -93,7 +113,7 @@ async def test_async_delete_timer_success(mock_hass, tuiss_blind):
     tuiss_blind._client.is_connected = True
     
     # Pre-populate a timer
-    tuiss_blind.timers = {"11": {"days": ["mon"], "time": "08:00", "position": 50.0}}
+    tuiss_blind.timers = {"11": {"days": ["mon"], "time": "08:00", "position": 50.0, "ha_index": 2}}
     
     with patch("custom_components.tuiss2ha.hub.async_dispatcher_send") as mock_dispatch:
         await tuiss_blind.async_delete_timer("11")
