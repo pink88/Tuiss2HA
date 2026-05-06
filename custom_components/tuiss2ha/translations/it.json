@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Aggiungi la tua tenda intelligente Tuiss.",
+                "title": "Aggiungi la tua tenda Tuiss SmartView.",
                 "description": "Assicurati di esserti collegato all'app Tuiss prima dell'uso per impostare correttamente i valori superiore e inferiore. L'indirizzo MAC si trova sull'etichetta allegata alla tua tenda o su un'etichetta stampata nella parte superiore della tenda, vicino a dove è collegata la batteria.",
                 "data": {
                     "host": "XX:XX:XX:XX:XX:XX",
@@ -10,7 +10,7 @@
                 }
             },
             "confirm": {
-                "title": "Dai un nome alla tua tenda intelligente Tuiss.",
+                "title": "Dai un nome alla tua tenda Tuiss SmartView.",
                 "description": "Aggiungi un nome amichevole per la tua tenda.",
                 "data": {
                     "name": "Nome amichevole per la tua tenda."
@@ -23,7 +23,7 @@
             "unknown": "Errore sconosciuto. Riprova. Se ottieni costantemente questo errore, segnala un problema.",
             "device_not_found": "Impossibile trovare il dispositivo. Assicurarsi che sia acceso e nel raggio d'azione.",
             "connection_timeout": "La connessione è scaduta dopo diversi tentativi. Riprova più tardi.",
-            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
+            "no_connectable_bluetooth": "Nessun adattatore Bluetooth connettibile. Shelly e dispositivi simili rilevano solo i dispositivi; non possono connettersi. È necessario un proxy Bluetooth ESPHome (es. ESP32) o un adattatore Bluetooth USB sul tuo host Home Assistant per controllare le tende Tuiss.",
             "invalid_host": "Il tuo indirizzo MAC deve essere nel formato XX:XX:XX:XX:XX:XX",
             "invalid_name": "Il tuo nome deve contenere più di 0 caratteri"
         },
@@ -86,7 +86,7 @@
         "error": {
             "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità.",
             "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Sia il limite inferiore che quello superiore devono essere impostati prima di chiudere questa finestra di dialogo."
         }
     }
 ,
@@ -191,7 +191,7 @@
             "message": "{name} non è riuscito a fermarsi: {error}"
         },
         "device_locked": {
-            "message": "{name} è occupato (bloccato). Attendere il completamento dell'operazione corrente."
+            "message": "{name} è occupato. Attendere il completamento dell'operazione corrente."
         },
         "max_timers_reached": {
             "message": "Numero massimo di timer ({max_timers}) raggiunto per questa tenda."

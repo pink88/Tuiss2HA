@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Ajouter votre store Tuiss.",
+                "title": "Ajouter votre store Tuiss SmartView.",
                 "description": "L'adresse MAC peut-être trouvée sur le tag qui est attaché à votre store ou imprimé sur le dessus du store, près de la batterie.",
                 "data": {
                     "host": "Adresse MAC de la forme XX:XX:XX:XX:XX:XX",
@@ -10,7 +10,7 @@
                 }
             },
             "confirm": {
-                "title": "Nom de votre store Tuiss.",
+                "title": "Nommez votre store Tuiss SmartView.",
                 "description": "Veuillez ajouter un nom convivial pour votre store.",
                 "data": {
                     "name": "Nom"
@@ -23,7 +23,7 @@
             "unknown": "Erreur inconnue. Veuillez réessayer. Si vous obtenez constamment cette erreur, veuillez signaler un problème.",
             "device_not_found": "L'appareil est introuvable. Veuillez vous assurer qu'il est sous tension et à portée.",
             "connection_timeout": "La connexion a expiré après plusieurs tentatives. Veuillez réessayer plus tard.",
-            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
+            "no_connectable_bluetooth": "Aucun adaptateur Bluetooth connectable. Shelly et les appareils similaires ne font que découvrir des appareils ; ils ne peuvent pas se connecter. Vous avez besoin d'un proxy Bluetooth ESPHome (par ex. ESP32) ou d'un adaptateur Bluetooth USB sur votre hôte Home Assistant pour contrôler les stores Tuiss.",
             "invalid_host": "Votre adresse MAC doit être au format XX:XX:XX:XX:XX:XX",
             "invalid_name": "Votre nom doit comporter plus de 0 caractères"
         },
@@ -86,7 +86,7 @@
         "error": {
             "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse.",
             "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Les limites inférieure et supérieure doivent toutes deux être définies avant de fermer cette boîte de dialogue."
         }
     }
 ,
@@ -191,7 +191,7 @@
             "message": "{name} n'a pas pu être arrêté : {error}"
         },
         "device_locked": {
-            "message": "{name} est occupé (verrouillé). Veuillez attendre la fin de l'opération en cours."
+            "message": "{name} est occupé. Veuillez attendre la fin de l'opération en cours."
         },
         "max_timers_reached": {
             "message": "Nombre maximum de minuteurs ({max_timers}) atteint pour ce store."

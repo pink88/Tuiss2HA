@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Fügen Sie Ihr Tuiss Smartblind hinzu.",
+                "title": "Fügen Sie Ihr Tuiss SmartView-Rollo hinzu.",
                 "description": "Bitte stellen Sie sicher, dass Sie sich vor der Verwendung mit der Tuiss-App verbunden haben, um die oberen und unteren Werte korrekt einzustellen. Die MAC-Adresse finden Sie auf dem an Ihrem Rollo angebrachten Etikett oder auf einem Etikett, das oben am Rollo in der Nähe der Batterie aufgedruckt ist.",
                 "data": {
                     "host": "XX:XX:XX:XX:XX:XX",
@@ -10,7 +10,7 @@
                 }
             },
             "confirm": {
-                "title": "Benennen Sie Ihr Tuiss Smartblind.",
+                "title": "Benennen Sie Ihr Tuiss SmartView-Rollo.",
                 "description": "Bitte fügen Sie einen freundlichen Namen für Ihr Rollo hinzu.",
                 "data": {
                     "name": "Freundlicher Name für Ihr Rollo."
@@ -23,7 +23,7 @@
             "unknown": "Unbekannter Fehler. Bitte versuchen Sie es erneut. Wenn Sie diesen Fehler ständig erhalten, melden Sie bitte ein Problem.",
             "device_not_found": "Das Gerät konnte nicht gefunden werden. Bitte stellen Sie sicher, dass es eingeschaltet und in Reichweite ist.",
             "connection_timeout": "Die Verbindung ist nach mehreren Wiederholungsversuchen fehlgeschlagen. Bitte versuchen Sie es später erneut.",
-            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
+            "no_connectable_bluetooth": "Kein verbindungsfähiger Bluetooth-Adapter gefunden. Shelly und ähnliche Geräte erkennen nur Geräte; sie können sich nicht verbinden. Sie benötigen einen ESPHome-Bluetooth-Proxy (z.B. ESP32) oder einen USB-Bluetooth-Adapter an Ihrem Home Assistant-Host, um Tuiss-Rollos zu steuern.",
             "invalid_host": "Ihre MAC-Adresse muss das Format XX:XX:XX:XX:XX:XX haben",
             "invalid_name": "Ihr Name muss länger als 0 Zeichen sein"
         },
@@ -86,7 +86,7 @@
         "error": {
             "blind_is_moving": "Das Rollo bewegt sich gerade. Bitte warten Sie, bis es anhält, bevor Sie die Geschwindigkeit ändern.",
             "position_unknown": "Grenze kann nicht gesetzt werden - Position des Rollos ist unbekannt. Bewegen Sie das Rollo zuerst.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Sowohl die untere als auch die obere Grenze müssen vor dem Schließen dieses Dialogs festgelegt werden."
         }
     }
 ,
@@ -191,7 +191,7 @@
             "message": "{name} konnte nicht gestoppt werden: {error}"
         },
         "device_locked": {
-            "message": "{name} ist beschäftigt (gesperrt). Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist."
+            "message": "{name} ist beschäftigt. Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist."
         },
         "max_timers_reached": {
             "message": "Maximale Anzahl an Timern ({max_timers}) für diese Jalousie erreicht."

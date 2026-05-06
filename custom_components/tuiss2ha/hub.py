@@ -320,15 +320,18 @@ class TuissBlind:
         self._stopped_event.clear()
         await self._stopped_event.wait()
         
+    async def _ensure_connected(self) -> None:
+        """Ensure the blind is connected before sending a command."""
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+
     ##################################################################################################
     ## SET METHODS ###################################################################################
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
 
-        # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
 
         assert self._client is not None
         self._desired_position = 100 - userPercent
@@ -357,8 +360,7 @@ class TuissBlind:
             return
 
         # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
 
         # send the stop command
         if self._client and self._client.is_connected:
@@ -380,9 +382,7 @@ class TuissBlind:
                 command = bytes.fromhex("ff78ea41f200")
 
 
-        # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
         
         # send the command
         try:
@@ -476,48 +476,37 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
         await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
     
-
+    async def _send_limit_command(self, action_name: str, hex_command: str) -> None:    
+        """Helper method to execute a limit configuration step."""
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        _LOGGER.debug(action_name)
+        await self.send_command(UUID, bytes.fromhex(hex_command))
 
 
     async def limits_step_up(self) -> None:
         """Move the blind up incrementally for manual positioning."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Stepping up")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41220301"))    
-        
+        await self._send_limit_command("Stepping up", "ff78ea41220301")
+
 
 
     async def limits_step_down(self) -> None:
         """Move the blind down incrementally for manual positioning."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Stepping down")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41230301"))
+        await self._send_limit_command("Stepping up", "ff78ea41220301")
+
 
 
     async def limits_move_up(self) -> None:
         """Move the blind up continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Moving up")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41cf0301"))
+        await self._send_limit_command("Moving up", "ff78ea41cf0301")
+
 
 
     async def limits_move_down(self) -> None:
         """Move the blind down continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")  
+        await self._send_limit_command("Moving down", "ff78ea411f0301")
+
         
-        _LOGGER.debug("Moving down")
-        await self.send_command(UUID, bytes.fromhex("ff78ea411f0301"))
         
     async def limits_stop(self) -> None:
         """Stop the blind movement."""
@@ -784,30 +773,10 @@ class TuissBlind:
         command_prefix = "ff78ea41bf03"
         return f"{command_prefix}{hex_val}{group_str}"
 
-    def return_hex_bytearray(self, x):
-        """make sure we print ascii symbols as hex"""
-        return "".join(
-            [type(x).__name__, "('", *["\\x" + "{:02x}".format(i) for i in x], "')"]
-        )
-
-    def split_data(self, data):
-        """Split the byte response into decimal."""
-        data_hex = self.return_hex_bytearray(data)
-        customdecode = str(data_hex)
-        customdecodesplit = customdecode.split("\\x")
-        response = ""
-        decimals = []
-
-        x = 1
-        while x < len(customdecodesplit):
-            resp = customdecodesplit[x][0:2]
-            response += resp
-            decimals.append(int(resp, 16))
-            x += 1
-
-        _LOGGER.debug("%s: As byte:%s", self.name, data_hex)
-        _LOGGER.debug("%s: As string:%s", self.name, response)
-        _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
+    def split_data(self, data: bytearray) -> list[int]:
+        """Convert the byte response into a list of decimals."""
+        decimals = list(data)
+        _LOGGER.debug("%s: Received data decimals: %s", self.name, decimals)
         return decimals
 
     

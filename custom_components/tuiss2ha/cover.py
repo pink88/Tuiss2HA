@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from html import entities
 import logging
 import voluptuous as vol
 import datetime
