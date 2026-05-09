@@ -24,6 +24,7 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     DOMAIN,
     BLIND_NOTIFY_CHARACTERISTIC,
+    TRAVERAL_UPDATE_THRESHOLD,
     UUID,
     CONNECTION_MESSAGE,
     DEFAULT_RESTART_ATTEMPTS,
@@ -571,7 +572,7 @@ class TuissBlind:
         current_time = datetime.datetime.now()
         timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"        
         
-        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))   
+        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))   
         await self.send_command(UUID, bytes.fromhex(timestamp_command))   
         await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
         
@@ -633,7 +634,7 @@ class TuissBlind:
         current_time = datetime.datetime.now()
         timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
         
-        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))
+        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_command(UUID, bytes.fromhex(timestamp_command))      
         await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
         delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
@@ -946,16 +947,18 @@ class TuissBlind:
         """Update the traversal speed."""
         time_taken = (end_time - start_time).total_seconds()
         traversal_distance = abs(target_position - start_position)
-        self._attr_traversal_speed = traversal_distance / time_taken
-        _LOGGER.debug(
-            "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Speed: %s",
-            self.name,
-            time_taken,
-            start_position,
-            target_position,
-            traversal_distance,
-            self._attr_traversal_speed,
-        )
+        # Only update traversal speed if the blind has moved a significant distance to avoid skewing from small movements or noise
+        if traversal_distance > TRAVERAL_UPDATE_THRESHOLD:
+            self._attr_traversal_speed = traversal_distance / time_taken
+            _LOGGER.debug(
+                "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Speed: %s",
+                self.name,
+                time_taken,
+                start_position,
+                target_position,
+                traversal_distance,
+                self._attr_traversal_speed,
+            )
         
     def set_final_state(self, position):
         """Set the final state of the blind after a move."""
