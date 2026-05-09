@@ -91,6 +91,8 @@ def pytest_sessionstart(session):
         "homeassistant.helpers.config_validation",
         "homeassistant.helpers.device_registry",
         "homeassistant.helpers.entity_platform",
+        "homeassistant.helpers.storage",
+        "homeassistant.helpers.dispatcher",
     ]
     for module_name in other_modules:
         if module_name in sys.modules:

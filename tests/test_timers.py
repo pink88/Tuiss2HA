@@ -45,10 +45,12 @@ async def test_async_add_timer_success(mock_hass, tuiss_blind):
     tuiss_blind.send_command = AsyncMock()
     tuiss_blind.async_save_timer = AsyncMock()
     tuiss_blind.publish_updates = MagicMock()
+    tuiss_blind.disconnect = AsyncMock()
     
     # Simulate an already connected client
     tuiss_blind._client = MagicMock()
     tuiss_blind._client.is_connected = True
+    tuiss_blind._client.disconnect = AsyncMock()
     
     async def mock_start_notify(char, callback):
         # simulate a response to ff78ea4104 where the last byte is the index (e.g., 10 => 0x0a)
@@ -82,9 +84,11 @@ async def test_async_add_timer_max_reached(mock_hass, tuiss_blind):
     """Test adding a timer when the hardware maximum has been reached."""
     tuiss_blind.attempt_connection = AsyncMock()
     tuiss_blind.send_command = AsyncMock()
+    tuiss_blind.disconnect = AsyncMock()
     
     tuiss_blind._client = MagicMock()
     tuiss_blind._client.is_connected = True
+    tuiss_blind._client.disconnect = AsyncMock()
     
     async def mock_start_notify(char, callback):
         # simulate a response to ff78ea4104 where the last byte is the index (e.g., 17 => 0x11)
@@ -107,9 +111,11 @@ async def test_async_delete_timer_success(mock_hass, tuiss_blind):
     tuiss_blind.send_command = AsyncMock()
     tuiss_blind.async_save_timer = AsyncMock()
     tuiss_blind.publish_updates = MagicMock()
+    tuiss_blind.disconnect = AsyncMock()
     
     tuiss_blind._client = MagicMock()
     tuiss_blind._client.is_connected = True
+    tuiss_blind._client.disconnect = AsyncMock()
     
     # Pre-populate a timer
     tuiss_blind.timers = {"11": {"days": ["mon"], "time": "08:00", "position": 50.0, "ha_index": 2}}
@@ -118,7 +124,7 @@ async def test_async_delete_timer_success(mock_hass, tuiss_blind):
         await tuiss_blind.async_delete_timer("11")
         
         assert "11" not in tuiss_blind.timers
-        assert tuiss_blind.send_command.call_count == 3
+        assert tuiss_blind.send_command.call_count == 5
         tuiss_blind.async_save_timer.assert_awaited_once()
         tuiss_blind.publish_updates.assert_called_once()
         
