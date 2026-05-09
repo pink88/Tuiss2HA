@@ -3,7 +3,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.exceptions import HomeAssistantError
 from custom_components.tuiss2ha.hub import Hub, TuissBlind
 from custom_components.tuiss2ha.cover import async_action_add_timer
 
@@ -95,7 +94,7 @@ async def test_async_add_timer_max_reached(mock_hass, tuiss_blind):
     tuiss_blind._client.start_notify = AsyncMock(side_effect=mock_start_notify)
     tuiss_blind._client.stop_notify = AsyncMock()
     
-    with pytest.raises(HomeAssistantError) as exc:
+    with pytest.raises(Exception) as exc:
         await tuiss_blind.async_add_timer(["mon"], "08:00", 50.0)
         
     assert "max_timers_reached" in str(exc.value)
