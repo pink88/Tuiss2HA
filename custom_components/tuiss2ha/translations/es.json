@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Añade tu persiana inteligente Tuiss.",
+                "title": "Añade tu persiana Tuiss SmartView.",
                 "description": "Asegúrate de haberte conectado a la aplicación Tuiss antes de usarla para establecer correctamente los valores superior e inferior. La dirección MAC se puede encontrar en la etiqueta que venía adjunta a tu persiana o en una etiqueta impresa en la parte superior de la persiana, cerca de donde está conectada la batería.",
                 "data": {
                     "host": "XX:XX:XX:XX:XX:XX",
@@ -10,7 +10,7 @@
                 }
             },
             "confirm": {
-                "title": "Nombra tu persiana inteligente Tuiss.",
+                "title": "Nombra tu persiana Tuiss SmartView.",
                 "description": "Añade un nombre amigable para tu persiana.",
                 "data": {
                     "name": "Nombre amigable para tu persiana."
@@ -23,7 +23,7 @@
             "unknown": "Error desconocido. Por favor, inténtelo de nuevo. Si obtiene este error de forma consistente, por favor, informe de un problema.",
             "device_not_found": "No se pudo encontrar el dispositivo. Asegúrese de que esté encendido y dentro del alcance.",
             "connection_timeout": "La conexión se agotó después de varios reintentos. Por favor, inténtelo de nuevo más tarde.",
-            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
+            "no_connectable_bluetooth": "No hay ningún adaptador Bluetooth conectable. Shelly y dispositivos similares solo descubren dispositivos; no pueden conectarse. Necesita un proxy Bluetooth ESPHome (por ejemplo, ESP32) o un adaptador Bluetooth USB en su host de Home Assistant para controlar las persianas Tuiss.",
             "invalid_host": "Su dirección MAC debe tener el formato XX:XX:XX:XX:XX:XX",
             "invalid_name": "Su nombre debe tener más de 0 caracteres"
         },
@@ -86,7 +86,7 @@
         "error": {
             "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad.",
             "position_unknown": "No se puede establecer el límite: se desconoce la posición de la persiana. Mueva la persiana primero.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Se deben establecer los límites inferior y superior antes de cerrar este diálogo."
         }
     }
 ,
@@ -147,10 +147,36 @@
                     "description": "La persiana a desbloquear"
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Añadir temporizador de persiana",
+            "description": "Añade un temporizador para que la persiana se mueva a una posición específica en los días seleccionados a una hora específica, independientemente de Home Assistant o cualquier otra automatización que hayas configurado. Esto es útil si deseas establecer un horario recurrente para tus persianas que no dependa del amanecer/atardecer u otros disparadores. Ten en cuenta que este temporizador se ejecutará localmente en la persiana y la persiana puede soportar un máximo de 16 temporizadores en total. Los temporizadores configurados aquí y en la aplicación Tuiss compartirán los mismos espacios disponibles.",
+            "fields": {
+                "position": {
+                    "name": "Posición",
+                    "description": "Posición objetivo entre 0.00 (cerrado) y 100.00 (abierto) con una precisión de 2 puntos decimales"
+                },
+                "days": {
+                    "name": "Días",
+                    "description": "Días de la semana para ejecutar este temporizador"
+                },
+                "time": {
+                    "name": "Hora",
+                    "description": "Hora del día para activar la acción"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Eliminar temporizador de persiana",
+            "description": "Eliminar un temporizador existente de una persiana. Puedes seleccionar la entidad del temporizador específica para eliminarla directamente.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de temporizador",
+                    "description": "Selecciona el temporizador que deseas eliminar."
+                }
+            }
         }
-    }
-
-    ,
+    },
     "exceptions": {
         "failed_to_open": {
             "message": "{name} no pudo abrirse: {error}"
@@ -165,7 +191,22 @@
             "message": "{name} no pudo detenerse: {error}"
         },
         "device_locked": {
-            "message": "{name} está ocupado (bloqueado). Espere a que finalice la operación actual."
+            "message": "{name} está ocupado. Espere a que finalice la operación actual."
+        },
+        "max_timers_reached": {
+            "message": "Número máximo de temporizadores ({max_timers}) alcanzado para esta persiana."
+        },
+        "no_entity_id": {
+            "message": "No se proporcionó entity_id."
+        },
+        "entity_not_found": {
+            "message": "Entidad {entity_id} no encontrada en el registro."
+        },
+        "not_a_timer": {
+            "message": "La entidad seleccionada no es un temporizador. Seleccione una entidad de Temporizador válida."
+        },
+        "blind_not_found": {
+            "message": "No se pudo encontrar la persiana asociada a este temporizador."
         }
     }
 }

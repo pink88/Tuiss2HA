@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import datetime
+import uuid
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakError
@@ -16,6 +17,8 @@ from bleak_retry_connector import (
 
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
@@ -99,6 +102,8 @@ class TuissBlind:
         # Battery check configuration
         self._battery_check_days: int = 0
         self._last_battery_check: datetime.datetime | None = None
+        self.timers = {}
+        self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
 
 
     @property
@@ -315,15 +320,18 @@ class TuissBlind:
         self._stopped_event.clear()
         await self._stopped_event.wait()
         
+    async def _ensure_connected(self) -> None:
+        """Ensure the blind is connected before sending a command."""
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()
+
     ##################################################################################################
     ## SET METHODS ###################################################################################
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
 
-        # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
 
         assert self._client is not None
         self._desired_position = 100 - userPercent
@@ -352,8 +360,7 @@ class TuissBlind:
             return
 
         # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
 
         # send the stop command
         if self._client and self._client.is_connected:
@@ -375,9 +382,7 @@ class TuissBlind:
                 command = bytes.fromhex("ff78ea41f200")
 
 
-        # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self._ensure_connected()
         
         # send the command
         try:
@@ -393,7 +398,6 @@ class TuissBlind:
             # Always disconnect after set_speed operation
             await self.disconnect()
         
-
 
     ##################################################################################################
     ## GET METHODS ###################################################################################
@@ -472,48 +476,37 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
         await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
     
-
+    async def _send_limit_command(self, action_name: str, hex_command: str) -> None:    
+        """Helper method to execute a limit configuration step."""
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        _LOGGER.debug(action_name)
+        await self.send_command(UUID, bytes.fromhex(hex_command))
 
 
     async def limits_step_up(self) -> None:
         """Move the blind up incrementally for manual positioning."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Stepping up")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41220301"))    
-        
+        await self._send_limit_command("Stepping up", "ff78ea41220301")
+
 
 
     async def limits_step_down(self) -> None:
         """Move the blind down incrementally for manual positioning."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Stepping down")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41230301"))
+        await self._send_limit_command("Stepping up", "ff78ea41220301")
+
 
 
     async def limits_move_up(self) -> None:
         """Move the blind up continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-        
-        _LOGGER.debug("Moving up")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41cf0301"))
+        await self._send_limit_command("Moving up", "ff78ea41cf0301")
+
 
 
     async def limits_move_down(self) -> None:
         """Move the blind down continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")  
+        await self._send_limit_command("Moving down", "ff78ea411f0301")
+
         
-        _LOGGER.debug("Moving down")
-        await self.send_command(UUID, bytes.fromhex("ff78ea411f0301"))
         
     async def limits_stop(self) -> None:
         """Stop the blind movement."""
@@ -536,10 +529,160 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
 
 
+    ##################################################################################################
+    ## TIMER METHODS #################################################################################
+    ##################################################################################################
+
+    async def async_load_timers(self) -> None:
+        """Load stored schedules."""
+        stored = await self._store.async_load()
+        if stored:
+            self.timers = stored
+        else:
+            self.timers = {}
+
+    async def async_save_timer(self) -> None:
+        """Save schedules to storage."""
+        await self._store.async_save(self.timers)
+
+
+    async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
+        """Add a new schedule."""
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()      
+
+        new_timer_id = None
+        timer_id_event = asyncio.Event()
+
+        async def timer_id_callback(sender, data):
+            nonlocal new_timer_id
+            decimals = self.split_data(data)
+            # Filter for the correct response: 7 bytes long, where the 5th byte is 0xd6 (214)
+            if len(decimals) >= 7 and decimals[4] == 214:
+                new_timer_id = str(decimals[6])
+                timer_id_event.set()
+
+        try:
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
+        except BleakError:
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
+
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"        
+        
+        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))   
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))   
+        await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
+        
+        try:
+            await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            await self.disconnect()
+            raise HomeAssistantError("Timeout waiting for timer ID from blind.")
+
+        await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+
+        _LOGGER.debug("Received timer ID from blind: %s", new_timer_id)
+
+        if not new_timer_id:
+            await self.disconnect()
+            _LOGGER.debug("Failed to obtain timer ID from the blind.")
+            raise HomeAssistantError("Failed to obtain timer ID from the blind.")
+            
+        if int(new_timer_id) >= 17:
+            await self.disconnect()
+            _LOGGER.debug("Maximum number of timers reached.")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="max_timers_reached",
+                translation_placeholders={"max_timers": "16"}
+            )
+
+        timer_id = new_timer_id
+        timer_command = self.create_timer_command(timer_id, days, time_str, position)
+        
+        await self.send_command(UUID, bytes.fromhex(timer_command))   
+        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        await self.disconnect()       
+        
+        existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
+        available_indices = set(range(1, 17)) - existing_ha_indices
+        ha_index = min(available_indices) if available_indices else len(self.timers) + 1
+
+        self.timers[timer_id] = {
+            "timer_id": timer_id,
+            "ha_index": ha_index,
+            "days": days,
+            "time": time_str,
+            "position": position
+        }
+        
+        await self.async_save_timer()
+        self.publish_updates()
+        async_dispatcher_send(self.hub._hass, f"{DOMAIN}_add_timer_{self.blind_id}", timer_id)
+        return timer_id
+    
+
+    async def async_delete_timer(self, timer_id: str) -> None:
+        """Remove an existing schedule."""
+        if not self._client or not self._client.is_connected:
+            await self.attempt_connection()     
+        
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
+        
+        await self.send_command(UUID, bytes.fromhex("ff03030303787878787878"))
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))      
+        await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
+        delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
+        await self.send_command(UUID, bytes.fromhex(delete_hex))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        await self.disconnect()
+        
+        if timer_id in self.timers:
+            del self.timers[timer_id]
+            await self.async_save_timer()
+            async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+            self.publish_updates()
+
+
+    def create_timer_command(self, index: str, days: list[str], time: str, position: float) -> str:
+        # Convert days to bitmask
+        day_map = {"sun": 1, "mon": 2, "tue": 4, "wed": 8, "thu": 16, "fri": 32, "sat": 64}
+        day_bits = sum(day_map[day] for day in days if day in day_map)
+
+        # Convert time to minutes since midnight
+        time_parts = time.split(":")
+        hours = int(time_parts[0])
+        minutes = int(time_parts[1])
+
+        # Convert position to fixed-point (e.g., multiply by 10)
+        target_position_value = int(float(position) * 10)
+        position_byte_1 = target_position_value % 256
+        position_byte_2 = target_position_value // 256
+        
+
+        # Construct the command (example format)
+        cmd_hex = "ff78ea410300"
+        cmd_hex += f"{int(index):02x}"   # Timer index converted to hex
+        cmd_hex += "b2"   # not sure
+        cmd_hex += "3f"   # not sure
+        cmd_hex += f"{day_bits:02x}" # Days bitmask
+        cmd_hex += f"{hours:02x}" # Time hours
+        cmd_hex += f"{minutes:02x}" # Time minutes
+        cmd_hex += "00"  # Padding
+        cmd_hex += f"{position_byte_1:02x}" # Position byte
+        cmd_hex += f"{position_byte_2:02x}" # Position byte
+
+        return cmd_hex
+
+
 
 
     ##################################################################################################
-    ## CALLBACK METHODS ############################################################################
+    ## CALLBACK METHODS ##############################################################################
     ##################################################################################################
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
@@ -603,7 +746,7 @@ class TuissBlind:
                 self._client.is_connected,
             )
             try:
-                _LOGGER.debug("%s: Sending the command %s", self.name, command)
+                _LOGGER.debug("%s: Sending the command %s", self.name, command.hex())
                 await self._client.write_gatt_char(UUID, command)
             except BleakError as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
@@ -630,30 +773,10 @@ class TuissBlind:
         command_prefix = "ff78ea41bf03"
         return f"{command_prefix}{hex_val}{group_str}"
 
-    def return_hex_bytearray(self, x):
-        """make sure we print ascii symbols as hex"""
-        return "".join(
-            [type(x).__name__, "('", *["\\x" + "{:02x}".format(i) for i in x], "')"]
-        )
-
-    def split_data(self, data):
-        """Split the byte response into decimal."""
-        data_hex = self.return_hex_bytearray(data)
-        customdecode = str(data_hex)
-        customdecodesplit = customdecode.split("\\x")
-        response = ""
-        decimals = []
-
-        x = 1
-        while x < len(customdecodesplit):
-            resp = customdecodesplit[x][0:2]
-            response += resp
-            decimals.append(int(resp, 16))
-            x += 1
-
-        _LOGGER.debug("%s: As byte:%s", self.name, data_hex)
-        _LOGGER.debug("%s: As string:%s", self.name, response)
-        _LOGGER.debug("%s: As decimals:%s", self.name, decimals)
+    def split_data(self, data: bytearray) -> list[int]:
+        """Convert the byte response into a list of decimals."""
+        decimals = list(data)
+        _LOGGER.debug("%s: Received data decimals: %s", self.name, decimals)
         return decimals
 
     

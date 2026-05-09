@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Fügen Sie Ihr Tuiss Smartblind hinzu.",
+                "title": "Fügen Sie Ihr Tuiss SmartView-Rollo hinzu.",
                 "description": "Bitte stellen Sie sicher, dass Sie sich vor der Verwendung mit der Tuiss-App verbunden haben, um die oberen und unteren Werte korrekt einzustellen. Die MAC-Adresse finden Sie auf dem an Ihrem Rollo angebrachten Etikett oder auf einem Etikett, das oben am Rollo in der Nähe der Batterie aufgedruckt ist.",
                 "data": {
                     "host": "XX:XX:XX:XX:XX:XX",
@@ -10,7 +10,7 @@
                 }
             },
             "confirm": {
-                "title": "Benennen Sie Ihr Tuiss Smartblind.",
+                "title": "Benennen Sie Ihr Tuiss SmartView-Rollo.",
                 "description": "Bitte fügen Sie einen freundlichen Namen für Ihr Rollo hinzu.",
                 "data": {
                     "name": "Freundlicher Name für Ihr Rollo."
@@ -23,7 +23,7 @@
             "unknown": "Unbekannter Fehler. Bitte versuchen Sie es erneut. Wenn Sie diesen Fehler ständig erhalten, melden Sie bitte ein Problem.",
             "device_not_found": "Das Gerät konnte nicht gefunden werden. Bitte stellen Sie sicher, dass es eingeschaltet und in Reichweite ist.",
             "connection_timeout": "Die Verbindung ist nach mehreren Wiederholungsversuchen fehlgeschlagen. Bitte versuchen Sie es später erneut.",
-            "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
+            "no_connectable_bluetooth": "Kein verbindungsfähiger Bluetooth-Adapter gefunden. Shelly und ähnliche Geräte erkennen nur Geräte; sie können sich nicht verbinden. Sie benötigen einen ESPHome-Bluetooth-Proxy (z.B. ESP32) oder einen USB-Bluetooth-Adapter an Ihrem Home Assistant-Host, um Tuiss-Rollos zu steuern.",
             "invalid_host": "Ihre MAC-Adresse muss das Format XX:XX:XX:XX:XX:XX haben",
             "invalid_name": "Ihr Name muss länger als 0 Zeichen sein"
         },
@@ -86,7 +86,7 @@
         "error": {
             "blind_is_moving": "Das Rollo bewegt sich gerade. Bitte warten Sie, bis es anhält, bevor Sie die Geschwindigkeit ändern.",
             "position_unknown": "Grenze kann nicht gesetzt werden - Position des Rollos ist unbekannt. Bewegen Sie das Rollo zuerst.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Sowohl die untere als auch die obere Grenze müssen vor dem Schließen dieses Dialogs festgelegt werden."
         }
     }
 ,
@@ -147,10 +147,36 @@
                     "description": "Die Jalousie, die entsperrt werden soll"
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Jalousie-Timer hinzufügen",
+            "description": "Fügen Sie einen Timer hinzu, damit sich die Jalousie an ausgewählten Tagen zu einer bestimmten Zeit an eine bestimmte Position bewegt, unabhängig von Home Assistant oder anderen von Ihnen eingerichteten Automatisierungen. Dies ist nützlich, wenn Sie einen wiederkehrenden Zeitplan für Ihre Jalousien festlegen möchten, der nicht von Sonnenaufgang/-untergang oder anderen Auslösern abhängt. Bitte beachten Sie, dass dieser Timer lokal auf der Jalousie ausgeführt wird und die Jalousie insgesamt maximal 16 Timer unterstützt. Die hier und in der Tuiss-App eingestellten Timer teilen sich die gleichen verfügbaren Speicherplätze.",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                    "description": "Zielposition zwischen 0,00 (geschlossen) und 100,00 (geöffnet) mit einer Genauigkeit von 2 Dezimalstellen"
+                },
+                "days": {
+                    "name": "Tage",
+                    "description": "Wochentage, an denen dieser Timer ausgeführt werden soll"
+                },
+                "time": {
+                    "name": "Zeit",
+                    "description": "Tageszeit zum Auslösen der Aktion"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Jalousie-Timer löschen",
+            "description": "Löschen Sie einen vorhandenen Timer aus einer Jalousie. Sie können die spezifische Timer-Entität zum direkten Entfernen auswählen.",
+            "fields": {
+                "entity_id": {
+                    "name": "Timer-Entität",
+                    "description": "Wählen Sie den Timer aus, den Sie entfernen möchten."
+                }
+            }
         }
-    }
-
-    ,
+    },
     "exceptions": {
         "failed_to_open": {
             "message": "{name} konnte nicht geöffnet werden: {error}"
@@ -165,7 +191,22 @@
             "message": "{name} konnte nicht gestoppt werden: {error}"
         },
         "device_locked": {
-            "message": "{name} ist beschäftigt (gesperrt). Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist."
+            "message": "{name} ist beschäftigt. Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist."
+        },
+        "max_timers_reached": {
+            "message": "Maximale Anzahl an Timern ({max_timers}) für diese Jalousie erreicht."
+        },
+        "no_entity_id": {
+            "message": "Keine entity_id angegeben."
+        },
+        "entity_not_found": {
+            "message": "Entität {entity_id} in der Registry nicht gefunden."
+        },
+        "not_a_timer": {
+            "message": "Die ausgewählte Entität ist kein Timer. Bitte wählen Sie eine gültige Timer-Entität aus."
+        },
+        "blind_not_found": {
+            "message": "Die zugehörige Jalousie für diesen Timer konnte nicht gefunden werden."
         }
     }
 }

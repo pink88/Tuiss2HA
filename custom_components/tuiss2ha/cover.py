@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from html import entities
 import logging
 import voluptuous as vol
 import datetime
@@ -68,6 +67,13 @@ SIMULTANEOUS_BLIND_POSITIONING_SCHEMA = vol.Schema(
         vol.Optional("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
     }
 )
+ADD_BLIND_TIMER_SCHEMA = cv.make_entity_service_schema(
+    {
+        vol.Required("position"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
+        vol.Required("days"): vol.All(cv.ensure_list, [vol.In(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])]),
+        vol.Required("time"): cv.time,
+    }
+)
 
 
 async def async_setup_entry(
@@ -97,6 +103,12 @@ async def async_setup_entry(
         "set_blind_position",
         SET_BLIND_POSITION_SCHEMA,
         async_action_set_blind_position,
+    )
+    
+    platform.async_register_entity_service(
+        "add_blind_timer",
+        ADD_BLIND_TIMER_SCHEMA,
+        async_action_add_timer,
     )
     
     # Register the set_speed service only for supported models
@@ -216,6 +228,14 @@ async def async_action_set_blind_position(entity, service_call):
     await entity.async_set_cover_position(**{ATTR_POSITION: position})
 
 
+async def async_action_add_timer(entity, service_call):
+    """Add a timer to the blind."""
+    position = service_call.data["position"]
+    days = service_call.data["days"]
+    time = str(service_call.data["time"])
+    
+    await entity._blind.async_add_timer(days, time, position)
+
 async def async_action_set_blind_speed(entity, service_call):
     """Set the blind speed."""
     speed = service_call.data["speed"]
@@ -298,6 +318,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         return {
             ATTR_TRAVERSAL_SPEED: self._blind._attr_traversal_speed,
             ATTR_MAC_ADDRESS: self._attr_mac_address,
+            "timers": list(self._blind.timers.values()),
         }
 
     @property

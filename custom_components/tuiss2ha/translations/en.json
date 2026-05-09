@@ -2,15 +2,15 @@
     "config": {
         "step": {
             "user": {
-                "title": "Add your Tuiss Smartblind.",
-                "description": "Please make sure that you have connected to the Tuiss app before using in order to correctly set the top and bottom values. The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near to where the battery is attached.",
+                "title": "Add your Tuiss SmartView Blind",
+                "description": "Please make sure that you have connected to the Tuiss SmartView app before using this integration in order to correctly set the top and bottom limits. The MAC address can be found on the tag that came attached to your blind or on a label that is printed at the top of the blind, near to where the battery is attached.",
                 "data": {
                     "host": "XX:XX:XX:XX:XX:XX",
                     "name": "Friendly name for your blind."
                 }
             },
             "confirm": {
-                "title": "Name your Tuiss Smartblind.",
+                "title": "Name your Tuiss SmartView Blind",
                 "description": "Please add a friendly name for your blind.",
                 "data": {
                     "name": "Friendly name for your blind."
@@ -24,7 +24,7 @@
             "device_not_found": "The device could not be found. Please ensure it is powered on and in range.",
             "connection_timeout": "The connection timed out after several retries. Please try again later.",
             "no_connectable_bluetooth": "No connectable Bluetooth adapter. Shelly and similar devices only discover devices; they cannot connect. You need an ESPHome Bluetooth proxy (e.g. ESP32) or a USB Bluetooth adapter on your Home Assistant host to control Tuiss blinds.",
-            "invalid_host": "Your mac address must be in the format XX:XX:XX:XX:XX:XX",
+            "invalid_host": "Your MAC address must be in the format XX:XX:XX:XX:XX:XX",
             "invalid_name": "Your name must be longer than 0 characters"
         },
         "abort": {
@@ -46,7 +46,7 @@
                 },
                 "data_description": {
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
-                    "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and bluetooth proxies/dongles is the main cause for connection drop offs.",
+                    "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and Bluetooth proxies/dongles is the main cause for connection drop-offs.",
                     "blind_favorite_position": "The position (in percent, 0=closed, 100=open) that the blind will move to when the 'Go to Favorite Position' button is pressed.",
                     "blind_battery_check_days": "The number of days between automatic battery checks (checks are made when the blind moves). Set to 0 to disable automatic checks.",
                     "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
@@ -54,7 +54,7 @@
             },
             "set_lower_limit": {
                 "title": "Set Lower Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits of the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_lower": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_lower": "Move Down (Press 'Stop' at desired position)",
@@ -68,7 +68,7 @@
             },
             "set_upper_limit": {
                 "title": "Set Upper Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits of the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_upper": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_upper": "Move Down (Press 'Stop' at desired position)",
@@ -90,11 +90,11 @@
     "services": {
         "get_battery_status": {
             "name": "Get Battery Status",
-            "description": "Get the battery status for the Tuiss blinds selected"
+            "description": "Requests the battery status for the selected Tuiss blinds."
         },
         "get_blind_position": {
             "name": "Get Blind Position",
-            "description": "Get the current position of the blind for the Tuiss blinds selected"
+            "description": "Requests the current position of the selected Tuiss blinds."
         },
         "set_blind_position": {
             "name": "Set Blind Position",
@@ -102,7 +102,7 @@
             "fields": {
                 "position": {
                     "name": "Position",
-                    "description": "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal point accuracy)"
+                        "description": "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal place precision"
                 }
             }
         },
@@ -118,11 +118,11 @@
         },
         "simultaneous_blind_positioning": {
             "name": "Simultaneous Blind Positioning",
-            "description": "Set the position of multiple blinds simultaneously. Multiple entities must be selected for this action to work. This action should only be used if you want blinds to move at the same time and have enough BT devices to handle the number of connections you want to make (e.g. 3 connections per esphome proxy).",
+                "description": "Set the position of multiple blinds simultaneously. Multiple entities must be selected for this action to work. This action should only be used if you want blinds to move at the same time and have enough Bluetooth devices to handle the number of connections you want to make (e.g., 3 connections per ESPHome proxy).",
             "fields": {
                 "position": {
                     "name": "Position",
-                    "description": "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal point accuracy)"
+                        "description": "Target position between 0.0 (Closed) and 100.0 (Open) with 1 decimal place precision"
                 },
                 "entity_ids": {
                     "name": "Blinds",
@@ -130,7 +130,7 @@
                 },
                 "favourite": {
                     "name": "Favourite Position",
-                    "description": "Move the blind to its favourite position as set in the options. If set will ignore the 'position' field."
+                        "description": "Move the blind to its favourite position as set in the options. If set, this will ignore the 'position' field."
                 }
             }
         },
@@ -140,15 +140,43 @@
             "fields": {
                 "entity_id": {
                     "name": "Entity",
-                    "description": "The blind to force unlock"
+                    "description": "The blind entity to force unlock."
                 }
             }
+        },
+        "add_blind_timer": {
+            "name": "Add Blind Timer",
+                "description": "Add a timer for the blind to move to a specific position on selected days at a specific time, independently of Home Assistant or any other automations you may have set up. This is useful if you want to set a recurring schedule for your blinds that is not dependent on sunrise/sunset or other triggers. Please note, this timer will run locally on the blind and the blind can support a maximum of 16 timers in total. Timers set here and on the Tuiss app will share the same available slots.",
+            "fields": {
+                "position": {
+                    "name": "Position",
+                        "description": "Target position between 0.00 (Closed) and 100.00 (Open) with 2 decimal place precision"
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week to run this timer"
+                },
+                "time": {
+                    "name": "Time",
+                    "description": "Time of day to trigger the action"
+                }
+            }
+        },
+        "delete_blind_timer": {
+            "name": "Delete Blind Timer",
+                "description": "Delete an existing timer from a blind. You can select the specific timer entity to remove directly.",
+                "fields": {
+                    "entity_id": {
+                        "name": "Timer Entity",
+                        "description": "Select the timer you wish to remove."
+                    }
+                }
         }
     }
 ,
     "exceptions": {
         "failed_to_open": {
-            "message": "{name} failed to open, with error {error}"
+            "message": "{name} failed to open with error {error}"
         },
         "failed_to_close":{
             "message": "{name} failed to close with error {error}"
@@ -160,7 +188,22 @@
             "message": "{name} failed to stop with error {error}"
         },
         "device_locked": {
-            "message": "{name} is busy (locked). Please wait for current operation to finish."
+            "message": "{name} is busy. Please wait for the current operation to finish."
+        },
+        "max_timers_reached": {
+            "message": "Maximum number of timers ({max_timers}) reached for this blind."
+        },
+        "no_entity_id": {
+            "message": "No entity_id provided."
+        },
+        "entity_not_found": {
+            "message": "Entity {entity_id} not found in registry."
+        },
+        "not_a_timer": {
+            "message": "The selected entity is not a timer. Please select a valid Timer entity."
+        },
+        "blind_not_found": {
+            "message": "Associated blind for this timer could not be found."
         }
     }
 }
