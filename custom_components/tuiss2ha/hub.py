@@ -27,6 +27,7 @@ from .const import (
     TRAVERAL_UPDATE_THRESHOLD,
     UUID,
     CONNECTION_MESSAGE,
+    INITIALIZATION_MESSAGE,
     DEFAULT_RESTART_ATTEMPTS,
     DeviceNotFound,
     ConnectionTimeout,
@@ -321,7 +322,7 @@ class TuissBlind:
         self._stopped_event.clear()
         await self._stopped_event.wait()
         
-    async def _ensure_connected(self) -> None:
+    async def ensure_connected(self) -> None:
         """Ensure the blind is connected before sending a command."""
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
@@ -332,7 +333,7 @@ class TuissBlind:
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
 
-        await self._ensure_connected()
+        await self.ensure_connected()
 
         assert self._client is not None
         self._desired_position = 100 - userPercent
@@ -361,7 +362,7 @@ class TuissBlind:
             return
 
         # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
-        await self._ensure_connected()
+        await self.ensure_connected()
 
         # send the stop command
         if self._client and self._client.is_connected:
@@ -383,7 +384,7 @@ class TuissBlind:
                 command = bytes.fromhex("ff78ea41f200")
 
 
-        await self._ensure_connected()
+        await self.ensure_connected()
         
         # send the command
         try:
@@ -408,8 +409,7 @@ class TuissBlind:
         """Get the battery state from the blind as good or bad."""
 
         # connect to the blind first
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self.ensure_connected()
 
         assert self._client is not None
         notify_started = False
@@ -458,7 +458,7 @@ class TuissBlind:
 
     async def get_blind_position(self) -> None:
         """Get the current position of the blind."""
-        command = bytes.fromhex("ff78ea41d10301")
+        command = bytes.fromhex(INITIALIZATION_MESSAGE)
         await self.get_from_blind(command, self.position_callback)
 
     ##################################################################################################
@@ -469,12 +469,11 @@ class TuissBlind:
         """Initialise the limit configuration by connecting to the blind."""
         # Connect to the blind first
         _LOGGER.debug("Starting Limits Config. Attempting Connection")
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()
+        await self.ensure_connected()
             
         # Set the initialisation commands
         _LOGGER.debug("Sending initialisation commands")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
+        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
         await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
     
     async def _send_limit_command(self, action_name: str, hex_command: str) -> None:    
@@ -529,7 +528,6 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
         await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
 
-
     ##################################################################################################
     ## TIMER METHODS #################################################################################
     ##################################################################################################
@@ -549,8 +547,7 @@ class TuissBlind:
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
         """Add a new schedule."""
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()      
+        await self.ensure_connected()   
 
         new_timer_id = None
         timer_id_event = asyncio.Event()
@@ -628,15 +625,14 @@ class TuissBlind:
 
     async def async_delete_timer(self, timer_id: str) -> None:
         """Remove an existing schedule."""
-        if not self._client or not self._client.is_connected:
-            await self.attempt_connection()     
+        await self.ensure_connected()     
         
         current_time = datetime.datetime.now()
         timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
         
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_command(UUID, bytes.fromhex(timestamp_command))      
-        await self.send_command(UUID, bytes.fromhex("ff78ea41d10301"))
+        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
         delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
         await self.send_command(UUID, bytes.fromhex(delete_hex))
         await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
@@ -647,6 +643,34 @@ class TuissBlind:
             await self.async_save_timer()
             async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
             self.publish_updates()
+
+
+
+    async def delete_all_timers(self) -> None:
+        """Delete all timers from the blind."""
+        _LOGGER.debug("%s: Attempting to delete all timers from the blind.", self.name)
+        # Connect to the blind first
+        await self.ensure_connected()
+
+        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+        current_time = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))
+        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
+        await self.send_command(UUID, bytes.fromhex("ff04040404")) # delete command
+        
+        await self.disconnect()
+
+        if self.timers:
+            timer_ids = list(self.timers.keys())
+            for timer_id in timer_ids:
+                async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+                
+            self.timers.clear()
+            await self.async_save_timer()
+            self.publish_updates()
+
+
 
 
     def create_timer_command(self, index: str, days: list[str], time: str, position: float) -> str:
