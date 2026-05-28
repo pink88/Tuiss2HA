@@ -43,7 +43,8 @@
                     "blind_favorite_position": "Posición Favorita",
                     "blind_battery_check_days": "Intervalo de comprobación de batería (días)",
                     "force_unlock": "Desbloqueo forzado",
-                    "configure_limits": "Configurar Límites"
+                    "configure_limits": "Configurar Límites",
+                    "delete_all_timers": "Eliminar todos los temporizadores"
                 },
                 "data_description": {
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
@@ -81,12 +82,27 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Guardar límite superior"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "¿Eliminar todos los temporizadores?",
+                "description": "¿Está seguro de que desea eliminar todos los temporizadores de esta persiana? Esta acción no se puede deshacer.",
+                "data": {
+                    "confirm": "Sí, estoy seguro"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Reconexión fallida",
+                "description": "Error al reconectar con la persiana. Compruebe la persiana e inténtelo de nuevo."
             }
+        },
+        "progress": {
+            "reconnecting_limits": "Desconectado de la persiana. Intentando reconectar y reinicializar los límites..."
         },
         "error": {
             "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad.",
             "position_unknown": "No se puede establecer el límite: se desconoce la posición de la persiana. Mueva la persiana primero.",
-            "limits_not_set": "Se deben establecer los límites inferior y superior antes de cerrar este diálogo."
+            "limits_not_set": "Se deben establecer los límites inferior y superior antes de cerrar este diálogo.",
+            "multiple_actions_selected": "Por favor, seleccione solo una acción a la vez."
         }
     }
 ,

@@ -43,7 +43,8 @@
                     "blind_favorite_position": "Lieblingsposition",
                     "blind_battery_check_days": "Intervall der Batteriekontrolle (Tage)",
                     "force_unlock": "Zwangsentsperrung",
-                    "configure_limits": "Grenzen konfigurieren"
+                    "configure_limits": "Grenzen konfigurieren",
+                    "delete_all_timers": "Alle Timer löschen"
                 },
                 "data_description": {
                     "blind_restart_position": "Ruft die aktuelle Position des Rollos nach einem Neustart von Home Assistant ab. Nützlich, wenn Sie die Smartview-App oder eine Fernbedienung verwenden.",
@@ -81,12 +82,27 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Obere Grenze speichern"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Alle Timer löschen?",
+                "description": "Sind Sie sicher, dass Sie alle Timer von diesem Rollo löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+                "data": {
+                    "confirm": "Ja, ich bin sicher"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Wiederverbindung fehlgeschlagen",
+                "description": "Verbindung zum Rollo konnte nicht wiederhergestellt werden. Bitte überprüfen Sie das Rollo und versuchen Sie es erneut."
             }
+        },
+        "progress": {
+            "reconnecting_limits": "Vom Rollo getrennt. Versuche, die Verbindung wiederherzustellen und die Grenzen neu zu initialisieren..."
         },
         "error": {
             "blind_is_moving": "Das Rollo bewegt sich gerade. Bitte warten Sie, bis es anhält, bevor Sie die Geschwindigkeit ändern.",
             "position_unknown": "Grenze kann nicht gesetzt werden - Position des Rollos ist unbekannt. Bewegen Sie das Rollo zuerst.",
-            "limits_not_set": "Sowohl die untere als auch die obere Grenze müssen vor dem Schließen dieses Dialogs festgelegt werden."
+            "limits_not_set": "Sowohl die untere als auch die obere Grenze müssen vor dem Schließen dieses Dialogs festgelegt werden.",
+            "multiple_actions_selected": "Bitte wählen Sie nur eine Aktion gleichzeitig aus."
         }
     }
 ,

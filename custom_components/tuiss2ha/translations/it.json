@@ -43,7 +43,8 @@
                     "blind_favorite_position": "Posizione Preferita",
                     "blind_battery_check_days": "Intervallo controllo batteria (giorni)",
                     "force_unlock": "Sblocco forzato",
-                    "configure_limits": "Configura Limiti"
+                    "configure_limits": "Configura Limiti",
+                    "delete_all_timers": "Elimina tutti i timer"
                 },
                 "data_description": {
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
@@ -81,12 +82,27 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Salva limite superiore"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Eliminare tutti i timer?",
+                "description": "Sei sicuro di voler eliminare tutti i timer da questa tenda? Questa azione non può essere annullata.",
+                "data": {
+                    "confirm": "Sì, sono sicuro"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Riconnessione fallita",
+                "description": "Impossibile riconnettersi alla tenda. Controllare la tenda e riprovare."
             }
+        },
+        "progress": {
+            "reconnecting_limits": "Disconnesso dalla tenda. Tentativo di riconnessione e reinizializzazione dei limiti in corso..."
         },
         "error": {
             "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità.",
             "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda.",
-            "limits_not_set": "Sia il limite inferiore che quello superiore devono essere impostati prima di chiudere questa finestra di dialogo."
+            "limits_not_set": "Sia il limite inferiore che quello superiore devono essere impostati prima di chiudere questa finestra di dialogo.",
+            "multiple_actions_selected": "Seleziona solo un'azione alla volta."
         }
     }
 ,

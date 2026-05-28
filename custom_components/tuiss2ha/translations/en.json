@@ -86,7 +86,14 @@
                 "data": {
                     "confirm": "Yes, I am sure"
                 }
+            },
+            "reconnect_failed": {
+                "title": "Reconnection Failed",
+                "description": "Failed to reconnect to the blind. Please check the blind and try again."
             }
+        },
+        "progress": {
+            "reconnecting_limits": "Disconnected from the blind. Attempting to reconnect and reinitialise limits..."
         },
         "error": {
             "blind_is_moving": "The blind is currently moving. Please wait for it to stop before changing the speed.",

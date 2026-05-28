@@ -43,7 +43,8 @@
                     "blind_favorite_position": "Position Favorite",
                     "blind_battery_check_days": "Intervalle de vérification de la batterie (jours)",
                     "force_unlock": "Déverrouillage forcé",
-                    "configure_limits": "Configurer les Limites"
+                    "configure_limits": "Configurer les Limites",
+                    "delete_all_timers": "Supprimer tous les minuteurs"
                 },
                 "data_description": {
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
@@ -81,12 +82,27 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Enregistrer la limite supérieure"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Supprimer tous les minuteurs ?",
+                "description": "Êtes-vous sûr de vouloir supprimer tous les minuteurs de ce store ? Cette action ne peut pas être annulée.",
+                "data": {
+                    "confirm": "Oui, je suis sûr"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Échec de la reconnexion",
+                "description": "Échec de la reconnexion au store. Veuillez vérifier le store et réessayer."
             }
+        },
+        "progress": {
+            "reconnecting_limits": "Déconnecté du store. Tentative de reconnexion et de réinitialisation des limites..."
         },
         "error": {
             "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse.",
             "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store.",
-            "limits_not_set": "Les limites inférieure et supérieure doivent toutes deux être définies avant de fermer cette boîte de dialogue."
+            "limits_not_set": "Les limites inférieure et supérieure doivent toutes deux être définies avant de fermer cette boîte de dialogue.",
+            "multiple_actions_selected": "Veuillez ne sélectionner qu'une seule action à la fois."
         }
     }
 ,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -188,6 +189,11 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Tuiss options."""
 
+    def __init__(self) -> None:
+        """Initialize options flow."""
+        self._reconnect_task: asyncio.Task | None = None
+        self._return_step: str | None = None
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -329,7 +335,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         
         # connect to the blind and initialise limits setup
         if initial:
-            await blind_device.limits_initialise()
+            try:
+                await blind_device.limits_initialise()
+            except ConnectionError:
+                self._return_step = "set_lower_limit"
+                return await self.async_step_reconnect_limits()
 
         return self.async_show_menu(
             step_id="set_lower_limit",
@@ -348,30 +358,37 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             },
         )
 
+    async def _execute_limit_command(self, command_coro, return_step: str) -> FlowResult:
+        """Execute a limit command and handle reconnections."""
+        try:
+            await command_coro
+            if return_step == "set_lower_limit":
+                return await self.async_step_set_lower_limit()
+            else:
+                return await self.async_step_set_upper_limit()
+        except ConnectionError:
+            self._return_step = return_step
+            return await self.async_step_reconnect_limits()
+
     async def async_step_limit_move_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_up()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_up(), "set_lower_limit")
 
     async def async_step_limit_move_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_down()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_down(), "set_lower_limit")
 
     async def async_step_limit_step_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_up()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_up(), "set_lower_limit")
 
     async def async_step_limit_step_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_down()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_down(), "set_lower_limit")
 
     async def async_step_limit_stop_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_stop()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_stop(), "set_lower_limit")
 
     async def async_step_limit_spacer_1_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_set_lower_limit()
@@ -381,8 +398,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_save_lower_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].set_limit()
-        return await self.async_step_set_upper_limit()
+        try:
+            await hub.blinds[0].set_limit()
+            return await self.async_step_set_upper_limit()
+        except ConnectionError:
+            self._return_step = "set_lower_limit"
+            return await self.async_step_reconnect_limits()
 
     async def async_step_set_upper_limit(
         self, user_input: dict[str, Any] | None = None
@@ -412,28 +433,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_limit_move_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_up()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_up(), "set_upper_limit")
 
     async def async_step_limit_move_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_down()
-        return await self.async_step_set_upper_limit()  
+        return await self._execute_limit_command(hub.blinds[0].limits_move_down(), "set_upper_limit")
 
     async def async_step_limit_step_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_up()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_up(), "set_upper_limit")
 
     async def async_step_limit_step_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_down()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_down(), "set_upper_limit")
 
     async def async_step_limit_stop_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_stop()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_stop(), "set_upper_limit")
 
     async def async_step_limit_spacer_1_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_set_upper_limit()
@@ -443,6 +459,60 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_save_upper_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].set_limit()
-        await hub.blinds[0].get_blind_position()
-        return self.async_create_entry(title="", data=self.config_entry.options)
+        try:
+            await hub.blinds[0].set_limit()
+            await hub.blinds[0].get_blind_position()
+            return self.async_create_entry(title="", data=self.config_entry.options)
+        except ConnectionError:
+            self._return_step = "set_upper_limit"
+            return await self.async_step_reconnect_limits()
+
+    async def async_step_reconnect_limits(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle reconnection during limit configuration."""
+        if not self._reconnect_task:
+            hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+            if not hub:
+                return self.async_abort(reason="hub_not_found")
+            
+            blind_device = hub.blinds[0]
+            
+            async def _reconnect_and_init():
+                """Task to reconnect and reinitialise limits."""
+                await blind_device.attempt_connection()
+                await blind_device.limits_initialise()
+
+            self._reconnect_task = self.hass.async_create_task(_reconnect_and_init())
+            return self.async_show_progress(
+                step_id="reconnect_limits",
+                progress_action="reconnecting_limits",
+                progress_task=self._reconnect_task,
+            )
+
+        if self._reconnect_task.done():
+            err = self._reconnect_task.exception()
+            self._reconnect_task = None
+            if err:
+                _LOGGER.error("Failed to reconnect during limits config: %s", err)
+                return self.async_show_progress_done(next_step_id="reconnect_failed")
+            
+            # Reconnected successfully, return to the step we came from
+            if self._return_step == "set_lower_limit":
+                return self.async_show_progress_done(next_step_id="set_lower_limit")
+            elif self._return_step == "set_upper_limit":
+                return self.async_show_progress_done(next_step_id="set_upper_limit")
+
+        return self.async_show_progress(
+            step_id="reconnect_limits",
+            progress_action="reconnecting_limits",
+            progress_task=self._reconnect_task,
+        )
+
+    async def async_step_reconnect_failed(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle a failed reconnection."""
+        if user_input is not None:
+            return await self.async_step_init()
+            
+        return self.async_show_form(
+            step_id="reconnect_failed",
+            errors={"base": "reconnect_failed"},
+        )
