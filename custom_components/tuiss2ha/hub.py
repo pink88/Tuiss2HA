@@ -99,13 +99,13 @@ class TuissBlind:
         self._blind_speed: str | None = None
         self._locked = False
         self._attr_traversal_speed: float | None = None
-        self._heartbeat_task: asyncio.Task | None = None
         self._last_connection_error: str | None = None  # For logging when connection fails
         # Battery check configuration
         self._battery_check_days: int = 0
         self._last_battery_check: datetime.datetime | None = None
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
+        self._limits_heartbeat_task: asyncio.Task | None = None
 
 
     @property
@@ -137,27 +137,7 @@ class TuissBlind:
     def remove_callback(self, callback) -> None:
         """Remove previously registered callback."""
         self._callbacks.discard(callback)
-
-    async def _heartbeat(self):
-        """Send heartbeat command periodically."""
-        _LOGGER.debug("%s: Starting heartbeat task", self.name)
-        heartbeat_cmd = bytes.fromhex("ff010101010101")
-        try:
-            while True:
-                await asyncio.sleep(2.0)
-                if self._client and self._client.is_connected:
-                    try:
-                        await self._client.write_gatt_char(UUID, heartbeat_cmd)
-                        _LOGGER.debug("%s: Heartbeat sent", self.name)
-                    except Exception as e:
-                        _LOGGER.debug("%s: Heartbeat failed: %s", self.name, e)
-                else:
-                    _LOGGER.debug("%s: Client not connected, stopping heartbeat", self.name)
-                    break
-        except asyncio.CancelledError:
-            _LOGGER.debug("%s: Heartbeat task cancelled", self.name)
-        except Exception as e:
-            _LOGGER.error("%s: Heartbeat task error: %s", self.name, e)
+        
 
     ##################################################################################################
     ## CONNECTION METHODS ############################################################################
@@ -253,21 +233,8 @@ class TuissBlind:
             await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE))
 
             # send the connection timestamp message
-            now = datetime.datetime.now()
-            year = now.year - 2000 
-            month = now.month
-            day = now.day
-            hour = now.hour
-            minute = now.minute
-            second = now.second
-
-            await self._client.write_gatt_char(UUID, bytes.fromhex("ff78ea410200" + f"{year:02x}{month:02x}{day:02x}{hour:02x}{minute:02x}{second:02x}"))
+            await self.send_timestamp()
     
-            # Start heartbeat
-            # if self._heartbeat_task:
-            #     self._heartbeat_task.cancel()
-            # self._heartbeat_task = self.hub._hass.loop.create_task(self._heartbeat())
-
             _LOGGER.debug(
                 "%s: Connected. Current Position: %s. Current Moving: %s",
                 self.name,
@@ -284,9 +251,10 @@ class TuissBlind:
     # Disconnect
     async def disconnect(self):
         """Disconnect from the blind."""
-        # if self._heartbeat_task:
-        #     self._heartbeat_task.cancel()
-        #     self._heartbeat_task = None
+
+        if self._limits_heartbeat_task:
+            self._limits_heartbeat_task.cancel()
+            self._limits_heartbeat_task = None
 
         client = self._client
         if not client:
@@ -457,6 +425,7 @@ class TuissBlind:
         command = bytes.fromhex("ff78ea41f00301")
         await self.get_from_blind(command, self.battery_callback)
 
+
     async def get_blind_position(self) -> None:
         """Get the current position of the blind."""
         command = bytes.fromhex(INITIALIZATION_MESSAGE)
@@ -472,21 +441,43 @@ class TuissBlind:
         _LOGGER.debug("Starting Limits Config. Attempting Connection")
         try:
             await self.ensure_connected()
-                
+            
             # Set the initialisation commands
             _LOGGER.debug("Sending initialisation commands")
             await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
             await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
+            
+            # # Start the heartbeat to keep the blind awake during the limits process
+            # if not self._limits_heartbeat_task or self._limits_heartbeat_task.done():
+            #     self._limits_heartbeat_task = self.hub._hass.async_create_task(
+            #         self.limits_heartbeat_loop()
+            #     )
         except (RuntimeError, ConnectionTimeout, DeviceNotFound, NoConnectableBluetoothAdapter) as e:
             raise ConnectionError("Connection lost") from e
+
+
+    async def limits_heartbeat_loop(self) -> None:
+        """Send a periodic heartbeat during limits configuration to prevent timeout."""
+        heartbeat_cmd = bytes.fromhex("ff010101010101")
+        # Run for a maximum of 5 minutes to avoid holding the connection forever if UI is abandoned
+        for _ in range(150):
+            try:
+                await asyncio.sleep(2)
+                if self._client and self._client.is_connected:
+                    await self.send_command(UUID, heartbeat_cmd)
+                else:
+                    break
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                _LOGGER.debug("%s: Heartbeat failed: %s", self.name, e)
+                break
+    
     
     async def send_limit_command(self, action_name: str, hex_command: str) -> None:    
         """Helper method to execute a limit configuration step."""
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-            raise ConnectionError("Connection lost")
-        _LOGGER.debug(action_name)
         try:
+            _LOGGER.debug(action_name)
             await self.send_command(UUID, bytes.fromhex(hex_command))
         except RuntimeError as e:
             _LOGGER.debug("Connection lost during %s: %s", action_name, e)
@@ -498,11 +489,9 @@ class TuissBlind:
         await self.send_limit_command("Stepping up", "ff78ea41220301")
 
 
-
     async def limits_step_down(self) -> None:
         """Move the blind down incrementally for manual positioning."""
-        await self.send_limit_command("Stepping up", "ff78ea41220301")
-
+        await self.send_limit_command("Stepping down", "ff78ea41230301")
 
 
     async def limits_move_up(self) -> None:
@@ -510,22 +499,16 @@ class TuissBlind:
         await self.send_limit_command("Moving up", "ff78ea41cf0301")
 
 
-
     async def limits_move_down(self) -> None:
         """Move the blind down continuously for manual positioning (stubbed for now)."""
         await self.send_limit_command("Moving down", "ff78ea411f0301")
 
         
-        
     async def limits_stop(self) -> None:
         """Stop the blind movement."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")  
-            raise ConnectionError("Connection lost")
-        
-        _LOGGER.debug("Stopping movement")
+        # Connect to the blind first        
         try:
+            _LOGGER.debug("Stopping movement")
             await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
         except RuntimeError as e:
             raise ConnectionError("Connection lost") from e
@@ -534,12 +517,8 @@ class TuissBlind:
     async def set_limit(self) -> None:
         """Sets the limit."""
         # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-            raise ConnectionError("Connection lost")
-        
-        _LOGGER.debug("Setting the limit")
         try:
+            _LOGGER.debug("Setting the limit")
             await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
             await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
         except RuntimeError as e:
@@ -583,11 +562,8 @@ class TuissBlind:
             await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
 
-        current_time = datetime.datetime.now()
-        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"        
-        
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))   
-        await self.send_command(UUID, bytes.fromhex(timestamp_command))   
+        await self.send_timestamp()   
         await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
         
         try:
@@ -644,11 +620,8 @@ class TuissBlind:
         """Remove an existing schedule."""
         await self.ensure_connected()     
         
-        current_time = datetime.datetime.now()
-        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
-        
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex(timestamp_command))      
+        await self.send_timestamp()      
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
         delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
         await self.send_command(UUID, bytes.fromhex(delete_hex))
@@ -670,9 +643,7 @@ class TuissBlind:
         await self.ensure_connected()
 
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-        current_time = datetime.datetime.now()
-        timestamp_command = f"ff78ea410200{current_time.year - 2000:02x}{current_time.month:02x}{current_time.day:02x}{current_time.hour:02x}{current_time.minute:02x}{current_time.second:02x}"    
-        await self.send_command(UUID, bytes.fromhex(timestamp_command))
+        await self.send_timestamp()
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
         await self.send_command(UUID, bytes.fromhex("ff04040404")) # delete command
         
@@ -802,6 +773,12 @@ class TuissBlind:
             except BleakError as e:
                 _LOGGER.error("%s: Send Command error: %s", self.name, e)
                 raise RuntimeError(e) from e
+
+    async def send_timestamp(self) -> None:
+        """Send the current timestamp command to the blind."""
+        now = datetime.datetime.now()
+        timestamp_command = f"ff78ea410200{now.year - 2000:02x}{now.month:02x}{now.day:02x}{now.hour:02x}{now.minute:02x}{now.second:02x}"
+        await self.send_command(UUID, bytes.fromhex(timestamp_command))
 
     # Creates the % open/closed hex command
     def hex_convert(self, user_percent: float) -> str:
