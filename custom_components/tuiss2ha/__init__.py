@@ -4,8 +4,10 @@ from __future__ import annotations
 import logging
 import asyncio
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
@@ -14,7 +16,7 @@ from homeassistant.components.bluetooth import (
     async_register_callback,
 )
 from homeassistant.const import CONF_ADDRESS, Platform
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 
 from .hub import Hub
 from .const import (
@@ -36,17 +38,48 @@ from .const import (
 
 
 
-PLATFORMS: list[str] = ["cover", "binary_sensor", "sensor", "button"]
+PLATFORMS: list[str] = ["cover", "binary_sensor", "sensor", "button", "select"]
 _LOGGER = logging.getLogger(__name__)
+
+# Service names for position presets
+SERVICE_SAVE_PRESET = "save_preset"
+SERVICE_DELETE_PRESET = "delete_preset"
+SERVICE_APPLY_PRESET = "apply_preset"
+
+_PRESET_NAME_SCHEMA = vol.All(cv.string, vol.Length(min=1, max=64))
+_PRESET_POSITION_SCHEMA = vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
+
+SAVE_PRESET_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("name"): _PRESET_NAME_SCHEMA,
+        vol.Required("position"): _PRESET_POSITION_SCHEMA,
+    }
+)
+DELETE_PRESET_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("name"): _PRESET_NAME_SCHEMA,
+    }
+)
+APPLY_PRESET_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("name"): _PRESET_NAME_SCHEMA,
+    }
+)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tuiss2HA from a config entry."""
     hub = Hub(hass, entry.data[CONF_BLIND_HOST], entry.data[CONF_BLIND_NAME])
 
     for blind in hub.blinds:
-        
+
         # Load timers
         await blind.async_load_timers()
+
+        # Load position presets (HA-side named positions)
+        await blind.async_load_presets()
         
         # Clean up old duplicate network MAC connections from the device registry DEPRICATE IN FUTURE RELEASE
         device_registry = dr.async_get(hass)
@@ -116,6 +149,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
     entry.async_on_unload(entry.add_update_listener(update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register preset services once per HA process. Storage is per-blind so
+    # the handlers themselves resolve the target via cover entity_id.
+    _async_register_preset_services(hass)
 
     @callback
     def _async_discovered_device(
@@ -207,3 +244,117 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+
+def _resolve_blind_from_entity_id(hass: HomeAssistant, entity_id: str):
+    """Resolve a TuissBlind from a cover/select entity_id, or None.
+
+    Accepts the cover entity (preferred) or the preset select entity for the
+    same blind. Looks up the blind via the entity unique_id which encodes the
+    blind_id.
+    """
+    ent_reg = er.async_get(hass)
+    entry = ent_reg.async_get(entity_id)
+    if not entry or entry.platform != DOMAIN:
+        return None
+    # unique_id pattern: "<blind_id>_cover" or "<blind_id>_preset_select"
+    unique_id = entry.unique_id or ""
+    blind_id = unique_id.rsplit("_", 1)[0] if "_" in unique_id else None
+    # _preset_select uses two underscores at the end; handle that case too
+    for suffix in ("_preset_select", "_cover"):
+        if unique_id.endswith(suffix):
+            blind_id = unique_id[: -len(suffix)]
+            break
+    if not blind_id:
+        return None
+    for hub in hass.data.get(DOMAIN, {}).values():
+        if not isinstance(hub, Hub):
+            continue
+        for blind in hub.blinds:
+            if blind.blind_id == blind_id:
+                return blind
+    return None
+
+
+@callback
+def _async_register_preset_services(hass: HomeAssistant) -> None:
+    """Register preset services once per HA process."""
+    if hass.services.has_service(DOMAIN, SERVICE_SAVE_PRESET):
+        return
+
+    async def _handle_save_preset(call: ServiceCall) -> None:
+        entity_id = call.data["entity_id"]
+        name = call.data["name"]
+        position = call.data["position"]
+        blind = _resolve_blind_from_entity_id(hass, entity_id)
+        if not blind:
+            _LOGGER.error("save_preset: cannot resolve blind for %s", entity_id)
+            return
+        blind.presets[name] = int(position)
+        await blind.async_save_presets()
+        blind.publish_updates()
+        _LOGGER.info(
+            "%s: Saved preset %r at %s%%", blind.name, name, position
+        )
+
+    async def _handle_delete_preset(call: ServiceCall) -> None:
+        entity_id = call.data["entity_id"]
+        name = call.data["name"]
+        blind = _resolve_blind_from_entity_id(hass, entity_id)
+        if not blind:
+            _LOGGER.error("delete_preset: cannot resolve blind for %s", entity_id)
+            return
+        if name not in blind.presets:
+            _LOGGER.warning(
+                "%s: delete_preset: preset %r not found", blind.name, name
+            )
+            return
+        blind.presets.pop(name)
+        await blind.async_save_presets()
+        blind.publish_updates()
+        _LOGGER.info("%s: Deleted preset %r", blind.name, name)
+
+    async def _handle_apply_preset(call: ServiceCall) -> None:
+        entity_id = call.data["entity_id"]
+        name = call.data["name"]
+        blind = _resolve_blind_from_entity_id(hass, entity_id)
+        if not blind:
+            _LOGGER.error("apply_preset: cannot resolve blind for %s", entity_id)
+            return
+        if name not in blind.presets:
+            _LOGGER.warning(
+                "%s: apply_preset: preset %r not found", blind.name, name
+            )
+            return
+        position = blind.presets[name]
+
+        # Resolve the cover entity for this blind so the move is dispatched
+        # via the existing cover.set_cover_position service.
+        ent_reg = er.async_get(hass)
+        cover_entity_id = ent_reg.async_get_entity_id(
+            Platform.COVER, DOMAIN, f"{blind.blind_id}_cover"
+        )
+        if not cover_entity_id:
+            _LOGGER.error(
+                "%s: apply_preset: cover entity not found", blind.name
+            )
+            return
+        await hass.services.async_call(
+            "cover",
+            "set_cover_position",
+            {"entity_id": cover_entity_id, "position": position},
+            blocking=False,
+        )
+        _LOGGER.info(
+            "%s: Applied preset %r -> %s%%", blind.name, name, position
+        )
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_SAVE_PRESET, _handle_save_preset, schema=SAVE_PRESET_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_DELETE_PRESET, _handle_delete_preset, schema=DELETE_PRESET_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_APPLY_PRESET, _handle_apply_preset, schema=APPLY_PRESET_SCHEMA
+    )
