@@ -568,24 +568,32 @@ class TuissLastConnectionErrorSensor(SensorEntity):
 
 
 class TuissBatteryLevelRawSensor(SensorEntity):
-    """Tuiss Raw Battery Level Sensor.
+    """Tuiss raw battery reading.
 
-    Exposes the integer battery reading reported by the blind firmware
-    in the long-form battery response. Scale is currently unknown so
-    the value is published without a unit. Useful for collecting
-    calibration data toward a future percentage sensor.
+    Surfaces the integer reading the blind firmware sends after its
+    status nibble. The encoding is currently UNKNOWN — sample values
+    range across orders of magnitude (e.g. 1000 and 59492) so we do
+    not publish a unit and the value should be treated as opaque
+    until calibration data is available.
+
+    The full payload bytes after the 0xd2 status are exposed as the
+    ``payload_hex`` attribute so users and the maintainer can
+    reverse-engineer the encoding from real readings.
     """
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:battery-medium"
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    # No state_class: classifying an unknown-scale value as a
+    # MEASUREMENT misleads HA's long-term-statistics machinery.
 
     def __init__(self, blind: TuissBlind) -> None:
         """Initialize the sensor."""
         self.blind = blind
+        # unique_id intentionally unchanged so existing entity IDs and
+        # automations created before the rename keep working.
         self._attr_unique_id = f"{self.blind.blind_id}_battery_level_raw"
-        self._attr_name = "Battery Level (raw)"
+        self._attr_name = "Battery Reading"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.blind.blind_id)},
             name=self.blind.name,
@@ -596,13 +604,21 @@ class TuissBatteryLevelRawSensor(SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if a raw reading has been captured."""
+        """Return True if a reading has been captured."""
         return self.blind._battery_level_raw is not None
 
     @property
     def native_value(self) -> int | None:
         """Return the state of the sensor."""
         return self.blind._battery_level_raw
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the full payload hex for calibration / debugging."""
+        return {
+            "payload_hex": self.blind._battery_payload_hex,
+            "note": "Encoding unknown — value is opaque. See payload_hex for raw bytes.",
+        }
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""

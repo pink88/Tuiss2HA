@@ -111,11 +111,20 @@ class TuissBlind:
         self._client: BleakClientWithServiceCache | None = None
         self._callbacks = set()
         self._battery_status = False
-        # Raw integer battery reading parsed from the long-form battery
-        # response. Scale is currently unknown (firmware sends LE u16
-        # bytes [6..8] alongside the status nibble) — exposed as a
-        # diagnostic sensor so users can collect calibration samples.
+        # Raw integer reading parsed from the long-form battery response.
+        # The firmware sends bytes [6..8] (LL HH after the status nibble)
+        # which we expose as a little-endian u16. The actual scale is
+        # currently UNKNOWN — early samples like 1000 fit a millivolt
+        # reading, but later samples like 59492 don't fit any obvious
+        # voltage / percentage scheme. Keep the value opaque ("Battery
+        # Reading") and expose the full payload hex below so users can
+        # collect calibration data.
         self._battery_level_raw: int | None = None
+        # Hex of every byte after the 0xd2 status nibble (decimals[5:]).
+        # Lets users / maintainer reverse-engineer the encoding without
+        # waiting for new sensor builds. Empty string when no long-form
+        # frame has been received yet.
+        self._battery_payload_hex: str | None = None
         self._moving = 0
         self._is_stopping = False
         self._stopped_event = asyncio.Event()
@@ -924,16 +933,31 @@ class TuissBlind:
             else:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
                 self._battery_status = None
-            # Capture raw battery level when the long-form frame is present.
-            # Layout (good response): ff 01 02 03 d2 SS LL HH
-            # - decimals[5] (SS): status nibble already used for low-battery gate
-            # - decimals[6..8] (LL HH): little-endian u16, raw level reported
-            #   by firmware. Scale TBD — exposed verbatim for users / maintainer
-            #   to collect calibration data toward a future percentage sensor.
+            # Capture the raw battery payload reported by the firmware.
+            # Layout: ff 01 02 03 d2 SS [extra...]
+            # The bytes after the status nibble carry the raw level reading
+            # but their encoding is currently UNKNOWN — sample values seen
+            # so far range from 1000 to 59492 which doesn't fit a single
+            # voltage or percentage scheme. We expose:
+            #   - LE u16 of bytes [6..8] for back-compat with the diagnostic
+            #     sensor introduced in commit ee254a7
+            #   - the full hex of bytes [5:] so users / maintainer can
+            #     reverse-engineer the format from real samples
             if len(decimals) >= 8:
                 self._battery_level_raw = decimals[6] | (decimals[7] << 8)
             else:
                 self._battery_level_raw = None
+            if len(decimals) > 5:
+                self._battery_payload_hex = bytes(decimals[5:]).hex()
+            else:
+                self._battery_payload_hex = ""
+            _LOGGER.debug(
+                "%s: Battery payload (status=%s reading=%s hex=%s)",
+                self.name,
+                decimals[5] if len(decimals) > 5 else None,
+                self._battery_level_raw,
+                self._battery_payload_hex,
+            )
             # Record time of this battery check
             try:
                 self._last_battery_check = dt_util.now()
