@@ -33,15 +33,11 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     DOMAIN,
-    OPT_RESTART_ATTEMPTS,
-    OPT_RESTART_POSITION,
     BLIND_SPEED_LIST,
     OPT_BLIND_SPEED,
     SPEED_CONTROL_SUPPORTED_MODELS,
     OPT_FAVORITE_POSITION,
     DEFAULT_FAVORITE_POSITION,
-    OPT_BATTERY_CHECK_DAYS,
-    DEFAULT_BATTERY_CHECK_DAYS,
     ConnectionTimeout,
     DeviceNotFound,
 )
@@ -265,12 +261,12 @@ class Tuiss(CoverEntity, RestoreEntity):
         self._start_time: datetime.datetime | None = None
         self._end_time: datetime.datetime | None = None
         self._attr_mac_address = self._blind.host
-        self._blind._restart_attempts = config.options.get(OPT_RESTART_ATTEMPTS)
-        self._blind._position_on_restart = config.options.get(OPT_RESTART_POSITION)
-        # Number of days between automatic battery checks when blinds move (0 = disabled)
-        self._blind._battery_check_days = config.options.get(
-            OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS
-        )
+        # Option-driven blind state is seeded centrally in __init__.py's
+        # async_setup_entry so it stays consistent across all option keys
+        # (including new ones like _operation_retry). Don't repeat that
+        # seeding here — re-reading from config_entry.options without a
+        # default would overwrite the seeded values with None for any
+        # entry that hasn't yet had its options fully populated.
 
     @property
     def state(self):

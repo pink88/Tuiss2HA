@@ -272,10 +272,11 @@ def _resolve_blind_from_entity_id(hass: HomeAssistant, entity_id: str):
     entry = ent_reg.async_get(entity_id)
     if not entry or entry.platform != DOMAIN:
         return None
-    # unique_id pattern: "<blind_id>_cover" or "<blind_id>_preset_select"
+    # unique_id pattern is "<blind_id>_<suffix>" where suffix may itself
+    # contain underscores (e.g. "_preset_select"). Strip the longest
+    # known suffix first so we don't lop off only the trailing word.
     unique_id = entry.unique_id or ""
-    blind_id = unique_id.rsplit("_", 1)[0] if "_" in unique_id else None
-    # _preset_select uses two underscores at the end; handle that case too
+    blind_id: str | None = None
     for suffix in ("_preset_select", "_cover"):
         if unique_id.endswith(suffix):
             blind_id = unique_id[: -len(suffix)]

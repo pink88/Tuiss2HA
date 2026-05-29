@@ -603,11 +603,6 @@ class TuissBatteryLevelRawSensor(SensorEntity):
         self._attr_native_value = self.blind._battery_level_raw
 
     @property
-    def available(self) -> bool:
-        """Return True if a reading has been captured."""
-        return self.blind._battery_level_raw is not None
-
-    @property
     def native_value(self) -> int | None:
         """Return the state of the sensor."""
         return self.blind._battery_level_raw

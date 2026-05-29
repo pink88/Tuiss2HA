@@ -114,11 +114,14 @@ class TuissBlind:
         # Raw integer reading parsed from the long-form battery response.
         # The firmware sends bytes [6..8] (LL HH after the status nibble)
         # which we expose as a little-endian u16. The actual scale is
-        # currently UNKNOWN — early samples like 1000 fit a millivolt
-        # reading, but later samples like 59492 don't fit any obvious
-        # voltage / percentage scheme. Keep the value opaque ("Battery
-        # Reading") and expose the full payload hex below so users can
-        # collect calibration data.
+        # currently UNKNOWN. Observed samples on real hardware:
+        #   - 1000  (full battery on a fresh TS2600 install — fits a
+        #            millivolt reading hypothesis but unconfirmed)
+        #   - 59492 (also full battery on a different TS2600 — clearly
+        #            doesn't fit voltage or 0-100% scaling)
+        # Until we have a discharge curve from at least one device, the
+        # value is opaque. Users / maintainer: please report your reading
+        # plus the payload_hex attribute so we can decode the format.
         self._battery_level_raw: int | None = None
         # Hex of every byte after the 0xd2 status nibble (decimals[5:]).
         # Lets users / maintainer reverse-engineer the encoding without
@@ -311,7 +314,7 @@ class TuissBlind:
         last_err: Exception | None = None
         for attempt in range(1, max_attempts + 1):
             try:
-                return await coro_factory()
+                result = await coro_factory()
             except (DeviceNotFound, NoConnectableBluetoothAdapter,
                     ValueError, AssertionError):
                 # Non-transient — fail fast
@@ -333,6 +336,15 @@ class TuissBlind:
                     # Short, jittered pause before the next try to give
                     # the BT proxy time to recover.
                     await asyncio.sleep(1.0 + random.uniform(0, 0.5))
+            else:
+                # Coro returned successfully. Record-keeping so users can
+                # tell from the logs when retry actually saved a call.
+                if attempt > 1:
+                    _LOGGER.debug(
+                        "%s: %s succeeded on attempt %d/%d",
+                        self.name, op_name, attempt, max_attempts,
+                    )
+                return result
         assert last_err is not None
         raise last_err
 
