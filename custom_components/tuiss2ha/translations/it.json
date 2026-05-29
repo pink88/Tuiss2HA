@@ -39,6 +39,7 @@
                 "data": {
                     "blind_restart_position": "Controlla la posizione della tenda al riavvio",
                     "blind_restart_attempts": "Tentativi di riconnessione",
+                    "blind_operation_retry": "Tentativi di ripetizione per operazione",
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
                     "blind_favorite_position": "Posizione Preferita",
                     "blind_battery_check_days": "Intervallo controllo batteria (giorni)",
@@ -48,6 +49,7 @@
                 "data_description": {
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
+                    "blind_operation_retry": "Numero di volte in cui un'operazione (apertura, chiusura, impostazione posizione, lettura batteria) viene ripetuta dopo un guasto Bluetooth transitorio. 1 disabilita i tentativi; il valore predefinito 2 esegue un singolo nuovo tentativo prima che l'errore venga segnalato a Home Assistant.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
                     "blind_battery_check_days": "Numero di giorni tra i controlli automatici della batteria quando la tenda si sposta. Impostare 0 per disabilitare i controlli automatici."
                 }

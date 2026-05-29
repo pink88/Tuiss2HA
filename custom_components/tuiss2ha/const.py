@@ -40,6 +40,19 @@ DEFAULT_RESTART_POSITION = False
 OPT_RESTART_ATTEMPTS = "blind_restart_attempts"
 DEFAULT_RESTART_ATTEMPTS = 4
 
+# Per-operation retry: how many times a user-facing BLE op (set_position,
+# stop, set_speed, get_battery_status, etc.) may be re-attempted on a
+# transient failure before the error surfaces to HA. 1 disables retries.
+OPT_OPERATION_RETRY = "blind_operation_retry"
+DEFAULT_OPERATION_RETRY = 2
+
+# Exponential backoff between connection retries. Sequence is
+# BASE * 2 ** (n-1), capped at MAX, plus up to JITTER seconds of
+# randomness so multiple blinds don't re-try in lockstep.
+BACKOFF_BASE_SECONDS = 1.0
+BACKOFF_MAX_SECONDS = 16.0
+BACKOFF_JITTER_SECONDS = 0.5
+
 OPT_BLIND_SPEED = "blind_speed"
 DEFAULT_BLIND_SPEED = "Standard"
 BLIND_SPEED_LIST = ["Standard", "Comfort", "Slow"]

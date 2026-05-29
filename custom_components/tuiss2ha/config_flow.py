@@ -37,6 +37,8 @@ from .const import (
     DEFAULT_FAVORITE_POSITION,
     OPT_BATTERY_CHECK_DAYS,
     DEFAULT_BATTERY_CHECK_DAYS,
+    OPT_OPERATION_RETRY,
+    DEFAULT_OPERATION_RETRY,
 )
 from .hub import Hub
 
@@ -262,6 +264,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
                 ),
             ): int,
+            vol.Optional(
+                OPT_OPERATION_RETRY,
+                default=self.config_entry.options.get(
+                    OPT_OPERATION_RETRY, DEFAULT_OPERATION_RETRY
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=1, max=5, step=1, mode="box")
+            ),
             vol.Optional(
                 OPT_BATTERY_CHECK_DAYS,
                 default=self.config_entry.options.get(

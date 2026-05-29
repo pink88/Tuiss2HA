@@ -31,6 +31,8 @@ from .const import (
     DEFAULT_BLIND_SPEED,
     OPT_BATTERY_CHECK_DAYS,
     DEFAULT_BATTERY_CHECK_DAYS,
+    OPT_OPERATION_RETRY,
+    DEFAULT_OPERATION_RETRY,
     DeviceNotFound,
     ConnectionTimeout,
     SPEED_CONTROL_SUPPORTED_MODELS,
@@ -114,6 +116,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 OPT_RESTART_ATTEMPTS: DEFAULT_RESTART_ATTEMPTS,
                 OPT_BLIND_SPEED: DEFAULT_BLIND_SPEED,
                 OPT_BATTERY_CHECK_DAYS: DEFAULT_BATTERY_CHECK_DAYS,
+                OPT_OPERATION_RETRY: DEFAULT_OPERATION_RETRY,
             },
         )
 
@@ -131,6 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         blind._restart_attempts = entry.options.get(
             OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
+        )
+        blind._operation_retry = entry.options.get(
+            OPT_OPERATION_RETRY, DEFAULT_OPERATION_RETRY
         )
 
         if blind._position_on_restart:
@@ -185,12 +191,14 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 
     # Apply battery check days option to all blinds immediately so changes take effect
     battery_days = entry.options.get(OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS)
+    operation_retry = entry.options.get(OPT_OPERATION_RETRY, DEFAULT_OPERATION_RETRY)
     for b in hub.blinds:
         try:
             b._battery_check_days = battery_days
+            b._operation_retry = operation_retry
             b.publish_updates()  # Notify sensors of the change
         except (AttributeError, TypeError) as e:
-            _LOGGER.debug("Failed to apply battery_check_days to blind %s: %s", getattr(b, "name", "unknown"), e)
+            _LOGGER.debug("Failed to apply options to blind %s: %s", getattr(b, "name", "unknown"), e)
 
     # Retrieve the updated option value for speed
     new_blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)

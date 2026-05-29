@@ -39,6 +39,7 @@
                 "data": {
                     "blind_restart_position": "Vérifier la position du store au redémarrage",
                     "blind_restart_attempts": "Tentatives de reconnexion",
+                    "blind_operation_retry": "Nouvelles tentatives par opération",
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
                     "blind_favorite_position": "Position Favorite",
                     "blind_battery_check_days": "Intervalle de vérification de la batterie (jours)",
@@ -48,6 +49,7 @@
                 "data_description": {
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
+                    "blind_operation_retry": "Nombre de tentatives supplémentaires pour une opération (ouverture, fermeture, mise en position, lecture de la batterie) après un échec Bluetooth transitoire. 1 désactive les nouvelles tentatives ; la valeur par défaut de 2 effectue une seule nouvelle tentative avant que l'erreur ne soit remontée à Home Assistant.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
                     "blind_battery_check_days": "Nombre de jours entre les vérifications automatiques de la batterie lorsque le store se déplace. Réglez sur 0 pour désactiver les vérifications automatiques."
                 }

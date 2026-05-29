@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import datetime
+import random
 import uuid
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -30,6 +31,10 @@ from .const import (
     CONNECTION_MESSAGE,
     INITIALIZATION_MESSAGE,
     DEFAULT_RESTART_ATTEMPTS,
+    DEFAULT_OPERATION_RETRY,
+    BACKOFF_BASE_SECONDS,
+    BACKOFF_MAX_SECONDS,
+    BACKOFF_JITTER_SECONDS,
     DeviceNotFound,
     ConnectionTimeout,
     NoConnectableBluetoothAdapter,
@@ -118,6 +123,9 @@ class TuissBlind:
         self._desired_position: int | None = None
         self._desired_orientation = False
         self._restart_attempts: int | None = None
+        # Per-operation retry count (1 = no retry, 2 = single retry, etc.).
+        # Seeded from options at boot via __init__.async_setup_entry.
+        self._operation_retry: int | None = None
         self._position_on_restart: bool | None = None
         self._blind_speed: str | None = None
         self._locked = False
@@ -175,6 +183,20 @@ class TuissBlind:
     ## CONNECTION METHODS ############################################################################
     ##################################################################################################
 
+    @staticmethod
+    def _backoff_delay(attempt_index: int) -> float:
+        """Compute exponential backoff delay for the Nth retry (1-indexed).
+
+        Sequence: BACKOFF_BASE * 2 ** (n-1), capped at BACKOFF_MAX, plus
+        up to BACKOFF_JITTER seconds of randomness so multiple blinds
+        recovering at once don't re-try in lockstep.
+        """
+        delay = min(
+            BACKOFF_BASE_SECONDS * (2 ** max(0, attempt_index - 1)),
+            BACKOFF_MAX_SECONDS,
+        )
+        return delay + random.uniform(0, BACKOFF_JITTER_SECONDS)
+
     # Attempt Connections
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
@@ -198,7 +220,7 @@ class TuissBlind:
                 )
             rediscover_attempts += 1
             if self._ble_device is None and rediscover_attempts < self._restart_attempts:
-                await asyncio.sleep(2)
+                await asyncio.sleep(self._backoff_delay(rediscover_attempts))
         if self._ble_device is None:
             _LOGGER.error(
                 "Cannot find the device %s. Check your bluetooth adapters and proxies",
@@ -225,7 +247,7 @@ class TuissBlind:
 
             retry_count += 1
             if retry_count <= self._restart_attempts:
-                await asyncio.sleep(2)
+                await asyncio.sleep(self._backoff_delay(retry_count - 1))
 
         # If we reach here, we have exceeded max retries - log the actual error at ERROR so it's visible
         last_err = self._last_connection_error or "unknown (no error captured)"
@@ -245,6 +267,65 @@ class TuissBlind:
                 "You need an ESPHome Bluetooth proxy or a USB Bluetooth adapter to control Tuiss blinds."
             )
         raise ConnectionTimeout(f"{self.name}: Connection failed too many times [{self._restart_attempts}]")
+
+    async def _retry_operation(self, op_name: str, coro_factory, *,
+                                max_attempts: int | None = None):
+        """Retry a BLE operation on transient failure with reconnect.
+
+        Most BLE errors leave the client in a stale state, so we force a
+        disconnect between attempts and let the next call to
+        ``attempt_connection`` (or ``ensure_connected``) re-establish a
+        clean session.
+
+        Args:
+            op_name: human-readable name used only for logging.
+            coro_factory: zero-arg callable returning a fresh awaitable on
+                each call. Each retry must build a new awaitable, so a
+                lambda or local async closure is the right shape.
+            max_attempts: total tries including the first. Defaults to
+                ``self._operation_retry`` (configured via the
+                ``blind_operation_retry`` option).
+
+        Transient (retried): BleakError, asyncio.TimeoutError,
+            ConnectionTimeout, RuntimeError.
+        Non-transient (raised immediately): DeviceNotFound,
+            NoConnectableBluetoothAdapter, ValueError, AssertionError.
+            These either mean the device is permanently unreachable or
+            the call is malformed — retrying would mask the bug.
+
+        Re-raises the last transient exception if all attempts fail.
+        """
+        if max_attempts is None:
+            max_attempts = self._operation_retry or DEFAULT_OPERATION_RETRY
+        if max_attempts < 1:
+            max_attempts = 1
+        last_err: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await coro_factory()
+            except (DeviceNotFound, NoConnectableBluetoothAdapter,
+                    ValueError, AssertionError):
+                # Non-transient — fail fast
+                raise
+            except (BleakError, asyncio.TimeoutError, ConnectionTimeout,
+                    RuntimeError) as e:
+                last_err = e
+                _LOGGER.warning(
+                    "%s: %s attempt %d/%d failed: %s",
+                    self.name, op_name, attempt, max_attempts, e,
+                )
+                if attempt < max_attempts:
+                    # Best-effort cleanup; suppress further failures so
+                    # the next attempt still gets to run.
+                    try:
+                        await self.disconnect()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    # Short, jittered pause before the next try to give
+                    # the BT proxy time to recover.
+                    await asyncio.sleep(1.0 + random.uniform(0, 0.5))
+        assert last_err is not None
+        raise last_err
 
     # Connect
     async def connect(self):
@@ -332,7 +413,14 @@ class TuissBlind:
     ## SET METHODS ###################################################################################
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
-        """Set the position of the blind converting from HA to Tuiss first."""
+        """Set the position of the blind, retrying transient BLE errors."""
+        await self._retry_operation(
+            "set_position",
+            lambda: self._set_position_once(userPercent),
+        )
+
+    async def _set_position_once(self, userPercent) -> None:
+        """Single attempt at setting the position. Wrapped by ``set_position``."""
 
         await self.ensure_connected()
 
@@ -354,7 +442,13 @@ class TuissBlind:
         await self.send_command(UUID, command)  # send the command
 
     async def stop(self) -> None:
-        """Stop the blind at current position."""
+        """Stop the blind at current position, retrying transient BLE errors."""
+        if self._moving == 0:
+            return
+        await self._retry_operation("stop", self._stop_once)
+
+    async def _stop_once(self) -> None:
+        """Single attempt at stopping the blind. Wrapped by ``stop``."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
         command = bytes.fromhex(CMD_STOP)
 
@@ -374,7 +468,11 @@ class TuissBlind:
 
 
     async def set_speed(self) -> None:
-        """Set the speed for supported blind types"""
+        """Set the blind speed, retrying transient BLE errors."""
+        await self._retry_operation("set_speed", self._set_speed_once)
+
+    async def _set_speed_once(self) -> None:
+        """Single attempt at setting the speed. Wrapped by ``set_speed``."""
         _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
         match self._blind_speed:
             case "Standard":
@@ -395,7 +493,7 @@ class TuissBlind:
 
 
         await self.ensure_connected()
-        
+
         # send the command
         try:
             if self._client and self._client.is_connected:
@@ -409,14 +507,21 @@ class TuissBlind:
         finally:
             # Always disconnect after set_speed operation
             await self.disconnect()
-        
+
 
     ##################################################################################################
     ## GET METHODS ###################################################################################
     ##################################################################################################
 
-    async def get_from_blind(self, command, callback) -> None:
-        """Get the battery state from the blind as good or bad."""
+    async def get_from_blind(self, command: bytes, callback) -> None:
+        """Read a value from the blind, retrying transient BLE errors."""
+        await self._retry_operation(
+            "get_from_blind",
+            lambda: self._get_from_blind_once(command, callback),
+        )
+
+    async def _get_from_blind_once(self, command: bytes, callback) -> None:
+        """Single attempt at reading a value from the blind."""
 
         # connect to the blind first
         await self.ensure_connected()
