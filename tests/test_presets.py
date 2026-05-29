@@ -101,3 +101,69 @@ async def test_async_load_presets_handles_non_dict_payload(mock_hass):
     await tb.async_load_presets()
 
     assert tb.presets == {}
+
+
+@pytest.mark.asyncio
+async def test_save_current_stores_rounded_position(mock_hass):
+    """async_save_current_as_preset rounds the live position to int."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_save = AsyncMock()
+    tb.publish_updates = MagicMock()
+    tb._current_cover_position = 42.7
+
+    result = await tb.async_save_current_as_preset("Reading")
+
+    assert result == 43
+    assert tb.presets == {"Reading": 43}
+    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 43})
+    tb.publish_updates.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_save_current_returns_none_when_position_unknown(mock_hass):
+    """If the cover position has never been read, refuse and don't persist."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_save = AsyncMock()
+    tb.publish_updates = MagicMock()
+    tb._current_cover_position = None
+
+    result = await tb.async_save_current_as_preset("Reading")
+
+    assert result is None
+    assert tb.presets == {}
+    tb._presets_store.async_save.assert_not_called()
+    tb.publish_updates.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_save_current_overwrites_existing_name(mock_hass):
+    """Re-using a preset name overwrites the old position."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_save = AsyncMock()
+    tb.publish_updates = MagicMock()
+    tb.presets = {"Reading": 10}
+    tb._current_cover_position = 75
+
+    result = await tb.async_save_current_as_preset("Reading")
+
+    assert result == 75
+    assert tb.presets == {"Reading": 75}
+    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 75})
+
+
+@pytest.mark.asyncio
+async def test_save_current_handles_integer_position(mock_hass):
+    """An integer position is stored as-is (round is a no-op)."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_save = AsyncMock()
+    tb.publish_updates = MagicMock()
+    tb._current_cover_position = 50
+
+    result = await tb.async_save_current_as_preset("Half")
+
+    assert result == 50
+    assert tb.presets == {"Half": 50}

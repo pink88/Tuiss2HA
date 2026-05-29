@@ -206,6 +206,20 @@
                 }
             }
         },
+        "save_current_position_as_preset": {
+            "name": "Guardar posición actual como preajuste",
+            "description": "Guarda la posición actual de la persiana con un nombre de preajuste. Mueve primero la persiana a la posición deseada — este servicio guarda la última posición observada por la integración sin pedir un porcentaje.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de persiana",
+                    "description": "Selecciona la entidad de la persiana o su selector de preajustes."
+                },
+                "name": {
+                    "name": "Nombre del preajuste",
+                    "description": "Etiqueta corta para el preajuste (ej. Lectura, Atardecer)."
+                }
+            }
+        },
         "delete_preset": {
             "name": "Eliminar preajuste de posición",
             "description": "Elimina un preajuste de posición con nombre de una persiana.",

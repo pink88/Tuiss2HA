@@ -751,6 +751,31 @@ class TuissBlind:
         """Persist position presets to storage."""
         await self._presets_store.async_save(self.presets)
 
+    async def async_save_current_as_preset(self, name: str) -> int | None:
+        """Save the live cover position under ``name`` as a preset.
+
+        Returns the integer position that was stored, or None if the
+        position is currently unknown (never been read). Callers are
+        expected to surface an appropriate user-facing message in the
+        None case — the method itself only logs at warning level.
+        """
+        current = self._current_cover_position
+        if current is None:
+            _LOGGER.warning(
+                "%s: Cannot save preset %r — current position is unknown",
+                self.name, name,
+            )
+            return None
+        position = int(round(current))
+        self.presets[name] = position
+        await self.async_save_presets()
+        self.publish_updates()
+        _LOGGER.info(
+            "%s: Saved preset %r at current position %s%% (raw %s)",
+            self.name, name, position, current,
+        )
+        return position
+
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
         """Add a new schedule."""

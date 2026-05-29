@@ -147,6 +147,21 @@ save_preset:
           step: 1
           mode: slider
 
+save_current_position_as_preset:
+  # Save the blind's current position under a named preset. Useful when
+  # you don't know the exact percentage — move the blind where you want
+  # it, then call this with just a name.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+    name:
+      required: true
+      selector:
+        text:
+
 delete_preset:
   # Remove a named position preset from a blind.
   fields:

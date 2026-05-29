@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Service names for position presets
 SERVICE_SAVE_PRESET = "save_preset"
+SERVICE_SAVE_CURRENT_AS_PRESET = "save_current_position_as_preset"
 SERVICE_DELETE_PRESET = "delete_preset"
 SERVICE_APPLY_PRESET = "apply_preset"
 
@@ -56,6 +57,12 @@ SAVE_PRESET_SCHEMA = vol.Schema(
         vol.Required("entity_id"): cv.entity_id,
         vol.Required("name"): _PRESET_NAME_SCHEMA,
         vol.Required("position"): _PRESET_POSITION_SCHEMA,
+    }
+)
+SAVE_CURRENT_AS_PRESET_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("name"): _PRESET_NAME_SCHEMA,
     }
 )
 DELETE_PRESET_SCHEMA = vol.Schema(
@@ -305,6 +312,21 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
             "%s: Saved preset %r at %s%%", blind.name, name, position
         )
 
+    async def _handle_save_current_as_preset(call: ServiceCall) -> None:
+        entity_id = call.data["entity_id"]
+        name = call.data["name"]
+        blind = _resolve_blind_from_entity_id(hass, entity_id)
+        if not blind:
+            _LOGGER.error(
+                "save_current_position_as_preset: cannot resolve blind for %s",
+                entity_id,
+            )
+            return
+        # Delegate to the blind so the rounding / persistence / refusal
+        # rules live in one place. Returning None means the position
+        # isn't known yet — the blind has already logged at warning.
+        await blind.async_save_current_as_preset(name)
+
     async def _handle_delete_preset(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
         name = call.data["name"]
@@ -359,6 +381,12 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN, SERVICE_SAVE_PRESET, _handle_save_preset, schema=SAVE_PRESET_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SAVE_CURRENT_AS_PRESET,
+        _handle_save_current_as_preset,
+        schema=SAVE_CURRENT_AS_PRESET_SCHEMA,
     )
     hass.services.async_register(
         DOMAIN, SERVICE_DELETE_PRESET, _handle_delete_preset, schema=DELETE_PRESET_SCHEMA

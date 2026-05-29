@@ -204,6 +204,20 @@
                 }
             }
         },
+        "save_current_position_as_preset": {
+            "name": "Save Current Position as Preset",
+            "description": "Save the blind's current position under a named preset. Move the blind to the desired position first — this service stores whatever position the integration last observed without asking for a percentage.",
+            "fields": {
+                "entity_id": {
+                    "name": "Blind Entity",
+                    "description": "Select the blind cover or its preset selector entity."
+                },
+                "name": {
+                    "name": "Preset Name",
+                    "description": "Short label for the preset (e.g. Reading, Sunset)."
+                }
+            }
+        },
         "delete_preset": {
             "name": "Delete Position Preset",
             "description": "Remove a named position preset from a blind.",

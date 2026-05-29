@@ -206,6 +206,20 @@
                 }
             }
         },
+        "save_current_position_as_preset": {
+            "name": "Aktuelle Position als Voreinstellung speichern",
+            "description": "Speichert die aktuelle Position der Jalousie unter einer benannten Voreinstellung. Bewegen Sie die Jalousie zuerst in die gewünschte Position — der Dienst speichert die zuletzt beobachtete Position, ohne nach einem Prozentsatz zu fragen.",
+            "fields": {
+                "entity_id": {
+                    "name": "Jalousie-Entität",
+                    "description": "Wählen Sie die Jalousie-Cover- oder Voreinstellungs-Entität aus."
+                },
+                "name": {
+                    "name": "Name der Voreinstellung",
+                    "description": "Kurze Bezeichnung der Voreinstellung (z. B. Lesen, Sonnenuntergang)."
+                }
+            }
+        },
         "delete_preset": {
             "name": "Positions-Voreinstellung löschen",
             "description": "Entfernt eine benannte Positions-Voreinstellung von einer Jalousie.",
