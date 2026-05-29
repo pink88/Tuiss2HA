@@ -204,6 +204,20 @@
                 }
             }
         },
+        "save_current_position_as_preset": {
+            "name": "Salva posizione attuale come preset",
+            "description": "Salva la posizione attuale della tenda con un nome di preset. Sposta prima la tenda nella posizione desiderata — questo servizio memorizza l'ultima posizione osservata dall'integrazione senza chiedere una percentuale.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entità tenda",
+                    "description": "Seleziona l'entità della tenda o il suo selettore di preset."
+                },
+                "name": {
+                    "name": "Nome del preset",
+                    "description": "Etichetta breve per il preset (es. Lettura, Tramonto)."
+                }
+            }
+        },
         "delete_preset": {
             "name": "Elimina preset di posizione",
             "description": "Rimuove un preset di posizione con nome da una tenda.",
