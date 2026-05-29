@@ -38,8 +38,8 @@
                 "title": "Opciones adicionales.",
                 "data": {
                     "blind_restart_position": "Comprobar la posición de la persiana al reiniciar",
-                    "blind_restart_attempts": "Intentos de reconexión",
-                    "blind_operation_retry": "Reintentos por operación",
+                    "blind_restart_attempts": "Reintentos de conexión",
+                    "blind_operation_retry": "Reintentos por comando",
                     "blind_speed": "A qué velocidad debe moverse la persiana a la posición",
                     "blind_favorite_position": "Posición Favorita",
                     "blind_battery_check_days": "Intervalo de comprobación de batería (días)",
@@ -48,8 +48,8 @@
                 },
                 "data_description": {
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
-                    "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
-                    "blind_operation_retry": "Número de veces que se reintenta una operación (abrir, cerrar, fijar posición, leer batería) tras un fallo transitorio de Bluetooth. 1 desactiva los reintentos; el valor por defecto 2 hace que se realice un único reintento antes de que el error se notifique a Home Assistant.",
+                    "blind_restart_attempts": "Cuántas veces reintentar la conexión Bluetooth en sí cuando la persiana no responde al handshake inicial. Aumenta este valor si el enlace con tu proxy es poco fiable.",
+                    "blind_operation_retry": "Cuántas veces reintentar un comando completo (abrir, cerrar, fijar posición, leer batería) cuando falla después de establecer la conexión — por ejemplo una notificación perdida o un timeout de escritura. Cada reintento fuerza una desconexión y reconexión nuevas. 1 desactiva; 2 (predeterminado) realiza un único reintento.",
                     "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'.",
                     "blind_battery_check_days": "Número de días entre comprobaciones automáticas de batería cuando la persiana se mueve. Establezca 0 para desactivar las comprobaciones automáticas."
                 }
