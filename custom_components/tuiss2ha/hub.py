@@ -124,6 +124,15 @@ class TuissBlind:
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
         self._limits_heartbeat_task: asyncio.Task | None = None
+        # Per-blind named position presets ({"Morning": 100, "Movie": 30, ...}).
+        # Stored in HA (separate from on-blind firmware timers) so users can
+        # back them up via HA snapshots and edit via service calls.
+        self.presets: dict[str, int] = {}
+        self._presets_store = Store(
+            self.hub._hass,
+            1,
+            f"tuiss2ha_{self.host.replace(':', '').lower()}_presets",
+        )
 
 
     @property
@@ -593,6 +602,35 @@ class TuissBlind:
     async def async_save_timer(self) -> None:
         """Save schedules to storage."""
         await self._store.async_save(self.timers)
+
+
+    async def async_load_presets(self) -> None:
+        """Load stored position presets."""
+        stored = await self._presets_store.async_load()
+        if stored and isinstance(stored, dict):
+            # Defensive: coerce values to int and drop anything malformed
+            # so a hand-edited or corrupt file can't crash the entity.
+            clean: dict[str, int] = {}
+            for name, position in stored.items():
+                try:
+                    pos_int = int(position)
+                except (TypeError, ValueError):
+                    _LOGGER.warning(
+                        "%s: Dropping preset %r with invalid position %r",
+                        self.name, name, position,
+                    )
+                    continue
+                if not isinstance(name, str) or not name:
+                    continue
+                if 0 <= pos_int <= 100:
+                    clean[name] = pos_int
+            self.presets = clean
+        else:
+            self.presets = {}
+
+    async def async_save_presets(self) -> None:
+        """Persist position presets to storage."""
+        await self._presets_store.async_save(self.presets)
 
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:

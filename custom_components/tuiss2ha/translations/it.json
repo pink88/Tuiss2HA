@@ -185,6 +185,52 @@
                     "description": "Seleziona il timer che desideri rimuovere."
                 }
             }
+        },
+        "save_preset": {
+            "name": "Salva preset di posizione",
+            "description": "Salva un preset di posizione con nome per una tenda. I nomi esistenti vengono sovrascritti. Memorizzato in Home Assistant (non nel firmware della tenda).",
+            "fields": {
+                "entity_id": {
+                    "name": "Entità tenda",
+                    "description": "Seleziona l'entità della tenda o il suo selettore di preset."
+                },
+                "name": {
+                    "name": "Nome del preset",
+                    "description": "Etichetta breve per il preset (es. Mattino, Film, Notte)."
+                },
+                "position": {
+                    "name": "Posizione",
+                    "description": "Posizione a cui il preset sposta la tenda (0 = chiusa, 100 = aperta)."
+                }
+            }
+        },
+        "delete_preset": {
+            "name": "Elimina preset di posizione",
+            "description": "Rimuove un preset di posizione con nome da una tenda.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entità tenda",
+                    "description": "Seleziona l'entità della tenda o il suo selettore di preset."
+                },
+                "name": {
+                    "name": "Nome del preset",
+                    "description": "Nome del preset da rimuovere."
+                }
+            }
+        },
+        "apply_preset": {
+            "name": "Applica preset di posizione",
+            "description": "Sposta una tenda alla posizione salvata nel preset con il nome indicato.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entità tenda",
+                    "description": "Seleziona l'entità della tenda o il suo selettore di preset."
+                },
+                "name": {
+                    "name": "Nome del preset",
+                    "description": "Nome del preset da applicare."
+                }
+            }
         }
     },
     "exceptions": {

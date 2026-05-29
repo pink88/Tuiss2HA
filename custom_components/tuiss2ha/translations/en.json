@@ -183,6 +183,52 @@
                         "description": "Select the timer you wish to remove."
                     }
                 }
+        },
+        "save_preset": {
+            "name": "Save Position Preset",
+            "description": "Save a named position preset for a blind. Re-using an existing name overwrites it. Stored in Home Assistant (not on the blind firmware).",
+            "fields": {
+                "entity_id": {
+                    "name": "Blind Entity",
+                    "description": "Select the blind cover or its preset selector entity."
+                },
+                "name": {
+                    "name": "Preset Name",
+                    "description": "Short label for the preset (e.g. Morning, Movie, Sleep)."
+                },
+                "position": {
+                    "name": "Position",
+                    "description": "Position the preset moves to (0 = closed, 100 = open)."
+                }
+            }
+        },
+        "delete_preset": {
+            "name": "Delete Position Preset",
+            "description": "Remove a named position preset from a blind.",
+            "fields": {
+                "entity_id": {
+                    "name": "Blind Entity",
+                    "description": "Select the blind cover or its preset selector entity."
+                },
+                "name": {
+                    "name": "Preset Name",
+                    "description": "Name of the preset to remove."
+                }
+            }
+        },
+        "apply_preset": {
+            "name": "Apply Position Preset",
+            "description": "Move a blind to the position stored under the named preset.",
+            "fields": {
+                "entity_id": {
+                    "name": "Blind Entity",
+                    "description": "Select the blind cover or its preset selector entity."
+                },
+                "name": {
+                    "name": "Preset Name",
+                    "description": "Name of the preset to apply."
+                }
+            }
         }
     }
 ,

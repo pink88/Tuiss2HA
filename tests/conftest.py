@@ -45,6 +45,7 @@ def pytest_sessionstart(session):
         "SensorEntity": type("SensorEntity", (MockEntity,), {}),
         "BinarySensorEntity": type("BinarySensorEntity", (MockEntity,), {}),
         "ButtonEntity": type("ButtonEntity", (MockEntity,), {}),
+        "SelectEntity": type("SelectEntity", (MockEntity,), {}),
     }
 
     # Create a mock for the 'homeassistant' root module
@@ -91,6 +92,7 @@ def pytest_sessionstart(session):
     sys.modules["homeassistant.components.binary_sensor"] = MagicMock(**mock_entity_classes)
     sys.modules["homeassistant.components.button"] = MagicMock(**mock_entity_classes)
     sys.modules["homeassistant.components.cover"] = MagicMock(**mock_entity_classes)
+    sys.modules["homeassistant.components.select"] = MagicMock(**mock_entity_classes)
 
     # Mock other required modules that don't contain entity base classes
     import types
