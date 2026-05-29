@@ -106,6 +106,11 @@ class TuissBlind:
         self._client: BleakClientWithServiceCache | None = None
         self._callbacks = set()
         self._battery_status = False
+        # Raw integer battery reading parsed from the long-form battery
+        # response. Scale is currently unknown (firmware sends LE u16
+        # bytes [6..8] alongside the status nibble) — exposed as a
+        # diagnostic sensor so users can collect calibration samples.
+        self._battery_level_raw: int | None = None
         self._moving = 0
         self._is_stopping = False
         self._stopped_event = asyncio.Event()
@@ -776,6 +781,16 @@ class TuissBlind:
             else:
                 _LOGGER.debug("%s: Battery logic is wrong", self.name)
                 self._battery_status = None
+            # Capture raw battery level when the long-form frame is present.
+            # Layout (good response): ff 01 02 03 d2 SS LL HH
+            # - decimals[5] (SS): status nibble already used for low-battery gate
+            # - decimals[6..8] (LL HH): little-endian u16, raw level reported
+            #   by firmware. Scale TBD — exposed verbatim for users / maintainer
+            #   to collect calibration data toward a future percentage sensor.
+            if len(decimals) >= 8:
+                self._battery_level_raw = decimals[6] | (decimals[7] << 8)
+            else:
+                self._battery_level_raw = None
             # Record time of this battery check
             try:
                 self._last_battery_check = dt_util.now()

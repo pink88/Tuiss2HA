@@ -69,6 +69,7 @@ async def async_setup_entry(
             TuissTraversalSpeedSensor(blind),
             TuissLastConnectionErrorSensor(blind),
             TuissBlindSpeedSensor(blind),
+            TuissBatteryLevelRawSensor(blind),
         ]
 
         async_add_entities(new_sensors)
@@ -563,4 +564,56 @@ class TuissLastConnectionErrorSensor(SensorEntity):
     def _handle_update(self) -> None:
         """Handle updated data from the hub."""
         self._attr_native_value = self.blind._last_connection_error or "None"
+        self.async_write_ha_state()
+
+
+class TuissBatteryLevelRawSensor(SensorEntity):
+    """Tuiss Raw Battery Level Sensor.
+
+    Exposes the integer battery reading reported by the blind firmware
+    in the long-form battery response. Scale is currently unknown so
+    the value is published without a unit. Useful for collecting
+    calibration data toward a future percentage sensor.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:battery-medium"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_battery_level_raw"
+        self._attr_name = "Battery Level (raw)"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind._battery_level_raw
+
+    @property
+    def available(self) -> bool:
+        """Return True if a raw reading has been captured."""
+        return self.blind._battery_level_raw is not None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state of the sensor."""
+        return self.blind._battery_level_raw
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self._attr_native_value = self.blind._battery_level_raw
         self.async_write_ha_state()
