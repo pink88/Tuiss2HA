@@ -167,3 +167,96 @@ async def test_save_current_handles_integer_position(mock_hass):
 
     assert result == 50
     assert tb.presets == {"Half": 50}
+
+
+def _make_select(mock_hass):
+    """Build a TuissPresetSelect bound to a fresh blind."""
+    from custom_components.tuiss2ha.select import TuissPresetSelect
+    tb = _make_blind(mock_hass)
+    return TuissPresetSelect(tb), tb
+
+
+def test_select_current_option_none_when_position_unknown(mock_hass):
+    """Position never read -> dropdown shows nothing selected."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Movie": 30, "Morning": 100}
+    tb._current_cover_position = None
+
+    assert sel.current_option is None
+
+
+def test_select_current_option_matches_exact_position(mock_hass):
+    """Live position equal to a preset value -> that preset is selected."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Movie": 30, "Morning": 100, "Sleep": 0}
+    tb._current_cover_position = 30
+
+    assert sel.current_option == "Movie"
+
+
+def test_select_current_option_none_when_no_match(mock_hass):
+    """Position between presets -> nothing selected."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Movie": 30, "Morning": 100}
+    tb._current_cover_position = 55
+
+    assert sel.current_option is None
+
+
+def test_select_current_option_rounds_float(mock_hass):
+    """Float position is rounded before comparing — 99.7 matches 100."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Morning": 100}
+    tb._current_cover_position = 99.7
+
+    assert sel.current_option == "Morning"
+
+
+def test_select_current_option_alphabetical_tiebreak(mock_hass):
+    """When two presets share a value, the alphabetically-first wins."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Zeta": 50, "Alpha": 50, "Mid": 50}
+    tb._current_cover_position = 50
+
+    # sorted({"Zeta","Alpha","Mid"}) -> "Alpha","Mid","Zeta" -> first match Alpha
+    assert sel.current_option == "Alpha"
+
+
+def test_select_current_option_clears_after_manual_move(mock_hass):
+    """A manual move away from the preset clears the selection."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Movie": 30}
+    tb._current_cover_position = 30
+    assert sel.current_option == "Movie"
+
+    # User manually drags blind to 70 — no service call, just position update
+    tb._current_cover_position = 70
+    assert sel.current_option is None
+
+
+def test_select_current_option_re_selects_on_return(mock_hass):
+    """Returning to a preset position re-selects it automatically."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Reading": 42}
+    tb._current_cover_position = 100  # somewhere else
+    assert sel.current_option is None
+
+    # Move back to the preset value
+    tb._current_cover_position = 42
+    assert sel.current_option == "Reading"
+
+
+def test_select_options_sorted(mock_hass):
+    """Options list is alphabetically sorted for stable UI display."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Zeta": 1, "Alpha": 2, "Mid": 3}
+
+    assert sel.options == ["Alpha", "Mid", "Zeta"]
+
+
+def test_select_unavailable_when_no_presets(mock_hass):
+    """The entity reports itself unavailable when no presets are defined."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {}
+
+    assert sel.available is False

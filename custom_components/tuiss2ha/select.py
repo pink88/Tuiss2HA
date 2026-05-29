@@ -33,9 +33,11 @@ async def async_setup_entry(
 class TuissPresetSelect(SelectEntity):
     """Dropdown of saved position presets for a Tuiss blind.
 
-    Picking an option calls the cover's set_cover_position service with the
-    stored value. The list of options is derived from blind.presets so it
-    stays in sync after save_preset / delete_preset service calls.
+    The selected option is *derived* from the live cover position rather
+    than stored: any preset whose value matches the current position is
+    shown as selected, and the dropdown clears as soon as the blind is
+    moved away. This keeps the entity from claiming the blind is at
+    "Movie" when the user has manually slid it elsewhere.
     """
 
     _attr_has_entity_name = True
@@ -53,7 +55,6 @@ class TuissPresetSelect(SelectEntity):
             manufacturer=self.blind.hub.manufacturer,
             model=self.blind.model,
         )
-        self._attr_current_option = None
 
     @property
     def options(self) -> list[str]:
@@ -64,6 +65,27 @@ class TuissPresetSelect(SelectEntity):
     def available(self) -> bool:
         """Available only when at least one preset is defined."""
         return bool(self.blind.presets)
+
+    @property
+    def current_option(self) -> str | None:
+        """Match the live cover position to a preset, else ``None``.
+
+        Recomputed every read so the dropdown reflects reality:
+        - Manual cover moves clear the selection.
+        - Re-arriving at a preset position re-selects it automatically.
+        - When two presets share a value, the alphabetically-first
+          name wins so the result is stable.
+        - Float positions are rounded before comparing so the entity
+          doesn't flicker on intermediate readings.
+        """
+        pos = self.blind._current_cover_position
+        if pos is None:
+            return None
+        target = int(round(pos))
+        for name in sorted(self.blind.presets):
+            if self.blind.presets[name] == target:
+                return name
+        return None
 
     async def async_select_option(self, option: str) -> None:
         """Apply the chosen preset by moving the cover to its position."""
@@ -97,11 +119,12 @@ class TuissPresetSelect(SelectEntity):
             {"entity_id": cover_entity_id, "position": position},
             blocking=False,
         )
-        self._attr_current_option = option
-        self.async_write_ha_state()
+        # No need to set _attr_current_option — current_option is
+        # derived from the live position, which the cover will publish
+        # via publish_updates() once the move starts.
 
     async def async_added_to_hass(self) -> None:
-        """Register callbacks so the dropdown refreshes on preset changes."""
+        """Register callbacks so the dropdown refreshes on state changes."""
         self.blind.register_callback(self._handle_update)
 
     async def async_will_remove_from_hass(self) -> None:
@@ -110,8 +133,5 @@ class TuissPresetSelect(SelectEntity):
 
     @callback
     def _handle_update(self) -> None:
-        """Refresh entity state when presets change."""
-        # Clear current_option if the previously selected preset was removed
-        if self._attr_current_option and self._attr_current_option not in self.blind.presets:
-            self._attr_current_option = None
+        """Refresh entity state when presets or position change."""
         self.async_write_ha_state()
