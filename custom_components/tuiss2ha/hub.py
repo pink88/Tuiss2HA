@@ -435,94 +435,120 @@ class TuissBlind:
     ## LIMIT CONFIGURATION METHODS ##################################################################
     ##################################################################################################
 
-    async def limits_initialise(self) -> None:
-        """Initialise the limit configuration by connecting to the blind."""
-        # Connect to the blind first
-        _LOGGER.debug("Starting Limits Config. Attempting Connection")
-        try:
-            await self.ensure_connected()
-            
-            # Set the initialisation commands
-            _LOGGER.debug("Sending initialisation commands")
-            await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-            await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
-            
-            # # Start the heartbeat to keep the blind awake during the limits process
-            # if not self._limits_heartbeat_task or self._limits_heartbeat_task.done():
-            #     self._limits_heartbeat_task = self.hub._hass.async_create_task(
-            #         self.limits_heartbeat_loop()
-            #     )
-        except (RuntimeError, ConnectionTimeout, DeviceNotFound, NoConnectableBluetoothAdapter) as e:
-            raise ConnectionError("Connection lost") from e
+    def limits_heartbeat_start(self, move_command: str) -> None:
+        """Start the heartbeat task for limits."""
+        self.limits_heartbeat_stop()
+        self._limits_heartbeat_task = self.hub._hass.async_create_task(
+            self.limits_heartbeat_loop(move_command)
+        )
 
 
-    async def limits_heartbeat_loop(self) -> None:
-        """Send a periodic heartbeat during limits configuration to prevent timeout."""
-        heartbeat_cmd = bytes.fromhex("ff010101010101")
-        # Run for a maximum of 5 minutes to avoid holding the connection forever if UI is abandoned
-        for _ in range(150):
+    def limits_heartbeat_stop(self) -> None:
+        """Stop the heartbeat task for limits."""
+        if self._limits_heartbeat_task:
+            self._limits_heartbeat_task.cancel()
+            self._limits_heartbeat_task = None
+
+
+    async def limits_heartbeat_loop(self, move_command_str: str) -> None:
+        """Send heartbeat every 4 seconds while moving."""
+        heartbeat_command = bytes.fromhex("ff010101010101")
+        move_command = bytes.fromhex(move_command_str)
+        while True:
             try:
                 await asyncio.sleep(2)
                 if self._client and self._client.is_connected:
-                    await self.send_command(UUID, heartbeat_cmd)
+                    await self.send_command(UUID, heartbeat_command)
+                    await self.send_command(UUID, move_command)
                 else:
                     break
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                _LOGGER.debug("%s: Heartbeat failed: %s", self.name, e)
+                _LOGGER.debug("%s: Moving heartbeat failed: %s", self.name, e)
                 break
-    
-    
-    async def send_limit_command(self, action_name: str, hex_command: str) -> None:    
-        """Helper method to execute a limit configuration step."""
-        try:
-            _LOGGER.debug(action_name)
-            await self.send_command(UUID, bytes.fromhex(hex_command))
-        except RuntimeError as e:
-            _LOGGER.debug("Connection lost during %s: %s", action_name, e)
-            raise ConnectionError("Connection lost") from e
 
+
+    async def limits_initialise(self) -> None:
+        """Initialise the limit configuration by connecting to the blind."""
+        self.limits_heartbeat_stop()
+        # Connect to the blind first
+        _LOGGER.debug("Starting Limits Config. Attempting Connection")
+        await self.ensure_connected()
+            
+        # Set the initialisation commands
+        _LOGGER.debug("Sending initialisation commands")
+        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
+    
 
     async def limits_step_up(self) -> None:
         """Move the blind up incrementally for manual positioning."""
-        await self.send_limit_command("Stepping up", "ff78ea41220301")
-
+        self.limits_heartbeat_stop()
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Stepping up")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41220301"))    
+        
 
     async def limits_step_down(self) -> None:
         """Move the blind down incrementally for manual positioning."""
-        await self.send_limit_command("Stepping down", "ff78ea41230301")
+        self.limits_heartbeat_stop()
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Stepping down")
+        await self.send_command(UUID, bytes.fromhex("ff78ea41230301"))
 
 
     async def limits_move_up(self) -> None:
         """Move the blind up continuously for manual positioning (stubbed for now)."""
-        await self.send_limit_command("Moving up", "ff78ea41cf0301")
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Moving up")
+        move_command = "ff78ea41cf0301"
+        await self.send_command(UUID, bytes.fromhex(move_command))
+        self.limits_heartbeat_start(move_command)
 
 
     async def limits_move_down(self) -> None:
         """Move the blind down continuously for manual positioning (stubbed for now)."""
-        await self.send_limit_command("Moving down", "ff78ea411f0301")
-
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")  
+        
+        _LOGGER.debug("Moving down")
+        move_command = "ff78ea411f0301"
+        await self.send_command(UUID, bytes.fromhex(move_command))
+        self.limits_heartbeat_start(move_command)
+        
         
     async def limits_stop(self) -> None:
         """Stop the blind movement."""
-        # Connect to the blind first        
-        try:
-            _LOGGER.debug("Stopping movement")
-            await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
-        except RuntimeError as e:
-            raise ConnectionError("Connection lost") from e
-        
-        
-    async def set_limit(self) -> None:
-        """Sets the limit."""
+        self.limits_heartbeat_stop()
         # Connect to the blind first
-        try:
-            _LOGGER.debug("Setting the limit")
-            await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
-            await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
-        except RuntimeError as e:
-            raise ConnectionError("Connection lost") from e
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")  
+        
+        _LOGGER.debug("Stopping movement")
+        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
+        
+        
+    async def limits_set(self) -> None:
+        """Sets the limit."""
+        self.limits_heartbeat_stop()
+        # Connect to the blind first
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits set up failed")
+        
+        _LOGGER.debug("Setting the limit")
+        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
+        await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
 
     ##################################################################################################
     ## TIMER METHODS #################################################################################

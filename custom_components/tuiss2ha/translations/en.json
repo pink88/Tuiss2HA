@@ -54,7 +54,7 @@
             },
             "set_lower_limit": {
                 "title": "Set Lower Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (larger, continuous movement) or step (small movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_lower": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_lower": "Move Down (Press 'Stop' at desired position)",
@@ -68,7 +68,7 @@
             },
             "set_upper_limit": {
                 "title": "Set Upper Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (larger, continuous movement) or step (small movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_upper": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_upper": "Move Down (Press 'Stop' at desired position)",
@@ -91,9 +91,6 @@
                 "title": "Reconnection Failed",
                 "description": "Failed to reconnect to the blind. Please check the blind and try again."
             }
-        },
-        "progress": {
-            "reconnecting_limits": "Disconnected from the blind. Attempting to reconnect and reinitialise limits..."
         },
         "error": {
             "blind_is_moving": "The blind is currently moving. Please wait for it to stop before changing the speed.",
