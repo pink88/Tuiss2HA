@@ -20,6 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -776,7 +777,7 @@ class TuissBlind:
                 self._battery_status = None
             # Record time of this battery check
             try:
-                self._last_battery_check = datetime.datetime.now()
+                self._last_battery_check = dt_util.now()
             except Exception:
                 self._last_battery_check = None
             self._stopped_event.set()
@@ -898,7 +899,7 @@ class TuissBlind:
                     if not skip_battery_check and self._battery_check_days and (
                         self._last_battery_check is None
                         or (
-                            (datetime.datetime.now() - self._last_battery_check).total_seconds()
+                            (dt_util.now() - self._last_battery_check).total_seconds()
                             / 86400
                         )
                         > float(self._battery_check_days)

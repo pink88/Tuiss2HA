@@ -231,13 +231,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 elif not errors:
                     return self.async_create_entry(title="", data=user_input)
 
-        # Build the options form
-        dr = device_registry.async_get(self.hass)
+        # Build the options form.
+        # Read live model from the blind object — device registry's model
+        # field is set once at device registration and may hold the BLE
+        # advertisement name ("Tuiss Smartview") rather than the actual
+        # hardware model ("TS2600"), which would hide model-specific
+        # options like speed control.
         model_type = ""
-        for device in dr.devices.values():
-            if self.config_entry.entry_id in device.config_entries:
-                model_type = device.model
-                break
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+        if hub and hub.blinds:
+            model_type = hub.blinds[0].model or ""
+        if not model_type:
+            # Fallback to device registry if hub not yet loaded
+            dr = device_registry.async_get(self.hass)
+            for device in dr.devices.values():
+                if self.config_entry.entry_id in device.config_entries:
+                    model_type = device.model or ""
+                    break
 
         options_schema = {
             vol.Optional(

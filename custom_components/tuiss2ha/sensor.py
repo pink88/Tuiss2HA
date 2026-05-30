@@ -9,11 +9,10 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, ServiceCall
 import voluptuous as vol
-from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory
+from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory, UnitOfTime
 from homeassistant.helpers import entity_platform, config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -21,7 +20,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers import entity_registry as er
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import DOMAIN, SPEED_CONTROL_SUPPORTED_MODELS
 from .hub import TuissBlind, Hub
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,7 +57,19 @@ async def async_setup_entry(
             _LOGGER.debug("Adding existing timer sensor %s for blind %s", timer_id, blind.blind_id)
         if existing_sensors:
             async_add_entities(existing_sensors)
-        async_add_entities([TuissSignalSensor(blind)])
+
+        # Add standard sensors for all blinds
+        new_sensors = [
+            TuissSignalSensor(blind),
+            TuissModelSensor(blind),
+            TuissLastBatteryCheckSensor(blind),
+            TuissBatteryCheckIntervalSensor(blind),
+            TuissTraversalSpeedSensor(blind),
+            TuissLastConnectionErrorSensor(blind),
+            TuissBlindSpeedSensor(blind),
+        ]
+
+        async_add_entities(new_sensors)
             
         # 2. Listen for newly created timers dynamically
         def _create_add_timer_listener(current_blind):
@@ -256,4 +267,290 @@ class TuissSignalSensor(SensorEntity):
     def _handle_update(self) -> None:
         """Handle updated data from the hub."""
         self._attr_native_value = self.blind.rssi
-        self.async_write_ha_state() 
+        self.async_write_ha_state()
+
+
+class TuissModelSensor(SensorEntity):
+    """Tuiss Blind Model Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:tag"
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_model"
+        self._attr_name = "Model"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind.model
+
+    @property
+    def available(self) -> bool:
+        """Return True if the blind is available."""
+        return True
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return self.blind.model
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self.async_write_ha_state()
+
+
+class TuissBlindSpeedSensor(SensorEntity):
+    """Tuiss Blind Speed Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:speedometer"
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_blind_speed"
+        self._attr_name = "Blind Speed"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind._blind_speed
+
+    @property
+    def available(self) -> bool:
+        """Return True only if blind model supports speed control.
+
+        Gated dynamically rather than at setup so the sensor is created
+        even when model is not yet known (BLE device not in scanner cache
+        at boot). Becomes available once attempt_connection() discovers
+        the model and confirms it's supported.
+        """
+        return self.blind.model in SPEED_CONTROL_SUPPORTED_MODELS
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return self.blind._blind_speed
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self._attr_native_value = self.blind._blind_speed
+        self.async_write_ha_state()
+
+
+class TuissLastBatteryCheckSensor(SensorEntity):
+    """Tuiss Last Battery Check Timestamp Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_last_battery_check"
+        self._attr_name = "Last Battery Check"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind._last_battery_check
+
+    @property
+    def available(self) -> bool:
+        """Return True if the blind is available."""
+        return True
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self.blind._last_battery_check
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self._attr_native_value = self.blind._last_battery_check
+        self.async_write_ha_state()
+
+
+class TuissBatteryCheckIntervalSensor(SensorEntity):
+    """Tuiss Battery Check Interval Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_battery_check_interval"
+        self._attr_name = "Battery Check Interval"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+
+    @property
+    def available(self) -> bool:
+        """Return True if the blind is available."""
+        return True
+
+    @property
+    def native_value(self) -> str:
+        """Return the state of the sensor."""
+        days = self.blind._battery_check_days
+        if days == 0:
+            return "Disabled"
+        elif days == 1:
+            return "1 day"
+        else:
+            return f"{days} days"
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self.async_write_ha_state()
+
+
+class TuissTraversalSpeedSensor(SensorEntity):
+    """Tuiss Traversal Speed Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:gauge"
+    _attr_native_unit_of_measurement = "% per second"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_traversal_speed"
+        self._attr_name = "Traversal Speed"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind._attr_traversal_speed
+
+    @property
+    def available(self) -> bool:
+        """Return True if the blind is available."""
+        return True
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        speed = self.blind._attr_traversal_speed
+        if speed is None:
+            return None
+        return round(speed, 2)  # Round to 2 decimal places
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        speed = self.blind._attr_traversal_speed
+        self._attr_native_value = round(speed, 2) if speed is not None else None
+        self.async_write_ha_state()
+
+
+class TuissLastConnectionErrorSensor(SensorEntity):
+    """Tuiss Last Connection Error Sensor."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(self, blind: TuissBlind) -> None:
+        """Initialize the sensor."""
+        self.blind = blind
+        self._attr_unique_id = f"{self.blind.blind_id}_last_connection_error"
+        self._attr_name = "Last Connection Error"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.blind.blind_id)},
+            name=self.blind.name,
+            manufacturer=self.blind.hub.manufacturer,
+            model=self.blind.model,
+        )
+        self._attr_native_value = self.blind._last_connection_error
+
+    @property
+    def available(self) -> bool:
+        """Return True if the blind is available."""
+        return True
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state of the sensor."""
+        return self.blind._last_connection_error or "None"
+
+    async def async_added_to_hass(self) -> None:
+        """Register callbacks."""
+        self.blind.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callbacks."""
+        self.blind.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle updated data from the hub."""
+        self._attr_native_value = self.blind._last_connection_error or "None"
+        self.async_write_ha_state()
