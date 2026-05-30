@@ -50,6 +50,7 @@ from .const import (
     CMD_TIMER_DELETE_BASE,
     CMD_TIMER_RESET,
     CMD_BLIND_REACTIVATE,
+    CMD_TIMESTAMP_BASE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -835,7 +836,7 @@ class TuissBlind:
     async def send_timestamp(self) -> None:
         """Send the current timestamp command to the blind."""
         now = datetime.datetime.now()
-        timestamp_command = f"ff78ea410200{now.year - 2000:02x}{now.month:02x}{now.day:02x}{now.hour:02x}{now.minute:02x}{now.second:02x}"
+        timestamp_command = f"{CMD_TIMESTAMP_BASE}{now.year - 2000:02x}{now.month:02x}{now.day:02x}{now.hour:02x}{now.minute:02x}{now.second:02x}"
         await self.send_command(UUID, bytes.fromhex(timestamp_command))
 
     # Creates the % open/closed hex command
