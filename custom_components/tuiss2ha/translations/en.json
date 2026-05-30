@@ -42,8 +42,8 @@
                     "blind_speed": "How fast should the blind move to position",
                     "blind_favorite_position": "Favorite Position",
                     "blind_battery_check_days": "Battery check interval (days)",
-                    "configure_limits": "Configure Limits",
-                    "delete_all_timers": "Delete All Timers"
+                    "configure_limits": "Configure Upper and Lower Limits",
+                    "delete_all_timers_confirm": "Delete all timers"
                 },
                 "data_description": {
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
@@ -81,8 +81,8 @@
                 }
             },
             "delete_all_timers_confirm": {
-                "title": "Delete all timers?",
-                "description": "Are you sure you want to delete all timers from this blind? This action cannot be undone.",
+                "title": "Delete all Timers",
+                "description": "Are you sure you want to remove all timers from this blind, including any synced with the Tuiss app? This action cannot be undone.",
                 "data": {
                     "confirm": "Yes, I am sure"
                 }

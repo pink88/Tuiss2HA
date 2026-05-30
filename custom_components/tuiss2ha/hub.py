@@ -24,7 +24,7 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     DOMAIN,
     BLIND_NOTIFY_CHARACTERISTIC,
-    TRAVERAL_UPDATE_THRESHOLD,
+    TRAVERSAL_UPDATE_THRESHOLD,
     UUID,
     CONNECTION_MESSAGE,
     INITIALIZATION_MESSAGE,
@@ -413,6 +413,7 @@ class TuissBlind:
                     await asyncio.wait_for(self.wait_for_stop(), timeout=10.0)
                 except asyncio.TimeoutError:
                     _LOGGER.warning("%s: Timeout waiting for response in get_from_blind", self.name)
+                finally:
                     await self.disconnect()
         else:
             # If we couldn't start notify, ensure we disconnect
@@ -664,17 +665,23 @@ class TuissBlind:
 
     async def delete_all_timers(self) -> None:
         """Delete all timers from the blind."""
-        _LOGGER.debug("%s: Attempting to delete all timers from the blind.", self.name)
+        _LOGGER.debug("%s: Attempting to delete all timers.", self.name)
         # Connect to the blind first
         await self.ensure_connected()
 
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_timestamp()
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex("ff04040404")) # delete command
+        await self.send_command(UUID, bytes.fromhex("ff04040404")) # reset command
         
         await self.disconnect()
-
+        
+        # Reconnect to the blind to ensure it's back online after reset
+        await self.attempt_connection()
+        await self.send_command(UUID, bytes.fromhex("ff02020202787878787878")) # reactivate blind
+        await self.disconnect()
+         
+        #remove any timer entities
         if self.timers:
             timer_ids = list(self.timers.keys())
             for timer_id in timer_ids:
@@ -726,7 +733,7 @@ class TuissBlind:
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
-        _LOGGER.debug("%s: Attempting to get battery status", self.name)
+        _LOGGER.debug("%s: Attempting to get battery status from response %s", self.name, data.hex())
 
         decimals = self.split_data(data)
 
@@ -747,7 +754,7 @@ class TuissBlind:
                 self._last_battery_check = datetime.datetime.now()
             except Exception:
                 self._last_battery_check = None
-            await self.disconnect()
+            self._stopped_event.set()
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Wait for response from the blind and updates entity status."""
@@ -759,7 +766,7 @@ class TuissBlind:
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
         self._moving = 0
-        await self.disconnect()
+        self._stopped_event.set()
 
     async def set_position_callback(
         self, sender: BleakGATTCharacteristic, data: bytearray
@@ -769,15 +776,14 @@ class TuissBlind:
         _LOGGER.debug(
             "%s: Received response during movement: %s", self.name, decimals
         )
-        if len(decimals) == 9: # was >= 
-            # blindPos = (decimals[7] + (256 * decimals[8])) / 10
+        if len(decimals) >= 9 and decimals[4] == 210:
             blindPos = decimals[6]
             self._current_cover_position = blindPos
             self.publish_updates()
             
             if self._desired_position is not None and abs(blindPos - self._desired_position) <= 2:
-                _LOGGER.debug("%s: Reached desired position. Disconnecting.", self.name)
-                await self.disconnect()
+                _LOGGER.debug("%s: Reached desired position. Stopping wait.", self.name)
+                self._stopped_event.set()
 
     ##################################################################################################
     ## DATA METHODS ############################################################################
@@ -1002,7 +1008,7 @@ class TuissBlind:
         time_taken = (end_time - start_time).total_seconds()
         traversal_distance = abs(target_position - start_position)
         # Only update traversal speed if the blind has moved a significant distance to avoid skewing from small movements or noise
-        if traversal_distance > TRAVERAL_UPDATE_THRESHOLD:
+        if traversal_distance > TRAVERSAL_UPDATE_THRESHOLD:
             self._attr_traversal_speed = traversal_distance / time_taken
             _LOGGER.debug(
                 "%s: Time Taken: %s. Start Pos: %s. End Pos: %s. Distance Travelled: %s. Traversal Speed: %s",
