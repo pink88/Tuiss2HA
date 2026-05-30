@@ -18,7 +18,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, SPEED_CONTROL_SUPPORTED_MODELS
 from .hub import TuissBlind, Hub
@@ -365,7 +367,7 @@ class TuissBlindSpeedSensor(SensorEntity):
         self.async_write_ha_state()
 
 
-class TuissLastBatteryCheckSensor(SensorEntity):
+class TuissLastBatteryCheckSensor(SensorEntity, RestoreEntity):
     """Tuiss Last Battery Check Timestamp Sensor."""
 
     _attr_has_entity_name = True
@@ -396,7 +398,15 @@ class TuissLastBatteryCheckSensor(SensorEntity):
         return self.blind._last_battery_check
 
     async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
+        """Restore last state and register callbacks."""
+        await super().async_added_to_hass()
+        if self.blind._last_battery_check is None:
+            last_state = await self.async_get_last_state()
+            if last_state and last_state.state not in (None, "unknown", "unavailable"):
+                restored = dt_util.parse_datetime(last_state.state)
+                if restored is not None:
+                    self.blind._last_battery_check = restored
+                    self._attr_native_value = restored
         self.blind.register_callback(self._handle_update)
 
     async def async_will_remove_from_hass(self) -> None:
