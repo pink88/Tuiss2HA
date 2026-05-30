@@ -42,19 +42,19 @@
                     "blind_speed": "How fast should the blind move to position",
                     "blind_favorite_position": "Favorite Position",
                     "blind_battery_check_days": "Battery check interval (days)",
-                    "configure_limits": "Configure Limits"
+                    "configure_limits": "Configure Upper and Lower Limits",
+                    "delete_all_timers_confirm": "Delete all timers"
                 },
                 "data_description": {
                     "blind_restart_position": "Fetch the blinds current position following a Home Assistant restart. Useful if you use the Smartview app or a remote control.",
                     "blind_restart_attempts": "Connection attempts that will be made before timing out. Increase this if you find that you are getting dropped requests. Note: the distance between blinds and Bluetooth proxies/dongles is the main cause for connection drop-offs.",
                     "blind_favorite_position": "The position (in percent, 0=closed, 100=open) that the blind will move to when the 'Go to Favorite Position' button is pressed.",
-                    "blind_battery_check_days": "The number of days between automatic battery checks (checks are made when the blind moves). Set to 0 to disable automatic checks.",
-                    "configure_limits": "EXPERIMENTAL (use at own risk): Open a dialog to set the upper and lower limits for the blind by moving it to the desired positions."
+                    "blind_battery_check_days": "The number of days between automatic battery checks (checks are made when the blind moves). Set to 0 to disable automatic checks."
                 }
             },
             "set_lower_limit": {
                 "title": "Set Lower Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (larger, continuous movement) or step (small movement) the blind to the desired lower limit position. Select 'Save Lower Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_lower": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_lower": "Move Down (Press 'Stop' at desired position)",
@@ -68,7 +68,7 @@
             },
             "set_upper_limit": {
                 "title": "Set Upper Limit",
-                "description": "Use the menu options below to move (continuous movement) or step (incremental movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
+                "description": "Use the menu options below to move (larger, continuous movement) or step (small movement) the blind to the desired upper limit position. Select 'Save Upper Limit' when done.\n\n**WARNING: Do not close this window before finishing setting the limits, or the blinds may not function correctly. Use the Save options to ensure limits are saved correctly.**",
                 "menu_options": {
                     "limit_move_up_upper": "Move Up (Press 'Stop' at desired position)",
                     "limit_move_down_upper": "Move Down (Press 'Stop' at desired position)",
@@ -79,12 +79,24 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Save Upper Limit"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Delete all Timers",
+                "description": "Are you sure you want to remove all timers from this blind, including any synced with the Tuiss app? This action cannot be undone.",
+                "data": {
+                    "confirm": "Yes, I am sure"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Reconnection Failed",
+                "description": "Failed to reconnect to the blind. Please check the blind and try again."
             }
         },
         "error": {
             "blind_is_moving": "The blind is currently moving. Please wait for it to stop before changing the speed.",
             "position_unknown": "Cannot set limit - blind position is unknown. Move the blind first.",
-            "limits_not_set": "Both lower and upper limits must be set before closing this dialog."
+            "limits_not_set": "Both lower and upper limits must be set before closing this dialog.",
+            "multiple_actions_selected": "Please select only one action at a time."
         }
     },
     "services": {

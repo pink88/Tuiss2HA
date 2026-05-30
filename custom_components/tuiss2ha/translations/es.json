@@ -42,16 +42,14 @@
                     "blind_speed": "A qué velocidad debe moverse la persiana a la posición",
                     "blind_favorite_position": "Posición Favorita",
                     "blind_battery_check_days": "Intervalo de comprobación de batería (días)",
-                    "force_unlock": "Desbloqueo forzado",
-                    "configure_limits": "Configurar Límites"
+                    "configure_limits": "Configurar límites superior e inferior",
+                    "delete_all_timers_confirm": "Eliminar todos los temporizadores"
                 },
                 "data_description": {
                     "blind_restart_position": "Obtener la posición actual de las persianas después de un reinicio de Home Assistant. Útil si usas la aplicación Smartview o un mando a distancia.",
                     "blind_restart_attempts": "Número de intentos de conexión que se realizarán antes de que se agote el tiempo de espera. Aumenta este valor si observas que se pierden solicitudes. Nota: la distancia entre las persianas y los proxies/dongles de Bluetooth es la causa principal de las caídas de conexión.",
                     "blind_favorite_position": "La posición (en porcentaje, 0=cerrado, 100=abierto) a la que se moverá la persiana cuando se presione el botón 'Ir a la Posición Favorita'.",
-                    "blind_battery_check_days": "Número de días entre comprobaciones automáticas de batería cuando la persiana se mueve. Establezca 0 para desactivar las comprobaciones automáticas.",
-                    "force_unlock": "Forzar el desbloqueo de la persiana si está atascada en el estado 'bloqueada'.",
-                    "configure_limits": "EXPERIMENTAL (usar bajo su propio riesgo): Abre un diálogo para establecer los límites superior e inferior de la persiana moviéndola a las posiciones deseadas."
+                    "blind_battery_check_days": "Número de días entre comprobaciones automáticas de batería cuando la persiana se mueve. Establezca 0 para desactivar las comprobaciones automáticas."
                 }
             },
             "set_lower_limit": {
@@ -81,12 +79,24 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Guardar límite superior"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Eliminar todos los temporizadores",
+                "description": "¿Está seguro de que desea eliminar todos los temporizadores de esta persiana, incluidos los sincronizados con la aplicación Tuiss? Esta acción no se puede deshacer.",
+                "data": {
+                    "confirm": "Sí, estoy seguro"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Reconexión fallida",
+                "description": "Error al reconectar con la persiana. Compruebe la persiana e inténtelo de nuevo."
             }
         },
         "error": {
             "blind_is_moving": "La persiana se está moviendo actualmente. Espere a que se detenga antes de cambiar la velocidad.",
             "position_unknown": "No se puede establecer el límite: se desconoce la posición de la persiana. Mueva la persiana primero.",
-            "limits_not_set": "Se deben establecer los límites inferior y superior antes de cerrar este diálogo."
+            "limits_not_set": "Se deben establecer los límites inferior y superior antes de cerrar este diálogo.",
+            "multiple_actions_selected": "Por favor, seleccione solo una acción a la vez."
         }
     }
 ,

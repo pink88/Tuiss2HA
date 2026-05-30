@@ -42,16 +42,14 @@
                     "blind_speed": "A che velocità la tenda dovrebbe spostarsi in posizione",
                     "blind_favorite_position": "Posizione Preferita",
                     "blind_battery_check_days": "Intervallo controllo batteria (giorni)",
-                    "force_unlock": "Sblocco forzato",
-                    "configure_limits": "Configura Limiti"
+                    "configure_limits": "Configura i limiti superiore e inferiore",
+                    "delete_all_timers_confirm": "Elimina tutti i timer"
                 },
                 "data_description": {
                     "blind_restart_position": "Recupera la posizione corrente delle tende dopo un riavvio di Home Assistant. Utile se usi l'app Smartview o un telecomando.",
                     "blind_restart_attempts": "Numero di tentativi di connessione che verranno effettuati prima del timeout. Aumenta questo valore se noti che le richieste vengono interrotte. Nota: la distanza tra le tende e i proxy/dongle Bluetooth è la causa principale delle interruzioni di connessione.",
                     "blind_favorite_position": "La posizione (in percentuale, 0=chiuso, 100=aperto) in cui si sposterà la tenda quando viene premuto il pulsante 'Vai alla Posizione Preferita'.",
-                    "blind_battery_check_days": "Numero di giorni tra i controlli automatici della batteria quando la tenda si sposta. Impostare 0 per disabilitare i controlli automatici.",
-                    "force_unlock": "Forza lo sblocco della tenda se è bloccata nello stato 'bloccato'.",
-                    "configure_limits": "SPERIMENTALE (uso a proprio rischio): Apre una finestra di dialogo per impostare i limiti superiore e inferiore della tenda spostandola nelle posizioni desiderate."
+                    "blind_battery_check_days": "Numero di giorni tra i controlli automatici della batteria quando la tenda si sposta. Impostare 0 per disabilitare i controlli automatici."
                 }
             },
             "set_lower_limit": {
@@ -81,12 +79,24 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Salva limite superiore"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Elimina tutti i timer",
+                "description": "Sei sicuro di voler rimuovere tutti i timer da questa tenda, inclusi quelli sincronizzati con l'app Tuiss? Questa azione non può essere annullata.",
+                "data": {
+                    "confirm": "Sì, sono sicuro"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Riconnessione fallita",
+                "description": "Impossibile riconnettersi alla tenda. Controllare la tenda e riprovare."
             }
         },
         "error": {
             "blind_is_moving": "La tenda è attualmente in movimento. Attendere che si fermi prima di modificare la velocità.",
             "position_unknown": "Impossibile impostare il limite - posizione della tenda sconosciuta. Spostare prima la tenda.",
-            "limits_not_set": "Sia il limite inferiore che quello superiore devono essere impostati prima di chiudere questa finestra di dialogo."
+            "limits_not_set": "Sia il limite inferiore che quello superiore devono essere impostati prima di chiudere questa finestra di dialogo.",
+            "multiple_actions_selected": "Seleziona solo un'azione alla volta."
         }
     }
 ,

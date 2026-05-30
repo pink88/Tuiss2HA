@@ -42,16 +42,14 @@
                     "blind_speed": "À quelle vitesse le store doit-il se déplacer en position",
                     "blind_favorite_position": "Position Favorite",
                     "blind_battery_check_days": "Intervalle de vérification de la batterie (jours)",
-                    "force_unlock": "Déverrouillage forcé",
-                    "configure_limits": "Configurer les Limites"
+                    "configure_limits": "Configurer les limites supérieure et inférieure",
+                    "delete_all_timers_confirm": "Supprimer tous les minuteurs"
                 },
                 "data_description": {
                     "blind_restart_position": "Récupérer la position actuelle des stores après un redémarrage de Home Assistant. Utile si vous utilisez l'application Smartview ou une télécommande.",
                     "blind_restart_attempts": "Nombre de tentatives de connexion qui seront effectuées avant l'expiration du délai. Augmentez cette valeur si vous constatez que vous recevez des demandes abandonnées. Remarque : la distance entre les stores et les proxys/dongles Bluetooth est la principale cause des pertes de connexion.",
                     "blind_favorite_position": "La position (en pourcentage, 0=fermé, 100=ouvert) à laquelle le store se déplacera lorsque le bouton 'Aller à la Position Favorite' sera enfoncé.",
-                    "blind_battery_check_days": "Nombre de jours entre les vérifications automatiques de la batterie lorsque le store se déplace. Réglez sur 0 pour désactiver les vérifications automatiques.",
-                    "force_unlock": "Force le déverrouillage du store s'il est coincé dans l'état 'verrouillé'.",
-                    "configure_limits": "EXPÉRIMENTAL (utilisation à vos risques et périls) : Ouvre une boîte de dialogue pour définir les limites supérieure et inférieure du store en le déplaçant vers les positions souhaitées."
+                    "blind_battery_check_days": "Nombre de jours entre les vérifications automatiques de la batterie lorsque le store se déplace. Réglez sur 0 pour désactiver les vérifications automatiques."
                 }
             },
             "set_lower_limit": {
@@ -81,12 +79,24 @@
                     "limit_spacer_2_upper": "--------------------------------------------------",
                     "save_upper_limit": "Enregistrer la limite supérieure"
                 }
+            },
+            "delete_all_timers_confirm": {
+                "title": "Supprimer tous les minuteurs",
+                "description": "Êtes-vous sûr de vouloir supprimer tous les minuteurs de ce store, y compris ceux synchronisés avec l'application Tuiss ? Cette action ne peut pas être annulée.",
+                "data": {
+                    "confirm": "Oui, je suis sûr"
+                }
+            },
+            "reconnect_failed": {
+                "title": "Échec de la reconnexion",
+                "description": "Échec de la reconnexion au store. Veuillez vérifier le store et réessayer."
             }
         },
         "error": {
             "blind_is_moving": "Le store est en mouvement. Veuillez attendre qu'il s'arrête avant de changer la vitesse.",
             "position_unknown": "Impossible de définir la limite - position du store inconnue. Déplacez d'abord le store.",
-            "limits_not_set": "Les limites inférieure et supérieure doivent toutes deux être définies avant de fermer cette boîte de dialogue."
+            "limits_not_set": "Les limites inférieure et supérieure doivent toutes deux être définies avant de fermer cette boîte de dialogue.",
+            "multiple_actions_selected": "Veuillez ne sélectionner qu'une seule action à la fois."
         }
     }
 ,

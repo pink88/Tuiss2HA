@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -188,6 +189,10 @@ async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle Tuiss options."""
 
+    def __init__(self) -> None:
+        """Initialize options flow."""
+        pass
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -202,22 +207,29 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         blind_device = hub.blinds[0]
 
         if user_input is not None:
-            # Check if user wants to configure limits
-            if user_input.get("configure_limits"):
-                return await self.async_step_set_lower_limit(initial=True)
-            
-            # Check if the user is trying to change the speed while the blind is moving
-            is_moving = blind_device._moving != 0
-            current_speed = self.config_entry.options.get(
-                OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
-            )
-            new_speed = user_input.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
-            speed_has_changed = new_speed != current_speed
+            if user_input.get("configure_limits") and user_input.get("delete_all_timers_confirm"):
+                errors["base"] = "multiple_actions_selected"
+            else:
+                # Check if user wants to configure limits
+                if user_input.get("configure_limits"):
+                    return await self.async_step_set_lower_limit(initial=True)
+                
+                # Check if user wants to factory reset
+                if user_input.get("delete_all_timers_confirm"):
+                    return await self.async_step_delete_all_timers_confirm()
+                
+                # Check if the user is trying to change the speed while the blind is moving
+                is_moving = blind_device._moving != 0
+                current_speed = self.config_entry.options.get(
+                    OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED
+                )
+                new_speed = user_input.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
+                speed_has_changed = new_speed != current_speed
 
-            if is_moving and speed_has_changed:
-                errors["base"] = "blind_is_moving"
-            elif not errors:
-                return self.async_create_entry(title="", data=user_input)
+                if is_moving and speed_has_changed:
+                    errors["base"] = "blind_is_moving"
+                elif not errors:
+                    return self.async_create_entry(title="", data=user_input)
 
         # Build the options form
         dr = device_registry.async_get(self.hass)
@@ -258,6 +270,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             ),
             # Limit configuration button
             vol.Optional("configure_limits", default=False): bool,
+            # Delete all timers button
+            vol.Optional("delete_all_timers_confirm", default=False): bool,
         }
 
         # Add speed control option only for supported models
@@ -286,6 +300,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
 
+    async def async_step_delete_all_timers_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the factory reset confirmation dialog."""
+        hub: Hub | None = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+
+        if not hub:
+            return self.async_abort(reason="hub_not_found")
+
+        if user_input is not None:
+            if user_input.get("confirm"):
+                await hub.blinds[0].delete_all_timers()
+                return self.async_create_entry(title="", data=self.config_entry.options)
+            else:
+                return await self.async_step_init()
+
+        return self.async_show_form(
+            step_id="delete_all_timers_confirm",
+            data_schema=vol.Schema({vol.Required("confirm", default=False): bool}),
+        )
+
     async def async_step_set_lower_limit(
         self, user_input: dict[str, Any] | None = None, initial: bool = False
     ) -> FlowResult:
@@ -301,47 +336,55 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if initial:
             await blind_device.limits_initialise()
 
+        menu_options = [
+            "limit_move_up_lower",
+            "limit_move_down_lower",
+            "limit_stop_lower",
+            "limit_spacer_1_lower",
+            "limit_step_up_lower",
+            "limit_step_down_lower",
+            "limit_spacer_2_lower",
+            "save_lower_limit"
+        ]
+
+        if blind_device._limits_heartbeat_task is not None and not blind_device._limits_heartbeat_task.done():
+            menu_options = ["limit_stop_lower"]
+
         return self.async_show_menu(
             step_id="set_lower_limit",
-            menu_options=[
-                "limit_move_up_lower",
-                "limit_move_down_lower",
-                "limit_stop_lower",
-                "limit_spacer_1_lower",
-                "limit_step_up_lower",
-                "limit_step_down_lower",
-                "limit_spacer_2_lower",
-                "save_lower_limit"
-            ],
+            menu_options=menu_options,
             description_placeholders={
                 "placeholder text"
             },
         )
 
+    async def _execute_limit_command(self, command_coro, return_step: str) -> FlowResult:
+        """Execute a limit command."""
+        await command_coro
+        if return_step == "set_lower_limit":
+            return await self.async_step_set_lower_limit()
+        else:
+            return await self.async_step_set_upper_limit()
+
     async def async_step_limit_move_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_up()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_up(), "set_lower_limit")
 
     async def async_step_limit_move_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_down()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_down(), "set_lower_limit")
 
     async def async_step_limit_step_up_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_up()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_up(), "set_lower_limit")
 
     async def async_step_limit_step_down_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_down()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_down(), "set_lower_limit")
 
     async def async_step_limit_stop_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_stop()
-        return await self.async_step_set_lower_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_stop(), "set_lower_limit")
 
     async def async_step_limit_spacer_1_lower(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_set_lower_limit()
@@ -351,7 +394,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_save_lower_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].set_limit()
+        await hub.blinds[0].limits_set()
         return await self.async_step_set_upper_limit()
 
     async def async_step_set_upper_limit(
@@ -363,18 +406,25 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if not hub:
             return self.async_abort(reason="hub_not_found")
 
+        blind_device = hub.blinds[0]
+
+        menu_options = [
+            "limit_move_up_upper",
+            "limit_move_down_upper",
+            "limit_stop_upper",
+            "limit_spacer_1_upper",
+            "limit_step_up_upper",
+            "limit_step_down_upper",
+            "limit_spacer_2_upper",
+            "save_upper_limit"
+        ]
+
+        if blind_device._limits_heartbeat_task is not None and not blind_device._limits_heartbeat_task.done():
+            menu_options = ["limit_stop_upper"]
+
         return self.async_show_menu(
             step_id="set_upper_limit",
-            menu_options=[
-                "limit_move_up_upper",
-                "limit_move_down_upper",
-                "limit_stop_upper",
-                "limit_spacer_1_upper",
-                "limit_step_up_upper",
-                "limit_step_down_upper",
-                "limit_spacer_2_upper",
-                "save_upper_limit"
-            ],
+            menu_options=menu_options,
             description_placeholders={
                 "placeholder text"
             },
@@ -382,28 +432,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_limit_move_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_up()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_move_up(), "set_upper_limit")
 
     async def async_step_limit_move_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_move_down()
-        return await self.async_step_set_upper_limit()  
+        return await self._execute_limit_command(hub.blinds[0].limits_move_down(), "set_upper_limit")
 
     async def async_step_limit_step_up_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_up()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_up(), "set_upper_limit")
 
     async def async_step_limit_step_down_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_step_down()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_step_down(), "set_upper_limit")
 
     async def async_step_limit_stop_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].limits_stop()
-        return await self.async_step_set_upper_limit()
+        return await self._execute_limit_command(hub.blinds[0].limits_stop(), "set_upper_limit")
 
     async def async_step_limit_spacer_1_upper(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_set_upper_limit()
@@ -413,6 +458,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_save_upper_limit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         hub: Hub = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-        await hub.blinds[0].set_limit()
+        await hub.blinds[0].limits_set()
         await hub.blinds[0].get_blind_position()
         return self.async_create_entry(title="", data=self.config_entry.options)
