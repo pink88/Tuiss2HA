@@ -33,6 +33,22 @@ from .const import (
     ConnectionTimeout,
     NoConnectableBluetoothAdapter,
     TIMEOUT_SECONDS,
+    CMD_HEARTBEAT,
+    CMD_STOP,
+    CMD_BATTERY_STATUS,
+    CMD_SPEED_STANDARD,
+    CMD_SPEED_COMFORT,
+    CMD_SPEED_SLOW,
+    CMD_LIMITS_INIT_2,
+    CMD_LIMITS_STEP_UP,
+    CMD_LIMITS_STEP_DOWN,
+    CMD_LIMITS_MOVE_UP,
+    CMD_LIMITS_MOVE_DOWN,
+    CMD_LIMITS_SET,
+    CMD_TIMER_REQUEST,
+    CMD_TIMER_DELETE_BASE,
+    CMD_TIMER_RESET,
+    CMD_BLIND_REACTIVATE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -324,7 +340,7 @@ class TuissBlind:
     async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
-        command = bytes.fromhex("ff78ea415f0301")
+        command = bytes.fromhex(CMD_STOP)
 
         # skip if the blind is not moving
         if self._moving == 0:
@@ -346,11 +362,20 @@ class TuissBlind:
         _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
         match self._blind_speed:
             case "Standard":
-                command = bytes.fromhex("ff78ea41f202")
+                command = bytes.fromhex(CMD_SPEED_STANDARD)
             case "Comfort":
-                command = bytes.fromhex("ff78ea41f201")
+                command = bytes.fromhex(CMD_SPEED_COMFORT)
             case "Slow":
-                command = bytes.fromhex("ff78ea41f200")
+                command = bytes.fromhex(CMD_SPEED_SLOW)
+            case _:
+                # Defensive: caller should validate, but never let an unset
+                # or unrecognised speed value raise UnboundLocalError below.
+                _LOGGER.warning(
+                    "%s: Cannot set speed — unrecognised value %r",
+                    self.name,
+                    self._blind_speed,
+                )
+                return
 
 
         await self.ensure_connected()
@@ -423,7 +448,7 @@ class TuissBlind:
 
     async def get_battery_status(self) -> None:
         """Get the battery state from the blind as good or bad."""
-        command = bytes.fromhex("ff78ea41f00301")
+        command = bytes.fromhex(CMD_BATTERY_STATUS)
         await self.get_from_blind(command, self.battery_callback)
 
 
@@ -453,7 +478,7 @@ class TuissBlind:
 
     async def limits_heartbeat_loop(self, move_command_str: str) -> None:
         """Send heartbeat every 4 seconds while moving."""
-        heartbeat_command = bytes.fromhex("ff010101010101")
+        heartbeat_command = bytes.fromhex(CMD_HEARTBEAT)
         move_command = bytes.fromhex(move_command_str)
         while True:
             try:
@@ -480,7 +505,7 @@ class TuissBlind:
         # Set the initialisation commands
         _LOGGER.debug("Sending initialisation commands")
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex("ff78ea41210301"))
+        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_INIT_2))
     
 
     async def limits_step_up(self) -> None:
@@ -491,7 +516,7 @@ class TuissBlind:
             _LOGGER.debug("Connection lost, limits set up failed")
         
         _LOGGER.debug("Stepping up")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41220301"))    
+        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_STEP_UP))
         
 
     async def limits_step_down(self) -> None:
@@ -502,7 +527,7 @@ class TuissBlind:
             _LOGGER.debug("Connection lost, limits set up failed")
         
         _LOGGER.debug("Stepping down")
-        await self.send_command(UUID, bytes.fromhex("ff78ea41230301"))
+        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_STEP_DOWN))
 
 
     async def limits_move_up(self) -> None:
@@ -512,7 +537,7 @@ class TuissBlind:
             _LOGGER.debug("Connection lost, limits set up failed")
         
         _LOGGER.debug("Moving up")
-        move_command = "ff78ea41cf0301"
+        move_command = CMD_LIMITS_MOVE_UP
         await self.send_command(UUID, bytes.fromhex(move_command))
         self.limits_heartbeat_start(move_command)
 
@@ -524,7 +549,7 @@ class TuissBlind:
             _LOGGER.debug("Connection lost, limits set up failed")  
         
         _LOGGER.debug("Moving down")
-        move_command = "ff78ea411f0301"
+        move_command = CMD_LIMITS_MOVE_DOWN
         await self.send_command(UUID, bytes.fromhex(move_command))
         self.limits_heartbeat_start(move_command)
         
@@ -537,19 +562,19 @@ class TuissBlind:
             _LOGGER.debug("Connection lost, limits set up failed")  
         
         _LOGGER.debug("Stopping movement")
-        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
-        
-        
+        await self.send_command(UUID, bytes.fromhex(CMD_STOP))
+
+
     async def limits_set(self) -> None:
         """Sets the limit."""
         self.limits_heartbeat_stop()
         # Connect to the blind first
         if not self._client or not self._client.is_connected:
             _LOGGER.debug("Connection lost, limits set up failed")
-        
+
         _LOGGER.debug("Setting the limit")
-        await self.send_command(UUID, bytes.fromhex("ff78ea415f0301"))
-        await self.send_command(UUID, bytes.fromhex("ff78ea41410301"))
+        await self.send_command(UUID, bytes.fromhex(CMD_STOP))
+        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_SET))
 
     ##################################################################################################
     ## TIMER METHODS #################################################################################
@@ -591,7 +616,7 @@ class TuissBlind:
 
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))   
         await self.send_timestamp()   
-        await self.send_command(UUID, bytes.fromhex("ff78ea4104"))   
+        await self.send_command(UUID, bytes.fromhex(CMD_TIMER_REQUEST))
         
         try:
             await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
@@ -621,9 +646,9 @@ class TuissBlind:
         timer_id = new_timer_id
         timer_command = self.create_timer_command(timer_id, days, time_str, position)
         
-        await self.send_command(UUID, bytes.fromhex(timer_command))   
-        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
-        await self.disconnect()       
+        await self.send_command(UUID, bytes.fromhex(timer_command))
+        await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
+        await self.disconnect()
         
         existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
         available_indices = set(range(1, 17)) - existing_ha_indices
@@ -650,9 +675,9 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_timestamp()      
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        delete_hex = f"ff78ea410301{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
+        delete_hex = f"{CMD_TIMER_DELETE_BASE}{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
         await self.send_command(UUID, bytes.fromhex(delete_hex))
-        await self.send_command(UUID, bytes.fromhex("ff78ea41f00301"))
+        await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
         await self.disconnect()
         
         if timer_id in self.timers:
@@ -672,13 +697,13 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_timestamp()
         await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex("ff04040404")) # reset command
-        
+        await self.send_command(UUID, bytes.fromhex(CMD_TIMER_RESET)) # reset command
+
         await self.disconnect()
-        
+
         # Reconnect to the blind to ensure it's back online after reset
         await self.attempt_connection()
-        await self.send_command(UUID, bytes.fromhex("ff02020202787878787878")) # reactivate blind
+        await self.send_command(UUID, bytes.fromhex(CMD_BLIND_REACTIVATE)) # reactivate blind
         await self.disconnect()
          
         #remove any timer entities
