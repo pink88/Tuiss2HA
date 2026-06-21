@@ -679,7 +679,7 @@ class TuissBlind:
                 movement_direction=movement_direction,
                 target_position=100 - position,
             )
-        except (ConnectionTimeout, DeviceNotFound) as e:
+        except (ConnectionTimeout, DeviceNotFound, HomeAssistantError) as e:
             raise HomeAssistantError(
                 f"{self.name}: preset {name!r} failed to apply: {e}"
             ) from e
