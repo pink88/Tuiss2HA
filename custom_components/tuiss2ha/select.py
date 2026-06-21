@@ -8,6 +8,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -90,11 +91,10 @@ class TuissPresetSelect(SelectEntity):
     async def async_select_option(self, option: str) -> None:
         """Apply the chosen preset by moving the cover to its position."""
         if option not in self.blind.presets:
-            _LOGGER.warning(
-                "%s: Preset %r not found; available: %s",
-                self.blind.name, option, list(self.blind.presets),
+            raise HomeAssistantError(
+                f"{self.blind.name}: preset {option!r} not found; "
+                f"available: {list(self.blind.presets)}"
             )
-            return
         position = self.blind.presets[option]
         _LOGGER.info(
             "%s: Applying preset %r -> position %s%%",
@@ -107,11 +107,9 @@ class TuissPresetSelect(SelectEntity):
             Platform.COVER, DOMAIN, cover_unique_id
         )
         if not cover_entity_id:
-            _LOGGER.warning(
-                "%s: Could not find cover entity for preset %r",
-                self.blind.name, option,
+            raise HomeAssistantError(
+                f"{self.blind.name}: cover entity not found for preset {option!r}"
             )
-            return
 
         await self.hass.services.async_call(
             "cover",

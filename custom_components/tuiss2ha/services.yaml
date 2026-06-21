@@ -134,6 +134,9 @@ save_preset:
       selector:
         entity:
           integration: tuiss2ha
+          domain:
+            - cover
+            - select
     name:
       required: true
       selector:
@@ -157,6 +160,9 @@ save_current_position_as_preset:
       selector:
         entity:
           integration: tuiss2ha
+          domain:
+            - cover
+            - select
     name:
       required: true
       selector:
@@ -170,6 +176,9 @@ delete_preset:
       selector:
         entity:
           integration: tuiss2ha
+          domain:
+            - cover
+            - select
     name:
       required: true
       selector:
@@ -183,6 +192,9 @@ apply_preset:
       selector:
         entity:
           integration: tuiss2ha
+          domain:
+            - cover
+            - select
     name:
       required: true
       selector:

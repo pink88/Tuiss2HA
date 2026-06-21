@@ -260,3 +260,96 @@ def test_select_unavailable_when_no_presets(mock_hass):
     tb.presets = {}
 
     assert sel.available is False
+
+
+# ---------------------------------------------------------------------------
+# Schema + resolver guards
+# ---------------------------------------------------------------------------
+
+
+def test_preset_name_schema_strips_whitespace():
+    """The shared name schema must trim leading/trailing whitespace."""
+    from custom_components.tuiss2ha import _PRESET_NAME_SCHEMA
+
+    assert _PRESET_NAME_SCHEMA("  Morning  ") == "Morning"
+
+
+def test_preset_name_schema_rejects_blank():
+    """Whitespace-only or empty names must be refused before reaching storage."""
+    import voluptuous as vol
+    from custom_components.tuiss2ha import _PRESET_NAME_SCHEMA
+
+    with pytest.raises(vol.Invalid):
+        _PRESET_NAME_SCHEMA("")
+    with pytest.raises(vol.Invalid):
+        _PRESET_NAME_SCHEMA("   ")
+    with pytest.raises(vol.Invalid):
+        _PRESET_NAME_SCHEMA("\t\n")
+
+
+def test_resolve_rejects_non_preset_entity(mock_hass):
+    """Resolver must refuse tuiss2ha entities that aren't cover/preset select.
+
+    Battery, signal-strength, model etc. share the integration platform but
+    are not valid preset-service targets. The resolver should return None
+    rather than falling back to a fragile rsplit that accidentally yields
+    the correct blind only because MAC addresses lack underscores.
+    """
+    from custom_components.tuiss2ha import _resolve_blind_from_entity_id, DOMAIN
+    from custom_components.tuiss2ha.hub import Hub
+
+    blind = MagicMock()
+    blind.blind_id = "AA:BB:CC:DD:EE:FF"
+    hub = MagicMock(spec=Hub)
+    hub.blinds = [blind]
+    mock_hass.data = {DOMAIN: {"entry": hub}}
+
+    # Fake the entity registry — return an entry for a battery sensor.
+    fake_entry = MagicMock()
+    fake_entry.platform = DOMAIN
+    fake_entry.unique_id = "AA:BB:CC:DD:EE:FF_battery"
+
+    with patch(
+        "custom_components.tuiss2ha.er.async_get",
+        return_value=MagicMock(async_get=MagicMock(return_value=fake_entry)),
+    ):
+        result = _resolve_blind_from_entity_id(
+            mock_hass, "binary_sensor.blind_test_battery"
+        )
+
+    assert result is None
+
+
+def test_resolve_accepts_cover_and_preset_select(mock_hass):
+    """Resolver must accept both the cover entity and the preset select entity."""
+    from custom_components.tuiss2ha import _resolve_blind_from_entity_id, DOMAIN
+    from custom_components.tuiss2ha.hub import Hub
+
+    blind = MagicMock()
+    blind.blind_id = "AA:BB:CC:DD:EE:FF"
+    hub = MagicMock(spec=Hub)
+    hub.blinds = [blind]
+    mock_hass.data = {DOMAIN: {"entry": hub}}
+
+    for suffix in ("_cover", "_preset_select"):
+        fake_entry = MagicMock()
+        fake_entry.platform = DOMAIN
+        fake_entry.unique_id = f"AA:BB:CC:DD:EE:FF{suffix}"
+        with patch(
+            "custom_components.tuiss2ha.er.async_get",
+            return_value=MagicMock(async_get=MagicMock(return_value=fake_entry)),
+        ):
+            result = _resolve_blind_from_entity_id(mock_hass, "ignored.id")
+        assert result is blind, f"resolver must accept {suffix}"
+
+
+@pytest.mark.asyncio
+async def test_select_raises_on_unknown_option(mock_hass):
+    """Selecting a preset that no longer exists must surface as an error."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Morning": 80}
+
+    with pytest.raises(HomeAssistantError, match="not found"):
+        await sel.async_select_option("Nope")
