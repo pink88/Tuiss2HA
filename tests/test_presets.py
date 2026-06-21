@@ -80,15 +80,15 @@ async def test_async_save_presets_persists(mock_hass):
 
 @pytest.mark.asyncio
 async def test_async_load_presets_coerces_string_positions(mock_hass):
-    """Storage layer may give back strings; loader should coerce to int."""
+    """Storage layer may give back strings; loader should coerce to float."""
     tb = _make_blind(mock_hass)
     tb._presets_store = MagicMock()
-    tb._presets_store.async_load = AsyncMock(return_value={"Morning": "75"})
+    tb._presets_store.async_load = AsyncMock(return_value={"Morning": "75.5"})
 
     await tb.async_load_presets()
 
-    assert tb.presets == {"Morning": 75}
-    assert isinstance(tb.presets["Morning"], int)
+    assert tb.presets == {"Morning": 75.5}
+    assert isinstance(tb.presets["Morning"], float)
 
 
 @pytest.mark.asyncio
@@ -104,8 +104,12 @@ async def test_async_load_presets_handles_non_dict_payload(mock_hass):
 
 
 @pytest.mark.asyncio
-async def test_save_current_stores_rounded_position(mock_hass):
-    """async_save_current_as_preset rounds the live position to int."""
+async def test_save_current_preserves_float_precision(mock_hass):
+    """async_save_current_as_preset stores the live position as a float.
+
+    The blind hardware reports position at 0.1% resolution. Preserve it
+    end-to-end so save → apply round-trips don't drop fractional bits.
+    """
     tb = _make_blind(mock_hass)
     tb._presets_store = MagicMock()
     tb._presets_store.async_save = AsyncMock()
@@ -114,9 +118,9 @@ async def test_save_current_stores_rounded_position(mock_hass):
 
     result = await tb.async_save_current_as_preset("Reading")
 
-    assert result == 43
-    assert tb.presets == {"Reading": 43}
-    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 43})
+    assert result == 42.7
+    assert tb.presets == {"Reading": 42.7}
+    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 42.7})
     tb.publish_updates.assert_called_once()
 
 
@@ -149,14 +153,14 @@ async def test_save_current_overwrites_existing_name(mock_hass):
 
     result = await tb.async_save_current_as_preset("Reading")
 
-    assert result == 75
-    assert tb.presets == {"Reading": 75}
-    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 75})
+    assert result == 75.0
+    assert tb.presets == {"Reading": 75.0}
+    tb._presets_store.async_save.assert_awaited_once_with({"Reading": 75.0})
 
 
 @pytest.mark.asyncio
 async def test_save_current_handles_integer_position(mock_hass):
-    """An integer position is stored as-is (round is a no-op)."""
+    """An integer-typed position is coerced to float for consistency."""
     tb = _make_blind(mock_hass)
     tb._presets_store = MagicMock()
     tb._presets_store.async_save = AsyncMock()
@@ -165,8 +169,8 @@ async def test_save_current_handles_integer_position(mock_hass):
 
     result = await tb.async_save_current_as_preset("Half")
 
-    assert result == 50
-    assert tb.presets == {"Half": 50}
+    assert result == 50.0
+    assert tb.presets == {"Half": 50.0}
 
 
 def _make_select(mock_hass):
@@ -203,13 +207,23 @@ def test_select_current_option_none_when_no_match(mock_hass):
     assert sel.current_option is None
 
 
-def test_select_current_option_rounds_float(mock_hass):
-    """Float position is rounded before comparing — 99.7 matches 100."""
+def test_select_current_option_matches_with_tolerance(mock_hass):
+    """0.5% tolerance accepts intermediate BLE readings near a preset."""
     sel, tb = _make_select(mock_hass)
-    tb.presets = {"Morning": 100}
+    tb.presets = {"Morning": 100.0}
+    # 99.7 vs 100.0 — within tolerance.
     tb._current_cover_position = 99.7
 
     assert sel.current_option == "Morning"
+
+
+def test_select_current_option_preserves_float_preset(mock_hass):
+    """Float-stored preset matches exact float live position."""
+    sel, tb = _make_select(mock_hass)
+    tb.presets = {"Reading": 42.7}
+    tb._current_cover_position = 42.7
+
+    assert sel.current_option == "Reading"
 
 
 def test_select_current_option_alphabetical_tiebreak(mock_hass):
@@ -362,14 +376,15 @@ async def test_select_raises_on_unknown_option(mock_hass):
 # ---------------------------------------------------------------------------
 
 
-def test_position_schema_rounds_floats():
-    """vol.Coerce(int) used to floor 99.9 -> 99; rounding preserves intent."""
+def test_position_schema_preserves_floats():
+    """Schema keeps float precision so storage round-trips at 0.1%."""
     from custom_components.tuiss2ha import _PRESET_POSITION_SCHEMA
 
-    assert _PRESET_POSITION_SCHEMA(99.9) == 100
-    assert _PRESET_POSITION_SCHEMA(49.5) == 50
-    assert _PRESET_POSITION_SCHEMA(0) == 0
-    assert _PRESET_POSITION_SCHEMA(100) == 100
+    assert _PRESET_POSITION_SCHEMA(99.9) == 99.9
+    assert _PRESET_POSITION_SCHEMA(49.5) == 49.5
+    assert _PRESET_POSITION_SCHEMA(0) == 0.0
+    assert _PRESET_POSITION_SCHEMA(100) == 100.0
+    assert isinstance(_PRESET_POSITION_SCHEMA(42), float)
 
 
 def test_position_schema_rejects_out_of_range():
@@ -426,4 +441,4 @@ async def test_async_apply_preset_raises_for_unknown(mock_hass):
     tb.presets = {"Morning": 80}
 
     with pytest.raises(HomeAssistantError, match="not found"):
-        await tb.async_apply_preset(mock_hass, "Nope")
+        await tb.async_apply_preset("Nope")

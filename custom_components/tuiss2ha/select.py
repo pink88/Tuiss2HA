@@ -73,21 +73,21 @@ class TuissPresetSelect(SelectEntity):
         - Re-arriving at a preset position re-selects it automatically.
         - When two presets share a value, the alphabetically-first
           name wins so the result is stable.
-        - Float positions are rounded before comparing so the entity
-          doesn't flicker on intermediate readings.
+        - Compares with a 0.5%% tolerance so intermediate readings from
+          the BLE position stream don't flicker the dropdown off the
+          matching preset name (firmware reports at 0.1%% resolution).
         """
         pos = self.blind.current_position
         if pos is None:
             return None
-        target = int(round(pos))
         for name in sorted(self.blind.presets):
-            if self.blind.presets[name] == target:
+            if abs(self.blind.presets[name] - pos) < 0.5:
                 return name
         return None
 
     async def async_select_option(self, option: str) -> None:
         """Apply the chosen preset by delegating to the blind helper."""
-        await self.blind.async_apply_preset(self.hass, option)
+        await self.blind.async_apply_preset(option)
         # No need to set _attr_current_option — current_option is
         # derived from the live position, which the cover will publish
         # via publish_updates() once the move starts.

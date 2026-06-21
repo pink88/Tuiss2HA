@@ -57,21 +57,21 @@ def _normalize_preset_name(value) -> str:
     return stripped
 
 
-def _normalize_preset_position(value) -> int:
-    """Round to nearest integer, then bound-check 0..100.
+def _normalize_preset_position(value) -> float:
+    """Coerce to float, then bound-check 0..100.
 
-    Using vol.Coerce(int) would silently floor floats (99.9 -> 99). Rounding
-    preserves caller intent for service calls from scripts that compute a
-    percentage. The UI selector already constrains to step=1, so this only
-    affects raw service calls.
+    Blind hardware reports position at 0.1% resolution and the cover
+    entity stores ``_current_cover_position`` as a float. Presets are
+    stored at full precision so save-current → apply round-trips don't
+    drop fractional bits. The UI selector exposes step=0.1.
     """
     try:
-        rounded = int(round(float(value)))
+        v = float(value)
     except (TypeError, ValueError) as exc:
         raise vol.Invalid(f"position must be a number, got {value!r}") from exc
-    if not 0 <= rounded <= 100:
+    if not 0 <= v <= 100:
         raise vol.Invalid("position must be between 0 and 100")
-    return rounded
+    return v
 
 
 _PRESET_NAME_SCHEMA = vol.All(_normalize_preset_name, vol.Length(min=1, max=64))
@@ -327,7 +327,7 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 f"save_preset: cannot resolve a Tuiss blind for {entity_id}"
             )
-        blind.presets[name] = int(position)
+        blind.presets[name] = float(position)
         await blind.async_save_presets()
         blind.publish_updates()
         _LOGGER.info(
@@ -375,7 +375,7 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
             )
         # Helper raises HomeAssistantError on unknown preset / missing
         # cover entity, so no further branching needed here.
-        await blind.async_apply_preset(hass, name)
+        await blind.async_apply_preset(name)
 
     hass.services.async_register(
         DOMAIN, SERVICE_SAVE_PRESET, _handle_save_preset, schema=SAVE_PRESET_SCHEMA

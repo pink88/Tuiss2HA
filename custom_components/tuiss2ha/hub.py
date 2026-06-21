@@ -127,7 +127,7 @@ class TuissBlind:
         # Per-blind named position presets ({"Morning": 100, "Movie": 30, ...}).
         # Stored in HA (separate from on-blind firmware timers) so users can
         # back them up via HA snapshots and edit via service calls.
-        self.presets: dict[str, int] = {}
+        self.presets: dict[str, float] = {}
         self._presets_store = Store(
             self.hub._hass,
             1,
@@ -630,12 +630,13 @@ class TuissBlind:
             self.presets = {}
             return
         if stored and isinstance(stored, dict):
-            # Defensive: coerce values to int and drop anything malformed
+            # Defensive: coerce values to float and drop anything malformed
             # so a hand-edited or corrupt file can't crash the entity.
-            clean: dict[str, int] = {}
+            # Floats preserve the 0.1% resolution the blind hardware uses.
+            clean: dict[str, float] = {}
             for name, position in stored.items():
                 try:
-                    pos_int = int(position)
+                    pos_f = float(position)
                 except (TypeError, ValueError):
                     _LOGGER.warning(
                         "%s: Dropping preset %r with invalid position %r",
@@ -644,8 +645,8 @@ class TuissBlind:
                     continue
                 if not isinstance(name, str) or not name:
                     continue
-                if 0 <= pos_int <= 100:
-                    clean[name] = pos_int
+                if 0 <= pos_f <= 100:
+                    clean[name] = pos_f
             self.presets = clean
         else:
             self.presets = {}
@@ -654,49 +655,47 @@ class TuissBlind:
         """Persist position presets to storage."""
         await self._presets_store.async_save(self.presets)
 
-    async def async_apply_preset(self, hass, name: str) -> None:
+    async def async_apply_preset(self, name: str) -> None:
         """Move the blind to the position stored under ``name``.
 
-        Resolves the cover entity for this blind and dispatches via the
-        existing ``cover.set_cover_position`` service so retries, lock
-        guards, and downstream listeners behave exactly like a manual
-        position change. Raises ``HomeAssistantError`` (imported lazily
-        to keep this module HA-import-light) when the preset is unknown
-        or the cover entity can't be resolved.
-        """
-        # Lazy import so hub.py stays cheap to import from tests that
-        # don't pull homeassistant.exceptions.
-        from homeassistant.exceptions import HomeAssistantError
-        from homeassistant.const import Platform
-        from homeassistant.helpers import entity_registry as er
+        Dispatches directly to ``async_move_cover`` rather than the HA
+        ``cover.set_cover_position`` service. The HA service schema is
+        ``vol.Coerce(int)``, which would truncate fractional positions —
+        bypassing it keeps the blind's native 0.1% resolution intact
+        end-to-end (preset save -> storage -> apply -> firmware command).
 
+        Raises ``HomeAssistantError`` when the preset is unknown.
+        """
         if name not in self.presets:
             raise HomeAssistantError(
                 f"{self.name}: preset {name!r} not found"
             )
-        position = self.presets[name]
-        ent_reg = er.async_get(hass)
-        cover_entity_id = ent_reg.async_get_entity_id(
-            Platform.COVER, DOMAIN, f"{self.blind_id}_cover"
-        )
-        if not cover_entity_id:
-            raise HomeAssistantError(
-                f"{self.name}: cover entity not found for preset apply"
+        position = float(self.presets[name])
+        # Mirror cover.async_set_cover_position: pick a direction from
+        # the live position and pass the inverted target the firmware
+        # expects (0 == open at the cover layer, 100 == open at the
+        # blind layer — async_move_cover does another 100-x flip).
+        current = self._current_cover_position
+        if current is None:
+            current = 0.0
+        movement_direction = 1 if current <= position else -1
+        try:
+            await self.async_move_cover(
+                movement_direction=movement_direction,
+                target_position=100 - position,
             )
-        await hass.services.async_call(
-            "cover",
-            "set_cover_position",
-            {"entity_id": cover_entity_id, "position": position},
-            blocking=True,
-        )
+        except (ConnectionTimeout, DeviceNotFound) as e:
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} failed to apply: {e}"
+            ) from e
         _LOGGER.info(
             "%s: Applied preset %r -> %s%%", self.name, name, position
         )
 
-    async def async_save_current_as_preset(self, name: str) -> int | None:
+    async def async_save_current_as_preset(self, name: str) -> float | None:
         """Save the live cover position under ``name`` as a preset.
 
-        Returns the integer position that was stored, or None if the
+        Returns the float position that was stored, or None if the
         position is currently unknown (never been read). Callers are
         expected to surface an appropriate user-facing message in the
         None case — the method itself only logs at warning level.
@@ -717,13 +716,14 @@ class TuissBlind:
                 self.name, name,
             )
             return None
-        position = int(round(current))
+        # Preserve hardware-side 0.1% precision rather than rounding.
+        position = float(current)
         self.presets[name] = position
         await self.async_save_presets()
         self.publish_updates()
         _LOGGER.info(
-            "%s: Saved preset %r at current position %s%% (raw %s)",
-            self.name, name, position, current,
+            "%s: Saved preset %r at current position %s%%",
+            self.name, name, position,
         )
         return position
 
