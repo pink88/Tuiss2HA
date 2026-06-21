@@ -1,5 +1,6 @@
 # tests/conftest.py
 import sys
+import datetime as _datetime
 from unittest.mock import MagicMock, AsyncMock
 import pytest
 
@@ -48,6 +49,19 @@ def pytest_sessionstart(session):
 
     # Create a mock for the 'homeassistant' root module
     sys.modules["homeassistant"] = MagicMock()
+
+    # Provide a minimal mock for homeassistant.util.dt
+    import types as _types
+
+    _dt_ns = _types.SimpleNamespace(
+        now=lambda: _datetime.datetime.now(),
+        parse_datetime=lambda s: _datetime.datetime.fromisoformat(s) if s else None,
+    )
+
+    util_mod = _types.ModuleType("homeassistant.util")
+    setattr(util_mod, "dt", _dt_ns)
+    sys.modules["homeassistant.util"] = util_mod
+    sys.modules["homeassistant.util.dt"] = _dt_ns
 
     # Mock the 'homeassistant.helpers.restore_state' module
     sys.modules["homeassistant.helpers.restore_state"] = MagicMock(**mock_entity_classes)
