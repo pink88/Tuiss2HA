@@ -9,7 +9,8 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -26,6 +27,8 @@ async def async_setup_entry(
     sensors = []
     for blind in hub.blinds:
         sensors.append(BatterySensor(blind))
+        sensors.append(ConnectionStatusSensor(blind))
+        sensors.append(LockStatusSensor(blind))
     async_add_entities(sensors, True)
 
     platform = entity_platform.async_get_current_platform()
@@ -92,4 +95,82 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
     async def async_will_remove_from_hass(self):
         """Entity being removed from hass."""
         # The opposite of async_added_to_hass. Remove any registered call backs here.
+        self._blind.remove_callback(self.async_write_ha_state)
+
+
+class ConnectionStatusSensor(BinarySensorEntity):
+    """Connection status sensor for Tuiss2HA Cover."""
+
+    should_poll = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, blind) -> None:
+        """Initialize the sensor."""
+        self._blind = blind
+        self._attr_unique_id = f"{self._blind.blind_id}_connection_status"
+        self._attr_name = f"{self._blind.name} Connection Status"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    @property
+    def device_info(self):
+        """Return information to link this entity with the correct device."""
+        return {"identifiers": {(DOMAIN, self._blind.blind_id)}}
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if connected."""
+        return self._blind._client is not None and self._blind._client.is_connected
+
+    async def async_added_to_hass(self):
+        """Run when this Entity has been added to HA."""
+        self._blind.register_callback(self.async_write_ha_state)
+
+    async def async_will_remove_from_hass(self):
+        """Entity being removed from hass."""
+        self._blind.remove_callback(self.async_write_ha_state)
+
+
+class LockStatusSensor(BinarySensorEntity):
+    """Lock status sensor for Tuiss2HA Cover.
+
+    Reports whether the blind is available for operation.
+    HA LOCK device class convention: is_on=True means "Unlocked"
+    (available), is_on=False means "Locked" (busy/unavailable).
+
+    Internal _locked=True means blind is busy moving, so we INVERT:
+    available (idle) -> is_on=True -> UI shows "Unlocked"
+    busy (moving)    -> is_on=False -> UI shows "Locked"
+    """
+
+    should_poll = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:lock"
+
+    def __init__(self, blind) -> None:
+        """Initialize the sensor."""
+        self._blind = blind
+        self._attr_unique_id = f"{self._blind.blind_id}_lock_status"
+        self._attr_name = f"{self._blind.name} Lock Status"
+        self._attr_device_class = BinarySensorDeviceClass.LOCK
+
+    @property
+    def device_info(self):
+        """Return information to link this entity with the correct device."""
+        return {"identifiers": {(DOMAIN, self._blind.blind_id)}}
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if unlocked (blind is idle and available).
+
+        Inverted from internal _locked because HA LOCK device class
+        treats is_on=True as 'unlocked'.
+        """
+        return not bool(self._blind._locked)
+
+    async def async_added_to_hass(self):
+        """Run when this Entity has been added to HA."""
+        self._blind.register_callback(self.async_write_ha_state)
+
+    async def async_will_remove_from_hass(self):
+        """Entity being removed from hass."""
         self._blind.remove_callback(self.async_write_ha_state)

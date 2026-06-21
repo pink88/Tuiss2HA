@@ -88,6 +88,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         blind._position_on_restart = entry.options.get("blind_restart_position", False)
         _LOGGER.debug("Getting the blind position for %s if %s set TRUE",blind.name, blind._position_on_restart)
 
+        # Seed blind state from options at boot. update_listener only fires on
+        # option CHANGES — without seeding here, _blind_speed stays None until
+        # user touches the option, which makes set_speed() raise UnboundLocalError
+        # (no default case in match statement) and TuissBlindSpeedSensor read None.
+        blind._blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
+        blind._battery_check_days = entry.options.get(
+            OPT_BATTERY_CHECK_DAYS, DEFAULT_BATTERY_CHECK_DAYS
+        )
+        blind._restart_attempts = entry.options.get(
+            OPT_RESTART_ATTEMPTS, DEFAULT_RESTART_ATTEMPTS
+        )
+
         if blind._position_on_restart:
             try:
                 # Add a timeout to prevent hanging indefinitely waiting for bluetooth response
@@ -139,8 +151,9 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     for b in hub.blinds:
         try:
             b._battery_check_days = battery_days
-        except Exception:
-            _LOGGER.debug("Failed to apply battery_check_days to blind %s", getattr(b, "name", "unknown"))
+            b.publish_updates()  # Notify sensors of the change
+        except (AttributeError, TypeError) as e:
+            _LOGGER.debug("Failed to apply battery_check_days to blind %s: %s", getattr(b, "name", "unknown"), e)
 
     # Retrieve the updated option value for speed
     new_blind_speed = entry.options.get(OPT_BLIND_SPEED, DEFAULT_BLIND_SPEED)
@@ -167,6 +180,7 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     )
     # Update the speed on the blind object.
     blind_device._blind_speed = new_blind_speed
+    blind_device.publish_updates()  # Notify sensors of the change
 
     # If the blind is currently moving, don't send the command.
     # The new speed will be used on the next operation.

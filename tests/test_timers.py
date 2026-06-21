@@ -100,8 +100,12 @@ async def test_async_add_timer_max_reached(mock_hass, tuiss_blind):
     
     with pytest.raises(Exception) as exc:
         await tuiss_blind.async_add_timer(["mon"], "08:00", 50.0)
-        
-    assert "max_timers_reached" in str(exc.value)
+
+    # Don't stringify the exception: HomeAssistantError.__str__() looks up
+    # the translated message via async_get_hass(), which raises outside a
+    # running HA event loop. Inspect the translation_key kwarg directly so
+    # the assertion stays in pure-Python land.
+    assert getattr(exc.value, "translation_key", None) == "max_timers_reached"
 
 
 @pytest.mark.asyncio
