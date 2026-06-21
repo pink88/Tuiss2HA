@@ -3,8 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import datetime
 import pytest
 
-from homeassistant.util import dt as dt_util
-
 from custom_components.tuiss2ha.hub import TuissBlind
 
 
@@ -59,7 +57,7 @@ async def test_battery_check_skipped_if_recent(mock_hass):
 
         # Configure to require checks every 7 days and last checked 1 day ago
         tb._battery_check_days = 7
-        tb._last_battery_check = dt_util.now() - datetime.timedelta(days=1)
+        tb._last_battery_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
 
         # Patch connection/movement helpers so movement completes quickly
         async def fake_attempt_connection():
@@ -96,7 +94,7 @@ async def test_battery_check_runs_if_older_than_config(mock_hass):
 
         # Configure to require checks every 1 day and last checked 3 days ago
         tb._battery_check_days = 1
-        tb._last_battery_check = dt_util.now() - datetime.timedelta(days=3)
+        tb._last_battery_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)
 
         # Patch connection/movement helpers so movement completes quickly
         async def fake_attempt_connection():
