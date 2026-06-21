@@ -47,16 +47,35 @@ SERVICE_SAVE_CURRENT_AS_PRESET = "save_current_position_as_preset"
 SERVICE_DELETE_PRESET = "delete_preset"
 SERVICE_APPLY_PRESET = "apply_preset"
 
-def _normalize_preset_name(value: str) -> str:
+def _normalize_preset_name(value) -> str:
     """Strip whitespace and reject empty/blank preset names."""
-    stripped = cv.string(value).strip()
+    if not isinstance(value, str):
+        raise vol.Invalid("preset name must be a string")
+    stripped = value.strip()
     if not stripped:
         raise vol.Invalid("Preset name cannot be empty or whitespace only")
     return stripped
 
 
+def _normalize_preset_position(value) -> int:
+    """Round to nearest integer, then bound-check 0..100.
+
+    Using vol.Coerce(int) would silently floor floats (99.9 -> 99). Rounding
+    preserves caller intent for service calls from scripts that compute a
+    percentage. The UI selector already constrains to step=1, so this only
+    affects raw service calls.
+    """
+    try:
+        rounded = int(round(float(value)))
+    except (TypeError, ValueError) as exc:
+        raise vol.Invalid(f"position must be a number, got {value!r}") from exc
+    if not 0 <= rounded <= 100:
+        raise vol.Invalid("position must be between 0 and 100")
+    return rounded
+
+
 _PRESET_NAME_SCHEMA = vol.All(_normalize_preset_name, vol.Length(min=1, max=64))
-_PRESET_POSITION_SCHEMA = vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
+_PRESET_POSITION_SCHEMA = _normalize_preset_position
 
 SAVE_PRESET_SCHEMA = vol.Schema(
     {
@@ -354,31 +373,9 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 f"apply_preset: cannot resolve a Tuiss blind for {entity_id}"
             )
-        if name not in blind.presets:
-            raise HomeAssistantError(
-                f"{blind.name}: preset {name!r} not found"
-            )
-        position = blind.presets[name]
-
-        # Resolve the cover entity for this blind so the move is dispatched
-        # via the existing cover.set_cover_position service.
-        ent_reg = er.async_get(hass)
-        cover_entity_id = ent_reg.async_get_entity_id(
-            Platform.COVER, DOMAIN, f"{blind.blind_id}_cover"
-        )
-        if not cover_entity_id:
-            raise HomeAssistantError(
-                f"{blind.name}: cover entity not found for preset apply"
-            )
-        await hass.services.async_call(
-            "cover",
-            "set_cover_position",
-            {"entity_id": cover_entity_id, "position": position},
-            blocking=False,
-        )
-        _LOGGER.info(
-            "%s: Applied preset %r -> %s%%", blind.name, name, position
-        )
+        # Helper raises HomeAssistantError on unknown preset / missing
+        # cover entity, so no further branching needed here.
+        await blind.async_apply_preset(hass, name)
 
     hass.services.async_register(
         DOMAIN, SERVICE_SAVE_PRESET, _handle_save_preset, schema=SAVE_PRESET_SCHEMA

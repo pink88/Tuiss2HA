@@ -350,6 +350,80 @@ async def test_select_raises_on_unknown_option(mock_hass):
 
     sel, tb = _make_select(mock_hass)
     tb.presets = {"Morning": 80}
+    # SelectEntity reads self.hass; the mocked base doesn't supply it.
+    sel.hass = mock_hass
 
     with pytest.raises(HomeAssistantError, match="not found"):
         await sel.async_select_option("Nope")
+
+
+# ---------------------------------------------------------------------------
+# Behaviour added for review feedback
+# ---------------------------------------------------------------------------
+
+
+def test_position_schema_rounds_floats():
+    """vol.Coerce(int) used to floor 99.9 -> 99; rounding preserves intent."""
+    from custom_components.tuiss2ha import _PRESET_POSITION_SCHEMA
+
+    assert _PRESET_POSITION_SCHEMA(99.9) == 100
+    assert _PRESET_POSITION_SCHEMA(49.5) == 50
+    assert _PRESET_POSITION_SCHEMA(0) == 0
+    assert _PRESET_POSITION_SCHEMA(100) == 100
+
+
+def test_position_schema_rejects_out_of_range():
+    """Bound check is still applied after rounding."""
+    import voluptuous as vol
+    from custom_components.tuiss2ha import _PRESET_POSITION_SCHEMA
+
+    with pytest.raises(vol.Invalid):
+        _PRESET_POSITION_SCHEMA(-1)
+    with pytest.raises(vol.Invalid):
+        _PRESET_POSITION_SCHEMA(101)
+    with pytest.raises(vol.Invalid):
+        _PRESET_POSITION_SCHEMA("not-a-number")
+
+
+def test_current_position_property_exposes_internal_state(mock_hass):
+    """Platforms must read position via the public property, not _current_cover_position."""
+    tb = _make_blind(mock_hass)
+    assert tb.current_position is None
+    tb._current_cover_position = 42.7
+    assert tb.current_position == 42.7
+
+
+@pytest.mark.asyncio
+async def test_async_save_current_rejects_blank_name(mock_hass):
+    """Hub-level guard so direct Python callers can't bypass the service schema."""
+    tb = _make_blind(mock_hass)
+    tb._current_cover_position = 50
+
+    with pytest.raises(ValueError):
+        await tb.async_save_current_as_preset("")
+    with pytest.raises(ValueError):
+        await tb.async_save_current_as_preset("   ")
+
+
+@pytest.mark.asyncio
+async def test_async_load_presets_swallows_storage_errors(mock_hass):
+    """Corrupt storage must not crash entity setup."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_load = AsyncMock(side_effect=ValueError("corrupt JSON"))
+
+    await tb.async_load_presets()
+
+    assert tb.presets == {}
+
+
+@pytest.mark.asyncio
+async def test_async_apply_preset_raises_for_unknown(mock_hass):
+    """Hub helper raises HomeAssistantError so both UI and services share behaviour."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    tb = _make_blind(mock_hass)
+    tb.presets = {"Morning": 80}
+
+    with pytest.raises(HomeAssistantError, match="not found"):
+        await tb.async_apply_preset(mock_hass, "Nope")

@@ -6,10 +6,7 @@ import logging
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -79,7 +76,7 @@ class TuissPresetSelect(SelectEntity):
         - Float positions are rounded before comparing so the entity
           doesn't flicker on intermediate readings.
         """
-        pos = self.blind._current_cover_position
+        pos = self.blind.current_position
         if pos is None:
             return None
         target = int(round(pos))
@@ -89,34 +86,8 @@ class TuissPresetSelect(SelectEntity):
         return None
 
     async def async_select_option(self, option: str) -> None:
-        """Apply the chosen preset by moving the cover to its position."""
-        if option not in self.blind.presets:
-            raise HomeAssistantError(
-                f"{self.blind.name}: preset {option!r} not found; "
-                f"available: {list(self.blind.presets)}"
-            )
-        position = self.blind.presets[option]
-        _LOGGER.info(
-            "%s: Applying preset %r -> position %s%%",
-            self.blind.name, option, position,
-        )
-
-        ent_reg = er.async_get(self.hass)
-        cover_unique_id = f"{self.blind.blind_id}_cover"
-        cover_entity_id = ent_reg.async_get_entity_id(
-            Platform.COVER, DOMAIN, cover_unique_id
-        )
-        if not cover_entity_id:
-            raise HomeAssistantError(
-                f"{self.blind.name}: cover entity not found for preset {option!r}"
-            )
-
-        await self.hass.services.async_call(
-            "cover",
-            "set_cover_position",
-            {"entity_id": cover_entity_id, "position": position},
-            blocking=False,
-        )
+        """Apply the chosen preset by delegating to the blind helper."""
+        await self.blind.async_apply_preset(self.hass, option)
         # No need to set _attr_current_option — current_option is
         # derived from the live position, which the cover will publish
         # via publish_updates() once the move starts.

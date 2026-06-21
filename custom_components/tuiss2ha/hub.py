@@ -145,6 +145,15 @@ class TuissBlind:
         """Return the rssi for the blind."""
         return self._rssi
 
+    @property
+    def current_position(self) -> float | None:
+        """Return the last observed cover position (0-100), or None if unknown.
+
+        Public read-only accessor over the internally tracked position so
+        platforms (select, sensors) don't need to reach into private state.
+        """
+        return self._current_cover_position
+
     def set_rssi(self, rssi: int) -> None:
         """Update the RSSI for the blind."""
         if self._rssi == rssi:
@@ -605,8 +614,21 @@ class TuissBlind:
 
 
     async def async_load_presets(self) -> None:
-        """Load stored position presets."""
-        stored = await self._presets_store.async_load()
+        """Load stored position presets.
+
+        A corrupt or hand-edited storage file would otherwise crash entity
+        setup. Catch broadly and fall back to an empty preset dict so the
+        blind still comes up; the user can re-save presets via the service.
+        """
+        try:
+            stored = await self._presets_store.async_load()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.warning(
+                "%s: Failed to load presets from storage (%s); starting empty",
+                self.name, exc,
+            )
+            self.presets = {}
+            return
         if stored and isinstance(stored, dict):
             # Defensive: coerce values to int and drop anything malformed
             # so a hand-edited or corrupt file can't crash the entity.
@@ -632,6 +654,45 @@ class TuissBlind:
         """Persist position presets to storage."""
         await self._presets_store.async_save(self.presets)
 
+    async def async_apply_preset(self, hass, name: str) -> None:
+        """Move the blind to the position stored under ``name``.
+
+        Resolves the cover entity for this blind and dispatches via the
+        existing ``cover.set_cover_position`` service so retries, lock
+        guards, and downstream listeners behave exactly like a manual
+        position change. Raises ``HomeAssistantError`` (imported lazily
+        to keep this module HA-import-light) when the preset is unknown
+        or the cover entity can't be resolved.
+        """
+        # Lazy import so hub.py stays cheap to import from tests that
+        # don't pull homeassistant.exceptions.
+        from homeassistant.exceptions import HomeAssistantError
+        from homeassistant.const import Platform
+        from homeassistant.helpers import entity_registry as er
+
+        if name not in self.presets:
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} not found"
+            )
+        position = self.presets[name]
+        ent_reg = er.async_get(hass)
+        cover_entity_id = ent_reg.async_get_entity_id(
+            Platform.COVER, DOMAIN, f"{self.blind_id}_cover"
+        )
+        if not cover_entity_id:
+            raise HomeAssistantError(
+                f"{self.name}: cover entity not found for preset apply"
+            )
+        await hass.services.async_call(
+            "cover",
+            "set_cover_position",
+            {"entity_id": cover_entity_id, "position": position},
+            blocking=True,
+        )
+        _LOGGER.info(
+            "%s: Applied preset %r -> %s%%", self.name, name, position
+        )
+
     async def async_save_current_as_preset(self, name: str) -> int | None:
         """Save the live cover position under ``name`` as a preset.
 
@@ -639,7 +700,16 @@ class TuissBlind:
         position is currently unknown (never been read). Callers are
         expected to surface an appropriate user-facing message in the
         None case — the method itself only logs at warning level.
+
+        Defensive: strip the supplied name and raise ValueError on empty
+        so direct Python callers can't sneak past the service-schema
+        normalizer with whitespace-only input.
         """
+        if not isinstance(name, str):
+            raise ValueError("preset name must be a string")
+        name = name.strip()
+        if not name:
+            raise ValueError("preset name cannot be empty or whitespace only")
         current = self._current_cover_position
         if current is None:
             _LOGGER.warning(
