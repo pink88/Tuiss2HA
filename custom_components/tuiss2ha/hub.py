@@ -1000,6 +1000,7 @@ class TuissBlind:
                 self._last_battery_check = dt_util.now()
             except Exception:
                 self._last_battery_check = None
+            self.publish_updates()  # Notify sensors of battery check update
             self._stopped_event.set()
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
