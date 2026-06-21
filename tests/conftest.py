@@ -53,9 +53,23 @@ def pytest_sessionstart(session):
     # Provide a minimal mock for homeassistant.util.dt
     import types as _types
 
+    def _now_tz():
+        return _datetime.datetime.now(_datetime.timezone.utc)
+
+    def _parse_datetime(s: str | None):
+        if not s:
+            return None
+        try:
+            # support trailing Z for UTC
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            return _datetime.datetime.fromisoformat(s)
+        except Exception:
+            return None
+
     _dt_ns = _types.SimpleNamespace(
-        now=lambda: _datetime.datetime.now(),
-        parse_datetime=lambda s: _datetime.datetime.fromisoformat(s) if s else None,
+        now=_now_tz,
+        parse_datetime=_parse_datetime,
     )
 
     util_mod = _types.ModuleType("homeassistant.util")
@@ -116,11 +130,14 @@ def pytest_sessionstart(session):
             # Create a HomeAssistantError that accepts HA-style translation kwargs
             class HomeAssistantError(Exception):
                 def __init__(self, *args, **kwargs):
+                    # Capture translation attributes for tests that inspect them
+                    self.translation_domain = kwargs.get("translation_domain")
+                    self.translation_key = kwargs.get("translation_key")
+                    self.translation_placeholders = kwargs.get("translation_placeholders")
+
                     # If translation kwargs are provided, create a readable message
-                    if "translation_key" in kwargs:
-                        key = kwargs.get("translation_key")
-                        placeholders = kwargs.get("translation_placeholders")
-                        msg = f"{key}: {placeholders}"
+                    if self.translation_key:
+                        msg = f"{self.translation_key}: {self.translation_placeholders}"
                     elif args:
                         msg = args[0]
                     else:
