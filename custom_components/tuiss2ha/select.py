@@ -66,31 +66,18 @@ class TuissPresetSelect(SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        """Match the live cover position to a preset, else ``None``.
-
-        Recomputed every read so the dropdown reflects reality:
-        - Manual cover moves clear the selection.
-        - Re-arriving at a preset position re-selects it automatically.
-        - When two presets share a value, the alphabetically-first
-          name wins so the result is stable.
-        - Compares with a 0.5%% tolerance so intermediate readings from
-          the BLE position stream don't flicker the dropdown off the
-          matching preset name (firmware reports at 0.1%% resolution).
-        """
+        """Match the live position to a preset within 0.5% tolerance, else None."""
         pos = self.blind.current_position
         if pos is None:
             return None
         for name in sorted(self.blind.presets):
-            if abs(self.blind.presets[name] - pos) < 0.5:
+            if abs(self.blind.presets[name] - pos) <= 0.5:
                 return name
         return None
 
     async def async_select_option(self, option: str) -> None:
-        """Apply the chosen preset by delegating to the blind helper."""
+        """Apply the chosen preset."""
         await self.blind.async_apply_preset(option)
-        # No need to set _attr_current_option — current_option is
-        # derived from the live position, which the cover will publish
-        # via publish_updates() once the move starts.
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks so the dropdown refreshes on state changes."""

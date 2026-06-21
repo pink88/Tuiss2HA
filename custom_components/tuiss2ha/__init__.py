@@ -41,14 +41,13 @@ from .const import (
 PLATFORMS: list[str] = ["cover", "binary_sensor", "sensor", "button", "select"]
 _LOGGER = logging.getLogger(__name__)
 
-# Service names for position presets
 SERVICE_SAVE_PRESET = "save_preset"
 SERVICE_SAVE_CURRENT_AS_PRESET = "save_current_position_as_preset"
 SERVICE_DELETE_PRESET = "delete_preset"
 SERVICE_APPLY_PRESET = "apply_preset"
 
 def _normalize_preset_name(value) -> str:
-    """Strip whitespace and reject empty/blank preset names."""
+    """Strip and reject empty/blank preset names."""
     if not isinstance(value, str):
         raise vol.Invalid("preset name must be a string")
     stripped = value.strip()
@@ -58,13 +57,7 @@ def _normalize_preset_name(value) -> str:
 
 
 def _normalize_preset_position(value) -> float:
-    """Coerce to float, then bound-check 0..100.
-
-    Blind hardware reports position at 0.1% resolution and the cover
-    entity stores ``_current_cover_position`` as a float. Presets are
-    stored at full precision so save-current → apply round-trips don't
-    drop fractional bits. The UI selector exposes step=0.1.
-    """
+    """Coerce to float bound 0..100; preserves 0.1% hardware resolution."""
     try:
         v = float(value)
     except (TypeError, ValueError) as exc:
@@ -184,8 +177,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register preset services once per HA process. Storage is per-blind so
-    # the handlers themselves resolve the target via cover entity_id.
+    # Register preset services once per HA process.
     _async_register_preset_services(hass)
 
     @callback
@@ -281,21 +273,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def _resolve_blind_from_entity_id(hass: HomeAssistant, entity_id: str):
-    """Resolve a TuissBlind from a cover/select entity_id, or None.
-
-    Accepts the cover entity (preferred) or the preset select entity for the
-    same blind. Looks up the blind via the entity unique_id which encodes the
-    blind_id as ``<blind_id>_<suffix>``.
-    """
+    """Resolve a TuissBlind from a cover or preset-select entity_id, or None."""
     ent_reg = er.async_get(hass)
     entry = ent_reg.async_get(entity_id)
     if not entry or entry.platform != DOMAIN:
         return None
     unique_id = entry.unique_id or ""
-    # Only accept entity types the preset services are designed to target.
-    # Other tuiss2ha entities (battery sensor, signal strength, etc.) share
-    # the integration platform but are not valid preset-service targets —
-    # refuse them explicitly instead of falling back to a fragile rsplit.
+    # Only cover/preset-select are valid preset-service targets.
     blind_id: str | None = None
     for suffix in ("_preset_select", "_cover"):
         if unique_id.endswith(suffix):
@@ -343,10 +327,15 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
                 "save_current_position_as_preset: cannot resolve a Tuiss "
                 f"blind for {entity_id}"
             )
-        # Delegate to the blind so the rounding / persistence / refusal
-        # rules live in one place. Returning None means the position
-        # isn't known yet — the blind has already logged at warning.
-        await blind.async_save_current_as_preset(name)
+        # Helper returns None when the live position has never been read;
+        # surface that as an error so automations can branch.
+        result = await blind.async_save_current_as_preset(name)
+        if result is None:
+            raise HomeAssistantError(
+                f"{blind.name}: cannot save preset — current position is "
+                "unknown. Move the blind once so its position is read, then "
+                "try again."
+            )
 
     async def _handle_delete_preset(call: ServiceCall) -> None:
         entity_id = call.data["entity_id"]
@@ -373,8 +362,7 @@ def _async_register_preset_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(
                 f"apply_preset: cannot resolve a Tuiss blind for {entity_id}"
             )
-        # Helper raises HomeAssistantError on unknown preset / missing
-        # cover entity, so no further branching needed here.
+        # Helper raises HomeAssistantError on unknown preset.
         await blind.async_apply_preset(name)
 
     hass.services.async_register(

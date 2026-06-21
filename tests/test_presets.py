@@ -47,7 +47,7 @@ async def test_async_load_presets_round_trips(mock_hass):
 
 @pytest.mark.asyncio
 async def test_async_load_presets_drops_invalid_entries(mock_hass):
-    """Malformed entries are dropped without raising."""
+    """Malformed entries are dropped and the cleaned dict is re-persisted."""
     tb = _make_blind(mock_hass)
     tb._presets_store = MagicMock()
     tb._presets_store.async_load = AsyncMock(
@@ -59,10 +59,27 @@ async def test_async_load_presets_drops_invalid_entries(mock_hass):
             "": 25,                         # empty name -> dropped
         }
     )
+    tb._presets_store.async_save = AsyncMock()
 
     await tb.async_load_presets()
 
-    assert tb.presets == {"Good": 50}
+    assert tb.presets == {"Good": 50.0}
+    # Cleaned dict re-persisted so the next restart doesn't re-walk garbage.
+    tb._presets_store.async_save.assert_awaited_once_with({"Good": 50.0})
+
+
+@pytest.mark.asyncio
+async def test_async_load_presets_does_not_resave_when_clean(mock_hass):
+    """If every stored entry is valid, no re-save happens at load time."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_load = AsyncMock(return_value={"Morning": 80})
+    tb._presets_store.async_save = AsyncMock()
+
+    await tb.async_load_presets()
+
+    assert tb.presets == {"Morning": 80.0}
+    tb._presets_store.async_save.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -439,6 +456,57 @@ async def test_async_apply_preset_raises_for_unknown(mock_hass):
 
     tb = _make_blind(mock_hass)
     tb.presets = {"Morning": 80}
+    tb._current_cover_position = 50  # known; otherwise the apply guard short-circuits
 
     with pytest.raises(HomeAssistantError, match="not found"):
         await tb.async_apply_preset("Nope")
+
+
+@pytest.mark.asyncio
+async def test_async_apply_preset_refuses_when_position_unknown(mock_hass):
+    """Apply must refuse rather than guess direction from an unknown position."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    tb = _make_blind(mock_hass)
+    tb.presets = {"Morning": 80}
+    tb._current_cover_position = None
+
+    with pytest.raises(HomeAssistantError, match="unknown"):
+        await tb.async_apply_preset("Morning")
+
+
+@pytest.mark.asyncio
+async def test_async_apply_preset_dispatches_with_correct_direction(mock_hass):
+    """Success path: helper resolves direction and calls async_move_cover."""
+    tb = _make_blind(mock_hass)
+    tb.presets = {"Up": 80.0, "Down": 20.0}
+    tb._current_cover_position = 50.0
+    tb.async_move_cover = AsyncMock()
+
+    await tb.async_apply_preset("Up")
+    tb.async_move_cover.assert_awaited_with(
+        movement_direction=1, target_position=20.0
+    )
+
+    tb.async_move_cover.reset_mock()
+    await tb.async_apply_preset("Down")
+    tb.async_move_cover.assert_awaited_with(
+        movement_direction=-1, target_position=80.0
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_save_current_clamps_out_of_range(mock_hass):
+    """A bad BLE frame can't poison storage with a >100 or <0 value."""
+    tb = _make_blind(mock_hass)
+    tb._presets_store = MagicMock()
+    tb._presets_store.async_save = AsyncMock()
+    tb.publish_updates = MagicMock()
+
+    tb._current_cover_position = 105.4
+    result = await tb.async_save_current_as_preset("HighGlitch")
+    assert result == 100.0
+
+    tb._current_cover_position = -5.0
+    result = await tb.async_save_current_as_preset("LowGlitch")
+    assert result == 0.0

@@ -124,9 +124,7 @@ class TuissBlind:
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
         self._limits_heartbeat_task: asyncio.Task | None = None
-        # Per-blind named position presets ({"Morning": 100, "Movie": 30, ...}).
-        # Stored in HA (separate from on-blind firmware timers) so users can
-        # back them up via HA snapshots and edit via service calls.
+        # HA-side named position presets (separate from firmware timers).
         self.presets: dict[str, float] = {}
         self._presets_store = Store(
             self.hub._hass,
@@ -147,11 +145,7 @@ class TuissBlind:
 
     @property
     def current_position(self) -> float | None:
-        """Return the last observed cover position (0-100), or None if unknown.
-
-        Public read-only accessor over the internally tracked position so
-        platforms (select, sensors) don't need to reach into private state.
-        """
+        """Return the last observed cover position (0-100), or None if unknown."""
         return self._current_cover_position
 
     def set_rssi(self, rssi: int) -> None:
@@ -614,12 +608,7 @@ class TuissBlind:
 
 
     async def async_load_presets(self) -> None:
-        """Load stored position presets.
-
-        A corrupt or hand-edited storage file would otherwise crash entity
-        setup. Catch broadly and fall back to an empty preset dict so the
-        blind still comes up; the user can re-save presets via the service.
-        """
+        """Load stored position presets; fall back to empty on corruption."""
         try:
             stored = await self._presets_store.async_load()
         except Exception as exc:  # noqa: BLE001
@@ -630,11 +619,14 @@ class TuissBlind:
             self.presets = {}
             return
         if stored and isinstance(stored, dict):
-            # Defensive: coerce values to float and drop anything malformed
-            # so a hand-edited or corrupt file can't crash the entity.
-            # Floats preserve the 0.1% resolution the blind hardware uses.
             clean: dict[str, float] = {}
             for name, position in stored.items():
+                if not isinstance(name, str) or not name.strip():
+                    _LOGGER.warning(
+                        "%s: Dropping preset with invalid name %r",
+                        self.name, name,
+                    )
+                    continue
                 try:
                     pos_f = float(position)
                 except (TypeError, ValueError):
@@ -643,11 +635,17 @@ class TuissBlind:
                         self.name, name, position,
                     )
                     continue
-                if not isinstance(name, str) or not name:
+                if not 0 <= pos_f <= 100:
+                    _LOGGER.warning(
+                        "%s: Dropping preset %r with out-of-range position %s",
+                        self.name, name, pos_f,
+                    )
                     continue
-                if 0 <= pos_f <= 100:
-                    clean[name] = pos_f
+                clean[name] = pos_f
             self.presets = clean
+            # Re-persist if we dropped anything so the next restart is clean.
+            if len(clean) != len(stored):
+                await self._presets_store.async_save(clean)
         else:
             self.presets = {}
 
@@ -658,26 +656,23 @@ class TuissBlind:
     async def async_apply_preset(self, name: str) -> None:
         """Move the blind to the position stored under ``name``.
 
-        Dispatches directly to ``async_move_cover`` rather than the HA
-        ``cover.set_cover_position`` service. The HA service schema is
-        ``vol.Coerce(int)``, which would truncate fractional positions —
-        bypassing it keeps the blind's native 0.1% resolution intact
-        end-to-end (preset save -> storage -> apply -> firmware command).
-
-        Raises ``HomeAssistantError`` when the preset is unknown.
+        Dispatches directly to ``async_move_cover`` to bypass HA's
+        ``cover.set_cover_position`` int-coercion and preserve 0.1%
+        precision end-to-end. Refuses when the live position is unknown
+        rather than guessing a direction.
         """
         if name not in self.presets:
             raise HomeAssistantError(
                 f"{self.name}: preset {name!r} not found"
             )
         position = float(self.presets[name])
-        # Mirror cover.async_set_cover_position: pick a direction from
-        # the live position and pass the inverted target the firmware
-        # expects (0 == open at the cover layer, 100 == open at the
-        # blind layer — async_move_cover does another 100-x flip).
         current = self._current_cover_position
         if current is None:
-            current = 0.0
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} cannot apply — current "
+                "position is unknown. Move the blind once so its "
+                "position is read, then try again."
+            )
         movement_direction = 1 if current <= position else -1
         try:
             await self.async_move_cover(
@@ -693,16 +688,10 @@ class TuissBlind:
         )
 
     async def async_save_current_as_preset(self, name: str) -> float | None:
-        """Save the live cover position under ``name`` as a preset.
+        """Save the live cover position under ``name``.
 
-        Returns the float position that was stored, or None if the
-        position is currently unknown (never been read). Callers are
-        expected to surface an appropriate user-facing message in the
-        None case — the method itself only logs at warning level.
-
-        Defensive: strip the supplied name and raise ValueError on empty
-        so direct Python callers can't sneak past the service-schema
-        normalizer with whitespace-only input.
+        Returns the stored float, or None if position has never been read.
+        Raises ValueError on empty/non-string names.
         """
         if not isinstance(name, str):
             raise ValueError("preset name must be a string")
@@ -716,8 +705,8 @@ class TuissBlind:
                 self.name, name,
             )
             return None
-        # Preserve hardware-side 0.1% precision rather than rounding.
-        position = float(current)
+        # Clamp against transient out-of-range frames.
+        position = max(0.0, min(100.0, float(current)))
         self.presets[name] = position
         await self.async_save_presets()
         self.publish_updates()
