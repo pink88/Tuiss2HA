@@ -121,6 +121,14 @@ class TuissBlind:
         # Battery check configuration
         self._battery_check_days: int = 0
         self._last_battery_check: datetime.datetime | None = None
+        # Serialises all BLE reads (position + battery). Prevents adapter slot exhaustion
+        # when concurrent callers — dashboard polls, background tasks, HA services — all
+        # try to connect simultaneously. Callers queue; they never pile onto the adapter.
+        self._ble_lock = asyncio.Lock()
+        # Tracks whether we have an active BLE notify subscription. Reset to False on
+        # every new connection and every disconnect. Used to guard stop_notify calls so
+        # we only attempt to stop a session we know is registered.
+        self._notify_registered = False
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
         self._limits_heartbeat_task: asyncio.Task | None = None
@@ -404,26 +412,39 @@ class TuissBlind:
     async def get_from_blind(self, command, callback) -> None:
         """Get the battery state from the blind as good or bad."""
 
+        async with self._ble_lock:
+            await self._get_from_blind_locked(command, callback)
+
+    async def _get_from_blind_locked(self, command, callback) -> None:
+        """Inner implementation — must only be called while _ble_lock is held."""
         # connect to the blind first
         await self.ensure_connected()
+
+        # If a move started while we were connecting, bail — the move owns _client and
+        # registering notifications here would overwrite set_position_callback.
+        if self._locked:
+            _LOGGER.debug("%s: Blind locked for movement — aborting concurrent BLE read", self.name)
+            return
 
         assert self._client is not None
         notify_started = False
         try:
             await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
             notify_started = True
+            self._notify_registered = True
         except BleakError as e:
             _LOGGER.debug("%s: Failed to start notify: %s. Attempting to stop and restart.", self.name, e)
             try:
                 # when need to overwrite the existing notification
                 await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+                self._notify_registered = False
                 await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
                 notify_started = True
+                self._notify_registered = True
             except BleakError as retry_error:
                 _LOGGER.warning("%s: Could not establish notifications: %s", self.name, retry_error)
-                # Characteristic may not exist or device disconnected; ensure cleanup
                 await self.disconnect()
-                return
+                raise HomeAssistantError(f"{self.name}: Could not establish BLE notifications — characteristic not found") from retry_error
 
         # Only send command if we successfully started notifications and are still connected
         if notify_started and self._client and self._client.is_connected:
@@ -432,7 +453,7 @@ class TuissBlind:
             except Exception as e:
                 _LOGGER.error("%s: Error sending command during get_from_blind: %s", self.name, e)
                 await self.disconnect()
-                return
+                raise HomeAssistantError(f"{self.name}: BLE send failed — {e}") from e
 
             # Wait for the response/callback to complete with timeout to prevent hanging
             if self._client:
@@ -456,6 +477,9 @@ class TuissBlind:
 
     async def get_blind_position(self) -> None:
         """Get the current position of the blind."""
+        if self._locked:
+            _LOGGER.debug("%s: Skipping position query — movement in progress", self.name)
+            return
         command = bytes.fromhex(INITIALIZATION_MESSAGE)
         await self.get_from_blind(command, self.position_callback)
 
