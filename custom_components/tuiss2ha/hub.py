@@ -129,6 +129,9 @@ class TuissBlind:
         # every new connection and every disconnect. Used to guard stop_notify calls so
         # we only attempt to stop a session we know is registered.
         self._notify_registered = False
+        # Reference to the post-move background task so it can be cancelled when a new
+        # movement command arrives before the T+5s / T+15s queries have fired.
+        self._post_move_task: asyncio.Task | None = None
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
         self._limits_heartbeat_task: asyncio.Task | None = None
@@ -473,6 +476,13 @@ class TuissBlind:
         """Get the battery state from the blind as good or bad."""
         command = bytes.fromhex(CMD_BATTERY_STATUS)
         await self.get_from_blind(command, self.battery_callback)
+
+    async def _post_move_battery_check(self) -> None:
+        """Battery check run as part of the post-move background task (T+15s after stop)."""
+        try:
+            await self.get_battery_status()
+        except Exception as e:
+            _LOGGER.debug("%s: Post-move battery check failed: %s", self.name, e)
 
 
     async def get_blind_position(self) -> None:
@@ -938,6 +948,22 @@ class TuissBlind:
         """Move the cover."""
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
         if not self._locked:
+            # Cancel any background position/battery task from the previous move so it
+            # doesn't race the BLE operations we're about to start.
+            if self._post_move_task and not self._post_move_task.done():
+                self._post_move_task.cancel()
+                try:
+                    await self._post_move_task
+                except asyncio.CancelledError:
+                    pass
+                self._post_move_task = None
+            # Wait for any concurrent get_from_blind (dashboard poll, background read) to
+            # finish before connecting. Without this, attempt_connection() races the
+            # get_from_blind caller's establish_connection(), causing BlueZ "InProgress".
+            if self._ble_lock.locked():
+                _LOGGER.debug("%s: Waiting for concurrent BLE read to finish before movement", self.name)
+                async with self._ble_lock:
+                    pass  # acquire + release just to serialise; don't hold during movement
             await self.attempt_connection()
             if self._client and self._client.is_connected:
                 self._locked = True
@@ -1045,14 +1071,46 @@ class TuissBlind:
                         self._attr_traversal_speed,
                     )
                     await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
+                    # Movement complete — confirm final position while BLE is warm.
+                    # Battery check is scheduled with a 12s delay so the sync_blind_position
+                    # automation (fires at T+2s) has finished before we reuse the characteristic.
+                    if not self._is_stopping:
+                        # Cancel dead-reckoning now that movement is confirmed complete.
+                        update_task.cancel()
+                        # Schedule position confirmation and battery check as a background
+                        # task. T+5s gives the BLE characteristic time to clear after any
+                        # sync_blind_position automation (fires T+2s, takes 1-3s to complete).
+                        try:
+                            async def _post_move_queries():
+                                try:
+                                    await asyncio.sleep(5)
+                                    try:
+                                        await self.get_blind_position()
+                                    except Exception as e:
+                                        _LOGGER.debug("%s: Post-move position query failed: %s", self.name, e)
+                                    await asyncio.sleep(10)
+                                    await self._post_move_battery_check()
+                                except asyncio.CancelledError:
+                                    _LOGGER.debug("%s: Post-move queries cancelled — new command received", self.name)
+                            self._post_move_task = self.hub._hass.async_create_task(_post_move_queries())
+                        except Exception as e:
+                            _LOGGER.debug("%s: Failed to schedule post-move queries: %s", self.name, e)
                 except asyncio.TimeoutError:
                     _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
                     update_task.cancel()
-                    # await self.get_blind_position()
+                    self._locked = False  # Release before disconnect so disconnect() isn't skipped
                     await self.disconnect()
                     self.set_final_state(corrected_target_position)
+                    self._moving = 0
+                    self.publish_updates()
+                    async def _query_after_timeout():
+                        await asyncio.sleep(3)
+                        try:
+                            await self.get_blind_position()
+                        except Exception as e:
+                            _LOGGER.debug("%s: Post-timeout position query failed: %s", self.name, e)
+                    self._post_move_task = self.hub._hass.async_create_task(_query_after_timeout())
                     _LOGGER.debug("%s: Lock released following timeout", self.name)
-                    self._locked = False
                     return  # stops blind updating traversal speed if it timesout
                 finally:
                     update_task.cancel()
