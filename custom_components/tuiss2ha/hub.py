@@ -258,6 +258,7 @@ class TuissBlind:
                 ble_device_callback=lambda: device,
             )
             self._client = client
+            self._notify_registered = False  # fresh connection has no subscriptions
             # send the maintain connection message
             await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE))
 
@@ -285,6 +286,12 @@ class TuissBlind:
             self._limits_heartbeat_task.cancel()
             self._limits_heartbeat_task = None
 
+        # Don't disconnect while a move is in progress — the move owns the BLE connection.
+        # The move releases _locked before calling disconnect itself (see async_move_cover).
+        if self._locked:
+            _LOGGER.debug("%s: Skipping BLE disconnect — move is in progress", self.name)
+            return
+
         client = self._client
         if not client:
             _LOGGER.debug("%s: Already disconnected", self.name)
@@ -297,6 +304,8 @@ class TuissBlind:
             except Exception as notify_ex:
                 # Characteristic might not exist or notifications not started
                 _LOGGER.debug("%s: Could not stop notifications: %s", self.name, notify_ex)
+            finally:
+                self._notify_registered = False
             await client.disconnect()
         except BLEAK_RETRY_EXCEPTIONS as ex:
             _LOGGER.warning(
@@ -343,11 +352,15 @@ class TuissBlind:
             await self._client.start_notify(
                 BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
             )
+            self._notify_registered = True
         except BleakError:
-            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            if self._notify_registered:
+                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+                self._notify_registered = False
             await self._client.start_notify(
                 BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
             )
+            self._notify_registered = True
         await self.send_command(UUID, command)  # send the command
 
     async def stop(self) -> None:
