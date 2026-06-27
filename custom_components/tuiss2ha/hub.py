@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import datetime
-import uuid
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakError
@@ -218,6 +217,14 @@ class TuissBlind:
 
             # If the client is connected, return early
             if self._client and self._client.is_connected:
+                self._last_connection_error = None  # clear stale error so sensor state stays short
+                # Passive BLE scan callback only fires once per integration reload — read RSSI
+                # from the scanner here so the sensor stays current on every blind operation.
+                service_info = bluetooth.async_last_service_info(
+                    self.hub._hass, self.host, connectable=False
+                )
+                if service_info is not None:
+                    self.set_rssi(service_info.rssi)
                 return
 
             retry_count += 1
@@ -1020,23 +1027,37 @@ class TuissBlind:
                     # Defensive: don't let battery-check logic break movement
                     _LOGGER.debug("%s: Error while evaluating battery check timing", self.name)
 
-                try:
-                    # Timeout on set_position to prevent hanging indefinitely
-                    await asyncio.wait_for(self.set_position(target_position), timeout=30.0)
-                except asyncio.TimeoutError:
-                    _LOGGER.error("%s: set_position() timed out after 30s. Unsticking blind.", self.name)
-                    self._moving = 0
-                    self._locked = False
-                    self.publish_updates()
-                    await self.disconnect()
-                    return
-                except Exception as e:
-                    _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
-                    # Command failed; unstick the blind immediately
-                    self._moving = 0
-                    self._locked = False
-                    self.publish_updates()
-                    await self.disconnect()
+                move_sent = False
+                for _attempt in range(2):
+                    try:
+                        # Timeout on set_position to prevent hanging indefinitely
+                        await asyncio.wait_for(self.set_position(target_position), timeout=30.0)
+                        move_sent = True
+                        break
+                    except asyncio.TimeoutError:
+                        _LOGGER.error("%s: set_position() timed out after 30s. Unsticking blind.", self.name)
+                        self._moving = 0
+                        self._locked = False
+                        self.publish_updates()
+                        await self.disconnect()
+                        return
+                    except Exception as e:
+                        if _attempt == 0 and 'NotConnected' in str(e):
+                            # BLE link dropped silently — disconnect to clear stale client
+                            # and let ensure_connected() re-establish on the next attempt.
+                            _LOGGER.warning(
+                                "%s: Move command got NotConnected — reconnecting and retrying.",
+                                self.name,
+                            )
+                            await self.disconnect()
+                            continue
+                        _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
+                        self._moving = 0
+                        self._locked = False
+                        self.publish_updates()
+                        await self.disconnect()
+                        return
+                if not move_sent:
                     return
 
                 end_time = None
@@ -1060,7 +1081,11 @@ class TuissBlind:
                                 * movement_direction
                             )
                             self._current_cover_position = round(
-                                sorted([0, start_position + traversal_difference, 100])[1], 2
+                                sorted([
+                                    min(start_position, corrected_target_position),
+                                    start_position + traversal_difference,
+                                    max(start_position, corrected_target_position),
+                                ])[1], 2
                             )
                             self.publish_updates()
 
@@ -1113,7 +1138,11 @@ class TuissBlind:
                     update_task.cancel()
                     self._locked = False  # Release before disconnect so disconnect() isn't skipped
                     await self.disconnect()
-                    self.set_final_state(corrected_target_position)
+                    # Don't assume the blind reached the target — it may not have moved at
+                    # all (BLE failure, firmware no-op). Setting state to the target would
+                    # corrupt _current_cover_position and cause the next command to compute
+                    # zero travel distance and a 10-second timeout. Query actual position
+                    # instead so state reflects reality.
                     self._moving = 0
                     self.publish_updates()
                     async def _query_after_timeout():
@@ -1127,10 +1156,9 @@ class TuissBlind:
                     return  # stops blind updating traversal speed if it timesout
                 finally:
                     update_task.cancel()
-                    # Ensure disconnect is called in all cases
+                    self._locked = False  # Release before disconnect so disconnect() isn't skipped
+                    # Ensure disconnect is called in all cases (no-op if post-move sync already disconnected)
                     await self.disconnect()
-                    # unlock the entity to allow more changes
-                    self._locked = False
                     _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
 
                 # set the traversal speed average and update final states only if the blind has not been stopped, as that updates itself
@@ -1147,8 +1175,11 @@ class TuissBlind:
                     self.update_traversal_speed(
                         corrected_target_position, start_position, start_time, end_time
                     )
-
-                    self.set_final_state(corrected_target_position)
+                    # Use BLE-confirmed position (_current_cover_position was updated by
+                    # get_blind_position above). Only fall back to desired target if BLE
+                    # query failed and left _current_cover_position unchanged from movement.
+                    self._moving = 0
+                    self.publish_updates()
 
         elif self._locked:
             _LOGGER.debug(
