@@ -31,9 +31,11 @@ Add to Home Assistant: [![](https://my.home-assistant.io/badges/config_flow_star
 ### Entities provided ###
 - Cover
 - Battery sensor
-- Signal Strength sensor
+- Signal Strength sensor (diagnostic)
 - Favourite position button
+- Preset selector (see Presets section below)
 - Timers (see Actions section below)
+- Diagnostic sensors (see Diagnostic sensors section below)
 
 ### Cover features ###
 - Set position
@@ -52,6 +54,53 @@ From the integration's Options screen you can configure:
 - **Limits**: set the upper and lower boundaries of the blind, which control how far the blind will move from open to closed.
 - **Battery check interval (days)**: number of days between automatic battery checks performed when the blind next moves. Set to `0` (default) to disable automatic checks. If set, the blind will perform a battery check on the next movement when the last automatic check is older than this value. *NOTE: This doesn't work alongside the Simultaneous blind positioning action. If you want to use that feature, then check for the battery using the get_battery_status action detailed below instead.*
 - **Delete all timers**: remove all timers added to blind, either through this integration or the Tuiss app
+
+## Diagnostic sensors
+
+Each blind exposes a set of diagnostic sensors, visible under the device page in Home Assistant. These are intended for troubleshooting and monitoring rather than everyday use.
+
+| Sensor | Description |
+|--------|-------------|
+| **Signal Strength** | The RSSI value (dBm) of the most recent Bluetooth connection. See the Troubleshooting section for guidance on interpreting values. |
+| **Model** | The hardware model string reported by the blind (e.g. `TS5200`). |
+| **Blind Speed** | The currently configured motor speed (Standard, Comfort, or Slow). Only available for supported models. |
+| **Last Battery Check** | Timestamp of the last time a battery status check was performed. Survives restarts. |
+| **Battery Check Interval** | The currently configured automatic battery check interval, shown as a human-readable string (e.g. "7 days" or "Disabled"). |
+| **Traversal Speed** | The measured speed of the blind motor in % per second, calculated from the last movement. Useful for diagnosing unusually slow or fast travel. |
+| **Last Connection Error** | The most recent connection error message, or "None" if the last connection was successful. Helpful for identifying intermittent Bluetooth issues. |
+
+## Presets
+
+Presets are named position shortcuts stored in Home Assistant (not on the blind itself). They are independent of the on-blind firmware timers and the single Favourite position from the Configuration options. You can define as many presets as you like — for example "Morning", "Movie Night", or "Fully Closed".
+
+### Preset selector entity
+
+Each blind has a **Preset** dropdown entity. Selecting a preset from the dropdown immediately moves the blind to the stored position. The dropdown shows the currently active preset if the blind is within 0.5% of a saved position, and clears automatically as soon as the blind moves away from that position. The entity is unavailable when no presets have been saved.
+
+### Managing presets via actions
+
+Presets are managed using the following actions, which can be run from Developer Tools → Actions or called from an automation:
+
+- **`tuiss2ha.save_preset`** — Save a named preset at a specific position (0–100). If a preset with the same name already exists it will be overwritten.
+- **`tuiss2ha.save_current_position_as_preset`** — Save the blind's *current* position under a given name. Useful when you have physically positioned the blind where you want it and don't know the exact percentage.
+- **`tuiss2ha.apply_preset`** — Move the blind to the position stored under the named preset.
+- **`tuiss2ha.delete_preset`** — Remove a named preset.
+
+All preset actions accept the `entity_id` of either the cover or the Preset select entity for that blind.
+
+Example automation to apply a preset at a scheduled time:
+
+```yaml
+alias: Morning blinds
+trigger:
+  - platform: time
+    at: "07:30:00"
+action:
+  - service: tuiss2ha.apply_preset
+    data:
+      entity_id: select.living_room_blind_preset
+      name: "Morning"
+```
 
 ## Actions 
 All actions can be run manually from (Developer Tools → Actions) or included in an automation.
