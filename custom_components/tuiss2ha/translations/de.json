@@ -185,6 +185,66 @@
                     "description": "Wählen Sie den Timer aus, den Sie entfernen möchten."
                 }
             }
+        },
+        "save_preset": {
+            "name": "Positions-Voreinstellung speichern",
+            "description": "Speichert eine benannte Positions-Voreinstellung für eine Jalousie. Bestehende Namen werden überschrieben. In Home Assistant gespeichert (nicht in der Jalousien-Firmware).",
+            "fields": {
+                "entity_id": {
+                    "name": "Jalousie-Entität",
+                    "description": "Wählen Sie die Jalousie-Cover- oder Voreinstellungs-Entität aus."
+                },
+                "name": {
+                    "name": "Name der Voreinstellung",
+                    "description": "Kurze Bezeichnung der Voreinstellung (z. B. Morgen, Film, Schlafen)."
+                },
+                "position": {
+                    "name": "Position",
+                    "description": "Position, zu der die Voreinstellung fährt (0 = geschlossen, 100 = offen)."
+                }
+            }
+        },
+        "save_current_position_as_preset": {
+            "name": "Aktuelle Position als Voreinstellung speichern",
+            "description": "Speichert die aktuelle Position der Jalousie unter einer benannten Voreinstellung. Bewegen Sie die Jalousie zuerst in die gewünschte Position — der Dienst speichert die zuletzt beobachtete Position, ohne nach einem Prozentsatz zu fragen.",
+            "fields": {
+                "entity_id": {
+                    "name": "Jalousie-Entität",
+                    "description": "Wählen Sie die Jalousie-Cover- oder Voreinstellungs-Entität aus."
+                },
+                "name": {
+                    "name": "Name der Voreinstellung",
+                    "description": "Kurze Bezeichnung der Voreinstellung (z. B. Lesen, Sonnenuntergang)."
+                }
+            }
+        },
+        "delete_preset": {
+            "name": "Positions-Voreinstellung löschen",
+            "description": "Entfernt eine benannte Positions-Voreinstellung von einer Jalousie.",
+            "fields": {
+                "entity_id": {
+                    "name": "Jalousie-Entität",
+                    "description": "Wählen Sie die Jalousie-Cover- oder Voreinstellungs-Entität aus."
+                },
+                "name": {
+                    "name": "Name der Voreinstellung",
+                    "description": "Name der zu entfernenden Voreinstellung."
+                }
+            }
+        },
+        "apply_preset": {
+            "name": "Positions-Voreinstellung anwenden",
+            "description": "Bewegt eine Jalousie auf die in der Voreinstellung gespeicherte Position.",
+            "fields": {
+                "entity_id": {
+                    "name": "Jalousie-Entität",
+                    "description": "Wählen Sie die Jalousie-Cover- oder Voreinstellungs-Entität aus."
+                },
+                "name": {
+                    "name": "Name der Voreinstellung",
+                    "description": "Name der anzuwendenden Voreinstellung."
+                }
+            }
         }
     },
     "exceptions": {

@@ -185,6 +185,66 @@
                     "description": "Selecciona el temporizador que deseas eliminar."
                 }
             }
+        },
+        "save_preset": {
+            "name": "Guardar preajuste de posición",
+            "description": "Guarda un preajuste de posición con nombre para una persiana. Los nombres existentes se sobrescriben. Se almacena en Home Assistant (no en el firmware de la persiana).",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de persiana",
+                    "description": "Selecciona la entidad de la persiana o su selector de preajustes."
+                },
+                "name": {
+                    "name": "Nombre del preajuste",
+                    "description": "Etiqueta corta para el preajuste (ej. Mañana, Película, Dormir)."
+                },
+                "position": {
+                    "name": "Posición",
+                    "description": "Posición a la que se mueve el preajuste (0 = cerrada, 100 = abierta)."
+                }
+            }
+        },
+        "save_current_position_as_preset": {
+            "name": "Guardar posición actual como preajuste",
+            "description": "Guarda la posición actual de la persiana con un nombre de preajuste. Mueve primero la persiana a la posición deseada — este servicio guarda la última posición observada por la integración sin pedir un porcentaje.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de persiana",
+                    "description": "Selecciona la entidad de la persiana o su selector de preajustes."
+                },
+                "name": {
+                    "name": "Nombre del preajuste",
+                    "description": "Etiqueta corta para el preajuste (ej. Lectura, Atardecer)."
+                }
+            }
+        },
+        "delete_preset": {
+            "name": "Eliminar preajuste de posición",
+            "description": "Elimina un preajuste de posición con nombre de una persiana.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de persiana",
+                    "description": "Selecciona la entidad de la persiana o su selector de preajustes."
+                },
+                "name": {
+                    "name": "Nombre del preajuste",
+                    "description": "Nombre del preajuste a eliminar."
+                }
+            }
+        },
+        "apply_preset": {
+            "name": "Aplicar preajuste de posición",
+            "description": "Mueve una persiana a la posición guardada bajo el preajuste con nombre.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entidad de persiana",
+                    "description": "Selecciona la entidad de la persiana o su selector de preajustes."
+                },
+                "name": {
+                    "name": "Nombre del preajuste",
+                    "description": "Nombre del preajuste a aplicar."
+                }
+            }
         }
     },
     "exceptions": {

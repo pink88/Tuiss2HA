@@ -185,6 +185,66 @@
                     "description": "Sélectionnez le minuteur que vous souhaitez supprimer."
                 }
             }
+        },
+        "save_preset": {
+            "name": "Enregistrer le préréglage de position",
+            "description": "Enregistre un préréglage de position nommé pour un store. Les noms existants sont écrasés. Stocké dans Home Assistant (pas dans le firmware du store).",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité du store",
+                    "description": "Sélectionnez l'entité du store ou son sélecteur de préréglages."
+                },
+                "name": {
+                    "name": "Nom du préréglage",
+                    "description": "Étiquette courte pour le préréglage (ex. Matin, Film, Sommeil)."
+                },
+                "position": {
+                    "name": "Position",
+                    "description": "Position à laquelle le préréglage déplace le store (0 = fermé, 100 = ouvert)."
+                }
+            }
+        },
+        "save_current_position_as_preset": {
+            "name": "Enregistrer la position actuelle comme préréglage",
+            "description": "Enregistre la position actuelle du store sous un préréglage nommé. Déplacez d'abord le store à la position souhaitée — ce service enregistre la dernière position observée par l'intégration sans demander de pourcentage.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité du store",
+                    "description": "Sélectionnez l'entité du store ou son sélecteur de préréglages."
+                },
+                "name": {
+                    "name": "Nom du préréglage",
+                    "description": "Étiquette courte pour le préréglage (ex. Lecture, Coucher de soleil)."
+                }
+            }
+        },
+        "delete_preset": {
+            "name": "Supprimer le préréglage de position",
+            "description": "Supprime un préréglage de position nommé d'un store.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité du store",
+                    "description": "Sélectionnez l'entité du store ou son sélecteur de préréglages."
+                },
+                "name": {
+                    "name": "Nom du préréglage",
+                    "description": "Nom du préréglage à supprimer."
+                }
+            }
+        },
+        "apply_preset": {
+            "name": "Appliquer le préréglage de position",
+            "description": "Déplace un store à la position enregistrée sous le préréglage nommé.",
+            "fields": {
+                "entity_id": {
+                    "name": "Entité du store",
+                    "description": "Sélectionnez l'entité du store ou son sélecteur de préréglages."
+                },
+                "name": {
+                    "name": "Nom du préréglage",
+                    "description": "Nom du préréglage à appliquer."
+                }
+            }
         }
     },
     "exceptions": {

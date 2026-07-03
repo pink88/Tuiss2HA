@@ -124,6 +124,13 @@ class TuissBlind:
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
         self._limits_heartbeat_task: asyncio.Task | None = None
+        # HA-side named position presets (separate from firmware timers).
+        self.presets: dict[str, float] = {}
+        self._presets_store = Store(
+            self.hub._hass,
+            1,
+            f"tuiss2ha_{self.host.replace(':', '').lower()}_presets",
+        )
 
 
     @property
@@ -135,6 +142,11 @@ class TuissBlind:
     def rssi(self) -> int | None:
         """Return the rssi for the blind."""
         return self._rssi
+
+    @property
+    def current_position(self) -> float | None:
+        """Return the last observed cover position (0-100), or None if unknown."""
+        return self._current_cover_position
 
     def set_rssi(self, rssi: int) -> None:
         """Update the RSSI for the blind."""
@@ -593,6 +605,116 @@ class TuissBlind:
     async def async_save_timer(self) -> None:
         """Save schedules to storage."""
         await self._store.async_save(self.timers)
+
+
+    async def async_load_presets(self) -> None:
+        """Load stored position presets; fall back to empty on corruption."""
+        try:
+            stored = await self._presets_store.async_load()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.warning(
+                "%s: Failed to load presets from storage (%s); starting empty",
+                self.name, exc,
+            )
+            self.presets = {}
+            return
+        if stored and isinstance(stored, dict):
+            clean: dict[str, float] = {}
+            for name, position in stored.items():
+                if not isinstance(name, str) or not name.strip():
+                    _LOGGER.warning(
+                        "%s: Dropping preset with invalid name %r",
+                        self.name, name,
+                    )
+                    continue
+                try:
+                    pos_f = float(position)
+                except (TypeError, ValueError):
+                    _LOGGER.warning(
+                        "%s: Dropping preset %r with invalid position %r",
+                        self.name, name, position,
+                    )
+                    continue
+                if not 0 <= pos_f <= 100:
+                    _LOGGER.warning(
+                        "%s: Dropping preset %r with out-of-range position %s",
+                        self.name, name, pos_f,
+                    )
+                    continue
+                clean[name] = pos_f
+            self.presets = clean
+            # Re-persist if we dropped anything so the next restart is clean.
+            if len(clean) != len(stored):
+                await self._presets_store.async_save(clean)
+        else:
+            self.presets = {}
+
+    async def async_save_presets(self) -> None:
+        """Persist position presets to storage."""
+        await self._presets_store.async_save(self.presets)
+
+    async def async_apply_preset(self, name: str) -> None:
+        """Move the blind to the position stored under ``name``.
+
+        Dispatches directly to ``async_move_cover`` to bypass HA's
+        ``cover.set_cover_position`` int-coercion and preserve 0.1%
+        precision end-to-end. Refuses when the live position is unknown
+        rather than guessing a direction.
+        """
+        if name not in self.presets:
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} not found"
+            )
+        position = float(self.presets[name])
+        current = self._current_cover_position
+        if current is None:
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} cannot apply — current "
+                "position is unknown. Move the blind once so its "
+                "position is read, then try again."
+            )
+        movement_direction = 1 if current <= position else -1
+        try:
+            await self.async_move_cover(
+                movement_direction=movement_direction,
+                target_position=100 - position,
+            )
+        except (ConnectionTimeout, DeviceNotFound, HomeAssistantError) as e:
+            raise HomeAssistantError(
+                f"{self.name}: preset {name!r} failed to apply: {e}"
+            ) from e
+        _LOGGER.info(
+            "%s: Applied preset %r -> %s%%", self.name, name, position
+        )
+
+    async def async_save_current_as_preset(self, name: str) -> float | None:
+        """Save the live cover position under ``name``.
+
+        Returns the stored float, or None if position has never been read.
+        Raises ValueError on empty/non-string names.
+        """
+        if not isinstance(name, str):
+            raise ValueError("preset name must be a string")
+        name = name.strip()
+        if not name:
+            raise ValueError("preset name cannot be empty or whitespace only")
+        current = self._current_cover_position
+        if current is None:
+            _LOGGER.warning(
+                "%s: Cannot save preset %r — current position is unknown",
+                self.name, name,
+            )
+            return None
+        # Clamp against transient out-of-range frames.
+        position = max(0.0, min(100.0, float(current)))
+        self.presets[name] = position
+        await self.async_save_presets()
+        self.publish_updates()
+        _LOGGER.info(
+            "%s: Saved preset %r at current position %s%%",
+            self.name, name, position,
+        )
+        return position
 
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:

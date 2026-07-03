@@ -124,3 +124,78 @@ delete_blind_timer:
           integration: tuiss2ha
           domain: sensor
           multiple: false
+
+save_preset:
+  # Save a named position preset for a blind. Existing names are overwritten.
+  # Stored in HA (separate from on-blind firmware timers).
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain:
+            - cover
+            - select
+    name:
+      required: true
+      selector:
+        text:
+    position:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.1
+          mode: slider
+
+save_current_position_as_preset:
+  # Save the blind's current position under a named preset. Useful when
+  # you don't know the exact percentage — move the blind where you want
+  # it, then call this with just a name.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain:
+            - cover
+            - select
+    name:
+      required: true
+      selector:
+        text:
+
+delete_preset:
+  # Remove a named position preset from a blind.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain:
+            - cover
+            - select
+    name:
+      required: true
+      selector:
+        text:
+
+apply_preset:
+  # Move a blind to the position stored under the named preset.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: tuiss2ha
+          domain:
+            - cover
+            - select
+    name:
+      required: true
+      selector:
+        text:
