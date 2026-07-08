@@ -25,8 +25,9 @@ The following hardware versions have been tested and confirmed to work. Other ve
 8. Give the blind a name.
 9. Click **Submit**.
 
-Add to HACS: [![](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pink88&repository=Tuiss2HA&category=Integration)
-Add to Home Assistant: [![](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=tuiss2ha)
+[![](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pink88&repository=Tuiss2HA&category=Integration)
+
+[![](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=tuiss2ha)
 
 ### Entities provided ###
 - Cover
