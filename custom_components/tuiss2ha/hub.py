@@ -272,10 +272,10 @@ class TuissBlind:
                 self._moving,
             )
         except (BleakError, asyncio.TimeoutError) as e:
-            self._last_connection_error = str(e)
+            self._last_connection_error = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {e}"
             _LOGGER.debug("Failed to connect to blind: %s", e)
         except Exception as e:
-            self._last_connection_error = f"{type(e).__name__}: {e}"
+            self._last_connection_error = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {type(e).__name__}: {e}"
             _LOGGER.debug("%s: Unexpected error during connect: %s", self.name, e)
 
     # Disconnect
