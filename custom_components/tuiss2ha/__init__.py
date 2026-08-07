@@ -191,7 +191,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         service_info: bluetooth.BluetoothServiceInfoBleak,
         change: bluetooth.BluetoothChange,
     ) -> None:
-        """Update RSSI on device discovery."""
+        """Update BLE device reference and RSSI on discovery.
+
+        Keeping _ble_device up-to-date ensures reconnects always route through
+        whichever proxy currently has the best path to the blind, rather than
+        being stuck on the proxy that first connected.
+        """
+        hub.blinds[0]._ble_device = service_info.device
         if adv := service_info.advertisement:
             hub.blinds[0].set_rssi(adv.rssi)
 
