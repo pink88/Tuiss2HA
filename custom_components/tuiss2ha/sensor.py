@@ -539,7 +539,6 @@ class TuissLastConnectionErrorSensor(SensorEntity):
             manufacturer=self.blind.hub.manufacturer,
             model=self.blind.model,
         )
-        self._attr_native_value = self.blind._last_connection_error
 
     @property
     def available(self) -> bool:
@@ -548,8 +547,19 @@ class TuissLastConnectionErrorSensor(SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        """Return the state of the sensor."""
-        return self.blind._last_connection_error or "None"
+        """Return the state of the sensor.
+
+        HA caps entity states at 255 chars; connection errors can exceed that
+        (BleakError text + interference/USB hints), so truncate the state and
+        expose the full message via extra_state_attributes.
+        """
+        error = self.blind._last_connection_error or "None"
+        return error[:252] + "..." if len(error) > 255 else error
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Return the full, untruncated error message."""
+        return {"full_error": self.blind._last_connection_error or "None"}
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""
@@ -562,5 +572,4 @@ class TuissLastConnectionErrorSensor(SensorEntity):
     @callback
     def _handle_update(self) -> None:
         """Handle updated data from the hub."""
-        self._attr_native_value = self.blind._last_connection_error or "None"
         self.async_write_ha_state()

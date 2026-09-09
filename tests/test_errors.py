@@ -81,3 +81,40 @@ async def test_cover_methods_raise_homeassistanterror_on_device_errors(mock_hass
 
     with pytest.raises(HomeAssistantError):
         await cover_entity.async_stop_cover()
+
+
+def test_last_connection_error_sensor_truncates_long_state():
+    """State >255 chars truncated; full message in attribute (HA caps state at 255)."""
+    from custom_components.tuiss2ha.sensor import TuissLastConnectionErrorSensor
+
+    blind = MagicMock()
+    blind.blind_id = "AABBCCDDEEFF"
+    blind.name = "Test"
+    blind.hub.manufacturer = "Tuiss"
+    blind.model = "TS5200"
+    long_err = "2026-09-01 06:02:30: " + "x" * 400
+    blind._last_connection_error = long_err
+
+    sensor = TuissLastConnectionErrorSensor(blind)
+    assert len(sensor.native_value) <= 255
+    assert sensor.native_value.endswith("...")
+    assert sensor.extra_state_attributes["full_error"] == long_err
+
+
+def test_last_connection_error_sensor_short_state_untouched():
+    """Short error passes through unchanged; None -> 'None'."""
+    from custom_components.tuiss2ha.sensor import TuissLastConnectionErrorSensor
+
+    blind = MagicMock()
+    blind.blind_id = "AABBCCDDEEFF"
+    blind.name = "Test"
+    blind.hub.manufacturer = "Tuiss"
+    blind.model = "TS5200"
+
+    blind._last_connection_error = "short error"
+    sensor = TuissLastConnectionErrorSensor(blind)
+    assert sensor.native_value == "short error"
+
+    blind._last_connection_error = None
+    assert sensor.native_value == "None"
+    assert sensor.extra_state_attributes["full_error"] == "None"
