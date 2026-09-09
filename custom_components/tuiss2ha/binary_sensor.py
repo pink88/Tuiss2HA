@@ -79,6 +79,22 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
         else:
             return "off"
 
+    @callback
+    def _handle_blind_update(self) -> None:
+        """Sync from the blind's live battery status, then push the new HA state.
+
+        _attr_is_on is a plain cached attribute, not a live property (unlike
+        ConnectionStatusSensor/LockStatusSensor's own is_on below, which read
+        the blind object directly) — without this sync it only ever reflected
+        whatever async_added_to_hass restored at startup or the manual
+        get_battery_status service last set, never a real battery_callback
+        reading from a normal move. Confirmed live: 4 consecutive correct
+        "not low" reads over 2026-08-25/26 changed self._blind._battery_status
+        but never touched this entity's own state.
+        """
+        self._attr_is_on = self._blind._battery_status
+        self.async_write_ha_state()
+
     async def async_added_to_hass(self):
         """Run when this Entity has been added to HA."""
         last_state = await self.async_get_last_state()
@@ -90,12 +106,12 @@ class BatterySensor(BinarySensorEntity, RestoreEntity):
             self._attr_is_on = False
 
         # Sensors should also register callbacks to HA when their state changes
-        self._blind.register_callback(self.async_write_ha_state)
+        self._blind.register_callback(self._handle_blind_update)
 
     async def async_will_remove_from_hass(self):
         """Entity being removed from hass."""
         # The opposite of async_added_to_hass. Remove any registered call backs here.
-        self._blind.remove_callback(self.async_write_ha_state)
+        self._blind.remove_callback(self._handle_blind_update)
 
 
 class ConnectionStatusSensor(BinarySensorEntity):
