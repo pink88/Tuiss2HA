@@ -110,7 +110,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         # Clean up old duplicate network MAC connections from the device registry DEPRICATE IN FUTURE RELEASE
         device_registry = dr.async_get(hass)
-        device = device_registry.async_get_device(identifiers={(DOMAIN, blind.blind_id)})
+        
+        
+        if hasattr(device_registry, 'async_get_device_by_identifier'):
+            device = device_registry.async_get_device_by_identifier((DOMAIN, blind.blind_id),entry.entry_id)
+        else:
+            device = device_registry.async_get_device(identifiers={(DOMAIN, blind.blind_id)})
+                
         if device:
             # Create a new set of connections, keeping only bluetooth and ensuring it's lowercase
             clean_connections = set()
