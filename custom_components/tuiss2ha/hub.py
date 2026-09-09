@@ -1267,11 +1267,7 @@ class TuissBlind:
                     update_task.cancel()
                     self._locked = False  # Release before disconnect so disconnect() isn't skipped
                     await self.disconnect()
-                    # Don't assume the blind reached the target — it may not have moved at
-                    # all (BLE failure, firmware no-op). Setting state to the target would
-                    # corrupt _current_cover_position and cause the next command to compute
-                    # zero travel distance and a 10-second timeout. Query actual position
-                    # instead so state reflects reality.
+                    self.set_final_state(corrected_target_position)
                     self._moving = 0
                     self.publish_updates()
                     async def _query_after_timeout():
