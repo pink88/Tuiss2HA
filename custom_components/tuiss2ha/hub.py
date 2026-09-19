@@ -120,16 +120,9 @@ class TuissBlind:
         # Battery check configuration
         self._battery_check_days: int = 0
         self._last_battery_check: datetime.datetime | None = None
-        # Serialises all BLE reads (position + battery). Prevents adapter slot exhaustion
-        # when concurrent callers — dashboard polls, background tasks, HA services — all
-        # try to connect simultaneously. Callers queue; they never pile onto the adapter.
-        self._ble_lock = asyncio.Lock()
-        # Tracks whether we have an active BLE notify subscription. Reset to False on
-        # every new connection and every disconnect. Used to guard stop_notify calls so
-        # we only attempt to stop a session we know is registered.
+        # Tracks whether there is an active BLE notify subscription. Reset to False on
+        # every new connection and every disconnect.
         self._notify_registered = False
-        # Reference to the post-move background task so it can be cancelled when a new
-        # movement command arrives before the T+5s / T+15s queries have fired.
         self._post_move_task: asyncio.Task | None = None
         self.timers = {}
         self._store = Store(self.hub._hass, 1, f"tuiss2ha_{self.host.replace(':', '').lower()}_schedules")
@@ -229,8 +222,7 @@ class TuissBlind:
 
             # If the client is connected, return early
             if self._client and self._client.is_connected:
-                # Passive BLE scan callback only fires once per integration reload — read RSSI
-                # from the scanner here so the sensor stays current on every blind operation.
+                # Read RSSI from the scanner here so the sensor stays current on every blind operation.
                 service_info = bluetooth.async_last_service_info(
                     self.hub._hass, self.host, connectable=False
                 )
@@ -242,7 +234,6 @@ class TuissBlind:
             if retry_count <= self._restart_attempts:
                 await asyncio.sleep(2)
 
-        # If we reach here, we have exceeded max retries - log the actual error at ERROR so it's visible
         last_err = self._last_connection_error or "unknown (no error captured)"
         _LOGGER.error(
             "%s: Connection failed after %d attempts. Last error: %s",
@@ -250,7 +241,6 @@ class TuissBlind:
             self._restart_attempts,
             last_err,
         )
-        # Give a clear error when user has only passive Bluetooth (e.g. Shelly)
         if last_err and (
             "passive-only" in last_err.lower()
             or "no connectable bluetooth" in last_err.lower()
@@ -272,11 +262,12 @@ class TuissBlind:
                 device=device,
                 name=self.host,
                 use_services_cache=True,
-                max_attempts=self._restart_attempts,
+                max_attempts=1,
                 ble_device_callback=lambda: device,
             )
             self._client = client
             self._notify_registered = False  # fresh connection has no subscriptions
+            
             # send the maintain connection message
             await self._client.write_gatt_char(UUID, bytes.fromhex(CONNECTION_MESSAGE))
 
@@ -290,10 +281,10 @@ class TuissBlind:
                 self._moving,
             )
         except (BleakError, asyncio.TimeoutError) as e:
-            self._last_connection_error = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {e}"
+            self._last_connection_error = f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {e}"
             _LOGGER.debug("Failed to connect to blind: %s", e)
         except Exception as e:
-            self._last_connection_error = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {type(e).__name__}: {e}"
+            self._last_connection_error = f"{dt_util.now().strftime('%Y-%m-%d %H:%M:%S')}: {type(e).__name__}: {e}"
             _LOGGER.debug("%s: Unexpected error during connect: %s", self.name, e)
 
     # Disconnect
@@ -304,8 +295,6 @@ class TuissBlind:
             self._limits_heartbeat_task.cancel()
             self._limits_heartbeat_task = None
 
-        # Don't disconnect while a move is in progress — the move owns the BLE connection.
-        # The move releases _locked before calling disconnect itself (see async_move_cover).
         if self._locked:
             _LOGGER.debug("%s: Skipping BLE disconnect — move is in progress", self.name)
             return
@@ -320,7 +309,6 @@ class TuissBlind:
             try:
                 await client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
             except Exception as notify_ex:
-                # Characteristic might not exist or notifications not started
                 _LOGGER.debug("%s: Could not stop notifications: %s", self.name, notify_ex)
             finally:
                 self._notify_registered = False
@@ -352,12 +340,33 @@ class TuissBlind:
         if not self._client or not self._client.is_connected:
             await self.attempt_connection()
 
+    async def _async_start_notify(self, callback) -> None:
+        """Safely start notifications on the blind notify characteristic."""
+        assert self._client is not None
+        try:
+            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+            self._notify_registered = True
+        except BleakError as e:
+            _LOGGER.debug("%s: Failed to start notify: %s. Attempting restart.", self.name, e)
+            try:
+                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+            except Exception:
+                pass
+            self._notify_registered = False
+            try:
+                await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
+                self._notify_registered = True
+            except BleakError as retry_err:
+                _LOGGER.warning("%s: Could not establish notifications: %s", self.name, retry_err)
+                raise HomeAssistantError(
+                    f"{self.name}: Could not establish BLE notifications — characteristic not found"
+                ) from retry_err
+
     ##################################################################################################
     ## SET METHODS ###################################################################################
     ##################################################################################################
     async def set_position(self, userPercent) -> None:
         """Set the position of the blind converting from HA to Tuiss first."""
-
         await self.ensure_connected()
 
         assert self._client is not None
@@ -366,38 +375,29 @@ class TuissBlind:
             "%s: Attempting to set position to: %s", self.name, self._desired_position
         )
         command = bytes.fromhex(self.hex_convert(userPercent))
-        try:
-            await self._client.start_notify(
-                BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
-            )
-            self._notify_registered = True
-        except BleakError:
-            if self._notify_registered:
-                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-                self._notify_registered = False
-            await self._client.start_notify(
-                BLIND_NOTIFY_CHARACTERISTIC, self.set_position_callback
-            )
-            self._notify_registered = True
-        await self.send_command(UUID, command)  # send the command
+        await self._async_start_notify(self.set_position_callback)
+        await self.send_command(UUID, command)
 
     async def stop(self) -> None:
         """Stop the blind at current position."""
         _LOGGER.debug("%s: Attempting to stop the blind.", self.name)
-        command = bytes.fromhex(CMD_STOP)
-
         # skip if the blind is not moving
         if self._moving == 0:
             return
 
-        # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
-        await self.ensure_connected()
+        self._is_stopping = True
+        try:
+            # try to connect to blind if not connected, shouldnt really be necessary if the blind is already moving
+            await self.ensure_connected()
 
-        # send the stop command
-        if self._client and self._client.is_connected:
-            await self.send_command(UUID, command)
-        if self._client and self._client.is_connected:
-            await self.get_blind_position()
+            # send the stop command
+            if self._client and self._client.is_connected:
+                await self.send_command(UUID, bytes.fromhex(CMD_STOP))
+        finally:
+            self._moving = 0
+            self._locked = False
+            self._stopped_event.set()
+            self.publish_updates()
 
 
 
@@ -430,7 +430,6 @@ class TuissBlind:
                 await self.send_command(UUID, command)
         except (BleakError, RuntimeError) as e:
             _LOGGER.debug("%s: Unable to set the speed: %s", self.name, e)
-            await self.disconnect()
             raise RuntimeError(
                 "Unable to set the speed. Check has enough battery and within bluetooth range or that blind supports speed changes"
             ) from e
@@ -444,63 +443,29 @@ class TuissBlind:
     ##################################################################################################
 
     async def get_from_blind(self, command, callback) -> None:
-        """Get the battery state from the blind as good or bad."""
-
-        async with self._ble_lock:
-            await self._get_from_blind_locked(command, callback)
-
-    async def _get_from_blind_locked(self, command, callback) -> None:
-        """Inner implementation — must only be called while _ble_lock is held."""
-        # connect to the blind first
+        """Send a command to the blind and await a notification response."""
         await self.ensure_connected()
 
-        # If a move started while we were connecting, bail — the move owns _client and
-        # registering notifications here would overwrite set_position_callback.
         if self._locked:
             _LOGGER.debug("%s: Blind locked for movement — aborting concurrent BLE read", self.name)
             return
 
         assert self._client is not None
-        notify_started = False
         try:
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-            notify_started = True
-            self._notify_registered = True
-        except BleakError as e:
-            _LOGGER.debug("%s: Failed to start notify: %s. Attempting to stop and restart.", self.name, e)
-            try:
-                # when need to overwrite the existing notification
-                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-                self._notify_registered = False
-                await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, callback)
-                notify_started = True
-                self._notify_registered = True
-            except BleakError as retry_error:
-                _LOGGER.warning("%s: Could not establish notifications: %s", self.name, retry_error)
-                await self.disconnect()
-                raise HomeAssistantError(f"{self.name}: Could not establish BLE notifications — characteristic not found") from retry_error
-
-        # Only send command if we successfully started notifications and are still connected
-        if notify_started and self._client and self._client.is_connected:
+            await self._async_start_notify(callback)
             try:
                 await self.send_command(UUID, command)
             except Exception as e:
                 _LOGGER.error("%s: Error sending command during get_from_blind: %s", self.name, e)
-                await self.disconnect()
                 raise HomeAssistantError(f"{self.name}: BLE send failed — {e}") from e
 
             # Wait for the response/callback to complete with timeout to prevent hanging
-            if self._client:
-                try:
-                    await asyncio.wait_for(self.wait_for_stop(), timeout=10.0)
-                except asyncio.TimeoutError:
-                    _LOGGER.warning("%s: Timeout waiting for response in get_from_blind", self.name)
-                finally:
-                    await self.disconnect()
-        else:
-            # If we couldn't start notify, ensure we disconnect
-            if not notify_started:
-                await self.disconnect()
+            try:
+                await asyncio.wait_for(self.wait_for_stop(), timeout=10.0)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("%s: Timeout waiting for response in get_from_blind", self.name)
+        finally:
+            await self.disconnect()
 
 
     async def get_battery_status(self) -> None:
@@ -568,70 +533,48 @@ class TuissBlind:
         await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_INIT_2))
 
 
+    async def _async_send_limit_command(self, command_hex: str, start_heartbeat: bool = False) -> None:
+        """Send a limit setup command and manage the motion heartbeat."""
+        if not start_heartbeat:
+            self.limits_heartbeat_stop()
+        if not self._client or not self._client.is_connected:
+            _LOGGER.debug("Connection lost, limits command failed")
+            return
+        await self.send_command(UUID, bytes.fromhex(command_hex))
+        if start_heartbeat:
+            self.limits_heartbeat_start(command_hex)
+
     async def limits_step_up(self) -> None:
         """Move the blind up incrementally for manual positioning."""
-        self.limits_heartbeat_stop()
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-
         _LOGGER.debug("Stepping up")
-        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_STEP_UP))
-
+        await self._async_send_limit_command(CMD_LIMITS_STEP_UP)
 
     async def limits_step_down(self) -> None:
         """Move the blind down incrementally for manual positioning."""
-        self.limits_heartbeat_stop()
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-
         _LOGGER.debug("Stepping down")
-        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_STEP_DOWN))
-
+        await self._async_send_limit_command(CMD_LIMITS_STEP_DOWN)
 
     async def limits_move_up(self) -> None:
         """Move the blind up continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-
         _LOGGER.debug("Moving up")
-        move_command = CMD_LIMITS_MOVE_UP
-        await self.send_command(UUID, bytes.fromhex(move_command))
-        self.limits_heartbeat_start(move_command)
-
+        await self._async_send_limit_command(CMD_LIMITS_MOVE_UP, start_heartbeat=True)
 
     async def limits_move_down(self) -> None:
         """Move the blind down continuously for manual positioning (stubbed for now)."""
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-
         _LOGGER.debug("Moving down")
-        move_command = CMD_LIMITS_MOVE_DOWN
-        await self.send_command(UUID, bytes.fromhex(move_command))
-        self.limits_heartbeat_start(move_command)
-
+        await self._async_send_limit_command(CMD_LIMITS_MOVE_DOWN, start_heartbeat=True)
 
     async def limits_stop(self) -> None:
         """Stop the blind movement."""
-        self.limits_heartbeat_stop()
-        # Connect to the blind first
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-
         _LOGGER.debug("Stopping movement")
-        await self.send_command(UUID, bytes.fromhex(CMD_STOP))
-
+        await self._async_send_limit_command(CMD_STOP)
 
     async def limits_set(self) -> None:
         """Sets the limit."""
         self.limits_heartbeat_stop()
-        # Connect to the blind first
         if not self._client or not self._client.is_connected:
             _LOGGER.debug("Connection lost, limits set up failed")
-
+            return
         _LOGGER.debug("Setting the limit")
         await self.send_command(UUID, bytes.fromhex(CMD_STOP))
         await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_SET))
@@ -778,11 +721,7 @@ class TuissBlind:
                 new_timer_id = str(decimals[6])
                 timer_id_event.set()
 
-        try:
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
-        except BleakError:
-            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-            await self._client.start_notify(BLIND_NOTIFY_CHARACTERISTIC, timer_id_callback)
+        await self._async_start_notify(timer_id_callback)
 
         await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
         await self.send_timestamp()
@@ -1054,7 +993,7 @@ class TuissBlind:
 
     async def send_timestamp(self) -> None:
         """Send the current timestamp command to the blind."""
-        now = datetime.datetime.now()
+        now = dt_util.now()
         timestamp_command = f"{CMD_TIMESTAMP_BASE}{now.year - 2000:02x}{now.month:02x}{now.day:02x}{now.hour:02x}{now.minute:02x}{now.second:02x}"
         await self.send_command(UUID, bytes.fromhex(timestamp_command))
 
@@ -1086,6 +1025,89 @@ class TuissBlind:
         return decimals
 
 
+    async def _cancel_post_move_task(self) -> None:
+        """Cancel any pending post-move position queries."""
+        if self._post_move_task and not self._post_move_task.done():
+            self._post_move_task.cancel()
+            try:
+                await self._post_move_task
+            except asyncio.CancelledError:
+                pass
+            self._post_move_task = None
+
+    def _schedule_post_move_query(self, delay: float = 5.0) -> None:
+        """Schedule a background position query after movement."""
+        async def _query():
+            try:
+                await asyncio.sleep(delay)
+                try:
+                    await self.get_blind_position()
+                except Exception as e:
+                    _LOGGER.debug("%s: Post-move position query failed: %s", self.name, e)
+            except asyncio.CancelledError:
+                _LOGGER.debug("%s: Post-move queries cancelled — new command received", self.name)
+
+        try:
+            self._post_move_task = self.hub._hass.async_create_task(_query())
+        except Exception as e:
+            _LOGGER.debug("%s: Failed to schedule post-move query: %s", self.name, e)
+
+    async def _async_check_battery_if_due(self) -> None:
+        """Perform a battery check before moving if configured interval has elapsed."""
+        _LOGGER.debug(
+            "%s: Battery check age (%s days). Last check: %s.",
+            self.name,
+            self._battery_check_days,
+            self._last_battery_check,
+        )
+        try:
+            if self._battery_check_days and (
+                self._last_battery_check is None
+                or (
+                    (dt_util.now() - self._last_battery_check).total_seconds()
+                    / 86400
+                )
+                > float(self._battery_check_days)
+            ):
+                _LOGGER.debug(
+                    "%s: Battery check age exceeded (%s days). Checking battery.",
+                    self.name,
+                    self._battery_check_days,
+                )
+                try:
+                    await self.get_battery_status()
+                except Exception as e:
+                    _LOGGER.debug("%s: Battery check failed: %s", self.name, e)
+        except Exception:
+            _LOGGER.debug("%s: Error while evaluating battery check timing", self.name)
+
+    async def _async_dead_reckoning_loop(
+        self,
+        start_position: float,
+        target_position: float,
+        movement_direction: int,
+        start_time: datetime.datetime,
+    ) -> None:
+        """Task to update the position in real time while the blind is moving."""
+        while self._client and self._client.is_connected and not self._is_stopping:
+            if self._attr_traversal_speed is not None:
+                elapsed = (dt_util.now() - start_time).total_seconds()
+                traversal_difference = elapsed * self._attr_traversal_speed * movement_direction
+                raw_pos = start_position + traversal_difference
+                min_pos = min(start_position, target_position)
+                max_pos = max(start_position, target_position)
+                self._current_cover_position = round(min(max_pos, max(min_pos, raw_pos)), 2)
+                _LOGGER.debug(
+                    "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
+                    self.name,
+                    start_position,
+                    self._current_cover_position,
+                    target_position,
+                    elapsed,
+                )
+                self.publish_updates()
+            await asyncio.sleep(1)
+
     async def async_move_cover(
         self,
         movement_direction,
@@ -1094,230 +1116,117 @@ class TuissBlind:
     ):
         """Move the cover."""
         _LOGGER.debug("%s: Entering async_move_cover. Locked: %s", self.name, self._locked)
-        if not self._locked:
-            # Cancel any background position/battery task from the previous move so it
-            # doesn't race the BLE operations we're about to start.
-            if self._post_move_task and not self._post_move_task.done():
-                self._post_move_task.cancel()
-                try:
-                    await self._post_move_task
-                except asyncio.CancelledError:
-                    pass
-                self._post_move_task = None
-            # Wait for any concurrent get_from_blind (dashboard poll, background read) to
-            # finish before connecting. Without this, attempt_connection() races the
-            # get_from_blind caller's establish_connection(), causing BlueZ "InProgress".
-            if self._ble_lock.locked():
-                _LOGGER.debug("%s: Waiting for concurrent BLE read to finish before movement", self.name)
-                async with self._ble_lock:
-                    pass  # acquire + release just to serialise; don't hold during movement
-            await self.attempt_connection()
-            if self._client and self._client.is_connected:
-                self._locked = True
-                _LOGGER.debug("%s: Lock acquired.", self.name)
-                self._is_stopping = False
-                start_position = self._current_cover_position
-                corrected_target_position = 100 - target_position
-                self._moving = movement_direction
-
-                # Update the state and trigger the moving
-                self.publish_updates()
-
-                _LOGGER.debug(
-                            "%s: Battery check age (%s days). Last check: %s.",
-                            self.name,
-                            self._battery_check_days,
-                            self._last_battery_check,
-                        )
-
-                # Perform a battery check before moving if configured
-                try:
-                    if not skip_battery_check and self._battery_check_days and (
-                        self._last_battery_check is None
-                        or (
-                            (dt_util.now() - self._last_battery_check).total_seconds()
-                            / 86400
-                        )
-                        > float(self._battery_check_days)
-                    ):
-                        _LOGGER.debug(
-                            "%s: Battery check age exceeded (%s days). Checking battery.",
-                            self.name,
-                            self._battery_check_days,
-                        )
-                        # It's OK if this fails — we still proceed with the movement
-                        try:
-                            await self.get_battery_status()
-                        except Exception as e:
-                            _LOGGER.debug("%s: Battery check failed: %s", self.name, e)
-                except Exception:
-                    # Defensive: don't let battery-check logic break movement
-                    _LOGGER.debug("%s: Error while evaluating battery check timing", self.name)
-
-                move_sent = False
-                for _attempt in range(2):
-                    try:
-                        # Timeout on set_position to prevent hanging indefinitely
-                        await asyncio.wait_for(self.set_position(target_position), timeout=30.0)
-                        move_sent = True
-                        break
-                    except asyncio.TimeoutError:
-                        _LOGGER.error("%s: set_position() timed out after 30s. Unsticking blind.", self.name)
-                        self._moving = 0
-                        self._locked = False
-                        self.publish_updates()
-                        await self.disconnect()
-                        return
-                    except Exception as e:
-                        if _attempt == 0 and 'NotConnected' in str(e):
-                            # BLE link dropped silently — disconnect to clear stale client
-                            # and let ensure_connected() re-establish on the next attempt.
-                            _LOGGER.warning(
-                                "%s: Move command got NotConnected — reconnecting and retrying.",
-                                self.name,
-                            )
-                            await self.disconnect()
-                            continue
-                        _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
-                        self._moving = 0
-                        self._locked = False
-                        self.publish_updates()
-                        await self.disconnect()
-                        return
-                if not move_sent:
-                    return
-
-                end_time = None
-                start_time = datetime.datetime.now()
-
-                async def aync_update_position_in_realtime():
-                    """Task to update the position while the blind is moving."""
-                    while self._client and self._client.is_connected and not self._is_stopping:
-                        if self._attr_traversal_speed is not None:
-                            _LOGGER.debug(
-                                "%s: StartPos: %s. CurrentPos: %s. TargetPos: %s. Timedelta: %s",
-                                self.name,
-                                start_position,
-                                self._current_cover_position,
-                                corrected_target_position,
-                                (datetime.datetime.now() - start_time).total_seconds(),
-                            )
-                            traversal_difference = (
-                                (datetime.datetime.now() - start_time).total_seconds()
-                                * self._attr_traversal_speed
-                                * movement_direction
-                            )
-                            self._current_cover_position = round(
-                                sorted([
-                                    min(start_position, corrected_target_position),
-                                    start_position + traversal_difference,
-                                    max(start_position, corrected_target_position),
-                                ])[1], 2
-                            )
-                            self.publish_updates()
-
-                        await asyncio.sleep(1)
-
-                update_task = self.hub._hass.async_create_task(aync_update_position_in_realtime())
-
-                try:
-                    # Calculate timeout based on traversal speed or use default
-                    if (self._attr_traversal_speed is not None and
-                        self._attr_traversal_speed >= 1 and
-                        self._attr_traversal_speed < 6):
-                        timeout_duration = ((abs(corrected_target_position - start_position) * 1.2) / self._attr_traversal_speed) + 10
-                    else:
-                        timeout_duration = TIMEOUT_SECONDS or 120
-
-                    _LOGGER.debug(
-                        "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
-                        self.name,
-                        timeout_duration,
-                        self._attr_traversal_speed,
-                    )
-                    await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
-                    # Movement complete — confirm final position while BLE is warm.
-                    if not self._is_stopping:
-                        # Cancel dead-reckoning now that movement is confirmed complete.
-                        update_task.cancel()
-                        # Schedule position confirmation as a background task. T+5s gives
-                        # the BLE characteristic time to clear after any sync_blind_position
-                        # automation (fires T+2s, takes 1-3s to complete).
-                        #
-                        # No automatic battery check here (previously ran at T+15s) — checking
-                        # battery jolts the blind's mechanism, and doing so after every single
-                        # move drifts its calibrated physical stop-limits over time. Battery is
-                        # still checked, just not tied to movement — see the manual
-                        # get_battery_status service / options already provided.
-                        try:
-                            async def _post_move_queries():
-                                try:
-                                    await asyncio.sleep(5)
-                                    try:
-                                        await self.get_blind_position()
-                                    except Exception as e:
-                                        _LOGGER.debug("%s: Post-move position query failed: %s", self.name, e)
-                                except asyncio.CancelledError:
-                                    _LOGGER.debug("%s: Post-move queries cancelled — new command received", self.name)
-                            self._post_move_task = self.hub._hass.async_create_task(_post_move_queries())
-                        except Exception as e:
-                            _LOGGER.debug("%s: Failed to schedule post-move queries: %s", self.name, e)
-                except asyncio.TimeoutError:
-                    _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
-                    update_task.cancel()
-                    self._locked = False  # Release before disconnect so disconnect() isn't skipped
-                    await self.disconnect()
-                    self.set_final_state(corrected_target_position)
-                    self._moving = 0
-                    self.publish_updates()
-                    async def _query_after_timeout():
-                        await asyncio.sleep(3)
-                        try:
-                            await self.get_blind_position()
-                        except Exception as e:
-                            _LOGGER.debug("%s: Post-timeout position query failed: %s", self.name, e)
-                    self._post_move_task = self.hub._hass.async_create_task(_query_after_timeout())
-                    _LOGGER.debug("%s: Lock released following timeout", self.name)
-                    return  # stops blind updating traversal speed if it timesout
-                finally:
-                    update_task.cancel()
-                    self._locked = False  # Release before disconnect so disconnect() isn't skipped
-                    # Ensure disconnect is called in all cases (no-op if post-move sync already disconnected)
-                    await self.disconnect()
-                    _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
-
-                # set the traversal speed average and update final states only if the blind has not been stopped, as that updates itself
-                _LOGGER.debug(
-                    "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
-                    self.name,
-                    start_position,
-                    self._current_cover_position,
-                    corrected_target_position,
-                    self._is_stopping,
-                )
-                if not self._is_stopping:
-                    end_time = datetime.datetime.now()
-                    self.update_traversal_speed(
-                        corrected_target_position, start_position, start_time, end_time
-                    )
-                    # Use BLE-confirmed position (_current_cover_position was updated by
-                    # get_blind_position above). Only fall back to desired target if BLE
-                    # query failed and left _current_cover_position unchanged from movement.
-                    self._moving = 0
-                    self.publish_updates()
-
-        elif self._locked:
+        if self._locked:
             _LOGGER.debug(
                 "%s is locked, please wait for currrent command to complete and then try again.",
                 self.name,
             )
-            # Use translation placeholder so the frontend can localise the message
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="device_locked",
-                translation_placeholders={
-                    "name": self.name,
-                })
+                translation_placeholders={"name": self.name},
+            )
+
+        # Cancel any background position task from previous move
+        await self._cancel_post_move_task()
+
+        await self.attempt_connection()
+        if not (self._client and self._client.is_connected):
+            return
+
+        self._locked = True
+        _LOGGER.debug("%s: Lock acquired.", self.name)
+        self._is_stopping = False
+        start_position = self._current_cover_position
+        corrected_target_position = 100 - target_position
+        self._moving = movement_direction
+        self.publish_updates()
+
+        if not skip_battery_check:
+            await self._async_check_battery_if_due()
+
+        move_sent = False
+        for attempt in range(2):
+            try:
+                await asyncio.wait_for(self.set_position(target_position), timeout=30.0)
+                move_sent = True
+                break
+            except asyncio.TimeoutError:
+                _LOGGER.error("%s: set_position() timed out after 30s. Unsticking blind.", self.name)
+                break
+            except Exception as e:
+                if attempt == 0 and "NotConnected" in str(e):
+                    _LOGGER.warning(
+                        "%s: Move command got NotConnected — reconnecting and retrying.",
+                        self.name,
+                    )
+                    await self.disconnect()
+                    continue
+                _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
+                break
+
+        if not move_sent:
+            self._moving = 0
+            self._locked = False
+            self.publish_updates()
+            await self.disconnect()
+            return
+
+        start_time = dt_util.now()
+        update_task = self.hub._hass.async_create_task(
+            self._async_dead_reckoning_loop(
+                start_position, corrected_target_position, movement_direction, start_time
+            )
+        )
+
+        try:
+            if (
+                self._attr_traversal_speed is not None
+                and 1 <= self._attr_traversal_speed < 6
+            ):
+                timeout_duration = (
+                    (abs(corrected_target_position - start_position) * 1.2)
+                    / self._attr_traversal_speed
+                ) + 10
+            else:
+                timeout_duration = TIMEOUT_SECONDS or 120
+
+            _LOGGER.debug(
+                "%s: Waiting for stop event with timeout: %s seconds. Traversal speed: %s",
+                self.name,
+                timeout_duration,
+                self._attr_traversal_speed,
+            )
+            await asyncio.wait_for(self.wait_for_stop(), timeout=timeout_duration)
+        except asyncio.TimeoutError:
+            _LOGGER.warning("%s: Timeout waiting for blind to stop", self.name)
+            self.set_final_state(corrected_target_position)
+            self._schedule_post_move_query(delay=3)
+            return
+        finally:
+            update_task.cancel()
+            self._locked = False
+            await self.disconnect()
+            _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
+
+        _LOGGER.debug(
+            "%s: Finished moving. StartPos: %s. CurrentPos: %s. TargetPos: %s. is_stopping: %s",
+            self.name,
+            start_position,
+            self._current_cover_position,
+            corrected_target_position,
+            self._is_stopping,
+        )
+        if not self._is_stopping:
+            end_time = dt_util.now()
+            self.update_traversal_speed(
+                corrected_target_position, start_position, start_time, end_time
+            )
+            self._moving = 0
+            self.publish_updates()
+        else:
+            self._is_stopping = False
+            self._schedule_post_move_query(delay=2)
 
     def update_traversal_speed(self, target_position, start_position, start_time, end_time):
         """Update the traversal speed."""
