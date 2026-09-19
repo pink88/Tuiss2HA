@@ -28,3 +28,6 @@ htmlcov/
 
 # Home Assistant
 *.log
+
+#Gemini
+GEMINI.md

@@ -444,8 +444,7 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
-        _LOGGER.debug("%s: Entering async_stop_cover. is_stopping: %s", self.name, self._blind._is_stopping)
-        self._blind._is_stopping = True
+        _LOGGER.debug("%s: Entering async_stop_cover", self._attr_name)
         try:
             await self._blind.stop()
         except (ConnectionTimeout, DeviceNotFound, RuntimeError) as e:
@@ -453,18 +452,11 @@ class Tuiss(CoverEntity, RestoreEntity):
                 _LOGGER.debug("Failed to stop %s. Error %s", self._attr_name, e)
                 # Use translation placeholder so the frontend can localise the message
                 raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="failed_to_stop",
-                translation_placeholders={
-                    "name": self._attr_name,
-                    "error": str(e),
-                })
-        finally:
-            if self._blind._client:
-                while self._blind._client.is_connected:
-                    await asyncio.sleep(1)
-                self._blind._moving = 0
-                await self.async_scheduled_update_request()
-            _LOGGER.debug("%s: Lock released in async_stop_cover.", self._attr_name)
-            self._blind._locked = False
-            self._blind.publish_updates()  # Notify sensors of the lock status change
+                    translation_domain=DOMAIN,
+                    translation_key="failed_to_stop",
+                    translation_placeholders={
+                        "name": self._attr_name,
+                        "error": str(e),
+                    },
+                )
+
