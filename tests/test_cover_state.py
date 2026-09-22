@@ -33,6 +33,8 @@ def test_cover_state_transitions(mock_hass, moving, position, expected_state):
 
     cover = Tuiss(blind, config)
     assert cover.state == expected_state
+    assert cover.is_opening == (moving > 0)
+    assert cover.is_closing == (moving < 0)
 
 
 @pytest.mark.parametrize("position,expected_closed", [

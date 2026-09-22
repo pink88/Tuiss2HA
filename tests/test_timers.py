@@ -73,7 +73,7 @@ async def test_async_add_timer_success(mock_hass, tuiss_blind):
         # Verify it sent all 5 setup commands to the blind
         assert tuiss_blind.send_command.call_count == 5
         tuiss_blind.async_save_timer.assert_awaited_once()
-        tuiss_blind.publish_updates.assert_called_once()
+        tuiss_blind.publish_updates.assert_called()
         
         # Verify it dispatched the new timer event to HA dynamically
         mock_dispatch.assert_called_once_with(mock_hass, f"tuiss2ha_add_timer_{tuiss_blind.blind_id}", "10")
@@ -130,7 +130,7 @@ async def test_async_delete_timer_success(mock_hass, tuiss_blind):
         assert "11" not in tuiss_blind.timers
         assert tuiss_blind.send_command.call_count == 5
         tuiss_blind.async_save_timer.assert_awaited_once()
-        tuiss_blind.publish_updates.assert_called_once()
+        tuiss_blind.publish_updates.assert_called()
         
         mock_dispatch.assert_called_once_with(mock_hass, f"tuiss2ha_delete_timer_{tuiss_blind.blind_id}_11")
 

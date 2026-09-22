@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -36,4 +37,51 @@ async def test_attempt_connection_succeeds_and_set_position(mock_hass):
             # Test set_position will call write_gatt_char via send_command
             # Patch send_command to observe calls
             tb._client.write_gatt_char.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_get_blind_position_completes_promptly(mock_hass):
+    """Test get_blind_position parses position packet and completes immediately without timing out."""
+    fake_device = MagicMock()
+    fake_device.name = "TB-01"
+
+    with patch(
+        "custom_components.tuiss2ha.hub.bluetooth.async_ble_device_from_address",
+        return_value=fake_device,
+    ):
+        hub = MagicMock()
+        mock_hass.loop = MagicMock()
+        hub._hass = mock_hass
+        tb = TuissBlind("AA:BB:CC:DD:EE:FF", "Test", hub)
+
+        fake_client = MagicMock()
+        fake_client.is_connected = True
+        fake_client.stop_notify = AsyncMock()
+        fake_client.disconnect = AsyncMock()
+
+        captured_callback = None
+
+        async def fake_start_notify(char, callback):
+            nonlocal captured_callback
+            captured_callback = callback
+
+        async def fake_write_gatt_char(char, cmd):
+            # Blind sends position notify response immediately on receiving command:
+            # 50.0% -> 500 = 244 + 256*1
+            response_packet = bytearray([0xFF, 0x78, 0xEA, 0x41, 0xD1, 0x03, 0x01, 244, 1])
+            if captured_callback:
+                await captured_callback(None, response_packet)
+
+        fake_client.start_notify = AsyncMock(side_effect=fake_start_notify)
+        fake_client.write_gatt_char = AsyncMock(side_effect=fake_write_gatt_char)
+
+        tb.attempt_connection = AsyncMock()
+        tb._client = fake_client
+
+        # Must complete within 1.0 second (well before the 10.0s safety timeout)
+        await asyncio.wait_for(tb.get_blind_position(), timeout=1.0)
+
+        assert tb.current_position == 50.0
+        fake_client.disconnect.assert_called_once()
+
 
