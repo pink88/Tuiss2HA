@@ -108,6 +108,7 @@ class TuissBlind:
         self._moving = 0
         self._is_stopping = False
         self._stopped_event = asyncio.Event()
+        self._read_response_event = asyncio.Event()
         self._current_cover_position: float | None = None
         self._desired_position: int | None = None
         self._desired_orientation = False
@@ -303,6 +304,7 @@ class TuissBlind:
         if not client:
             _LOGGER.debug("%s: Already disconnected", self.name)
             self._stopped_event.set()
+            self._read_response_event.set()
             return
         _LOGGER.debug("%s: Disconnecting", self.name)
         try:
@@ -329,10 +331,10 @@ class TuissBlind:
             )
         finally:
             self._stopped_event.set()
+            self._read_response_event.set()
 
     async def wait_for_stop(self):
         """Wait for the blind to stop moving."""
-        self._stopped_event.clear()
         await self._stopped_event.wait()
 
     async def ensure_connected(self) -> None:
@@ -397,6 +399,7 @@ class TuissBlind:
             self._moving = 0
             self._locked = False
             self._stopped_event.set()
+            self._read_response_event.set()
             self.publish_updates()
 
 
@@ -404,6 +407,14 @@ class TuissBlind:
     async def set_speed(self) -> None:
         """Set the speed for supported blind types"""
         _LOGGER.debug("%s: Attempting to set the blind speed", self.name)
+        if self._locked:
+            _LOGGER.debug("%s: Device is busy — cannot set blind speed", self.name)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={"name": self.name},
+            )
+
         match self._blind_speed:
             case "Standard":
                 command = bytes.fromhex(CMD_SPEED_STANDARD)
@@ -421,11 +432,13 @@ class TuissBlind:
                 )
                 return
 
+        self._locked = True
+        self.publish_updates()
 
-        await self.ensure_connected()
-
-        # send the command
         try:
+            await self.ensure_connected()
+
+            # send the command
             if self._client and self._client.is_connected:
                 await self.send_command(UUID, command)
         except (BleakError, RuntimeError) as e:
@@ -434,7 +447,8 @@ class TuissBlind:
                 "Unable to set the speed. Check has enough battery and within bluetooth range or that blind supports speed changes"
             ) from e
         finally:
-            # Always disconnect after set_speed operation
+            self._locked = False
+            self.publish_updates()
             await self.disconnect()
 
 
@@ -446,12 +460,9 @@ class TuissBlind:
         """Send a command to the blind and await a notification response."""
         await self.ensure_connected()
 
-        if self._locked:
-            _LOGGER.debug("%s: Blind locked for movement — aborting concurrent BLE read", self.name)
-            return
-
         assert self._client is not None
         try:
+            self._read_response_event.clear()
             await self._async_start_notify(callback)
             try:
                 await self.send_command(UUID, command)
@@ -461,26 +472,55 @@ class TuissBlind:
 
             # Wait for the response/callback to complete with timeout to prevent hanging
             try:
-                await asyncio.wait_for(self.wait_for_stop(), timeout=10.0)
+                await asyncio.wait_for(self._read_response_event.wait(), timeout=10.0)
             except asyncio.TimeoutError:
                 _LOGGER.warning("%s: Timeout waiting for response in get_from_blind", self.name)
         finally:
             await self.disconnect()
 
 
-    async def get_battery_status(self) -> None:
+    async def get_battery_status(self, from_move: bool = False) -> None:
         """Get the battery state from the blind as good or bad."""
-        command = bytes.fromhex(CMD_BATTERY_STATUS)
-        await self.get_from_blind(command, self.battery_callback)
+        if not from_move:
+            if self._locked:
+                _LOGGER.debug("%s: Device is busy — cannot query battery", self.name)
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="device_locked",
+                    translation_placeholders={"name": self.name},
+                )
+            self._locked = True
+            self.publish_updates()
+
+        try:
+            command = bytes.fromhex(CMD_BATTERY_STATUS)
+            await self.get_from_blind(command, self.battery_callback)
+        finally:
+            if not from_move:
+                self._locked = False
+                self.publish_updates()
+                await self.disconnect()
 
 
     async def get_blind_position(self) -> None:
         """Get the current position of the blind."""
         if self._locked:
-            _LOGGER.debug("%s: Skipping position query — movement in progress", self.name)
-            return
-        command = bytes.fromhex(INITIALIZATION_MESSAGE)
-        await self.get_from_blind(command, self.position_callback)
+            _LOGGER.debug("%s: Device is busy — cannot query position", self.name)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={"name": self.name},
+            )
+        self._locked = True
+        self.publish_updates()
+
+        try:
+            command = bytes.fromhex(INITIALIZATION_MESSAGE)
+            await self.get_from_blind(command, self.position_callback)
+        finally:
+            self._locked = False
+            self.publish_updates()
+            await self.disconnect()
 
     ##################################################################################################
     ## LIMIT CONFIGURATION METHODS ##################################################################
@@ -708,122 +748,161 @@ class TuissBlind:
 
     async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
         """Add a new schedule."""
-        await self.ensure_connected()
-
-        new_timer_id = None
-        timer_id_event = asyncio.Event()
-
-        async def timer_id_callback(sender, data):
-            nonlocal new_timer_id
-            decimals = self.split_data(data)
-            # Filter for the correct response: 7 bytes long, where the 5th byte is 0xd6 (214)
-            if len(decimals) >= 7 and decimals[4] == 214:
-                new_timer_id = str(decimals[6])
-                timer_id_event.set()
-
-        await self._async_start_notify(timer_id_callback)
-
-        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-        await self.send_timestamp()
-        await self.send_command(UUID, bytes.fromhex(CMD_TIMER_REQUEST))
-
-        try:
-            await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
-        except asyncio.TimeoutError:
-            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-            await self.disconnect()
-            raise HomeAssistantError("Timeout waiting for timer ID from blind.")
-
-        await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-
-        _LOGGER.debug("Received timer ID from blind: %s", new_timer_id)
-
-        if not new_timer_id:
-            await self.disconnect()
-            _LOGGER.debug("Failed to obtain timer ID from the blind.")
-            raise HomeAssistantError("Failed to obtain timer ID from the blind.")
-
-        if int(new_timer_id) >= 17:
-            await self.disconnect()
-            _LOGGER.debug("Maximum number of timers reached.")
+        if self._locked:
+            _LOGGER.debug("%s: Device is busy — cannot add timer", self.name)
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
-                translation_key="max_timers_reached",
-                translation_placeholders={"max_timers": "16"}
+                translation_key="device_locked",
+                translation_placeholders={"name": self.name},
             )
-
-        timer_id = new_timer_id
-        timer_command = self.create_timer_command(timer_id, days, time_str, position)
-
-        await self.send_command(UUID, bytes.fromhex(timer_command))
-        await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
-        await self.disconnect()
-
-        existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
-        available_indices = set(range(1, 17)) - existing_ha_indices
-        ha_index = min(available_indices) if available_indices else len(self.timers) + 1
-
-        self.timers[timer_id] = {
-            "timer_id": timer_id,
-            "ha_index": ha_index,
-            "days": days,
-            "time": time_str,
-            "position": position
-        }
-
-        await self.async_save_timer()
+        self._locked = True
         self.publish_updates()
-        async_dispatcher_send(self.hub._hass, f"{DOMAIN}_add_timer_{self.blind_id}", timer_id)
-        return timer_id
+
+        try:
+            await self.ensure_connected()
+
+            new_timer_id = None
+            timer_id_event = asyncio.Event()
+
+            async def timer_id_callback(sender, data):
+                nonlocal new_timer_id
+                decimals = self.split_data(data)
+                # Filter for the correct response: 7 bytes long, where the 5th byte is 0xd6 (214)
+                if len(decimals) >= 7 and decimals[4] == 214:
+                    new_timer_id = str(decimals[6])
+                    timer_id_event.set()
+
+            await self._async_start_notify(timer_id_callback)
+
+            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+            await self.send_timestamp()
+            await self.send_command(UUID, bytes.fromhex(CMD_TIMER_REQUEST))
+
+            try:
+                await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
+            except asyncio.TimeoutError:
+                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+                raise HomeAssistantError("Timeout waiting for timer ID from blind.")
+
+            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
+
+            _LOGGER.debug("Received timer ID from blind: %s", new_timer_id)
+
+            if not new_timer_id:
+                _LOGGER.debug("Failed to obtain timer ID from the blind.")
+                raise HomeAssistantError("Failed to obtain timer ID from the blind.")
+
+            if int(new_timer_id) >= 17:
+                _LOGGER.debug("Maximum number of timers reached.")
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="max_timers_reached",
+                    translation_placeholders={"max_timers": "16"}
+                )
+
+            timer_id = new_timer_id
+            timer_command = self.create_timer_command(timer_id, days, time_str, position)
+
+            await self.send_command(UUID, bytes.fromhex(timer_command))
+            await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
+
+            existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
+            available_indices = set(range(1, 17)) - existing_ha_indices
+            ha_index = min(available_indices) if available_indices else len(self.timers) + 1
+
+            self.timers[timer_id] = {
+                "timer_id": timer_id,
+                "ha_index": ha_index,
+                "days": days,
+                "time": time_str,
+                "position": position
+            }
+
+            await self.async_save_timer()
+            async_dispatcher_send(self.hub._hass, f"{DOMAIN}_add_timer_{self.blind_id}", timer_id)
+            return timer_id
+        finally:
+            self._locked = False
+            self.publish_updates()
+            await self.disconnect()
 
 
     async def async_delete_timer(self, timer_id: str) -> None:
         """Remove an existing schedule."""
-        await self.ensure_connected()
+        if self._locked:
+            _LOGGER.debug("%s: Device is busy — cannot delete timer", self.name)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={"name": self.name},
+            )
+        self._locked = True
+        self.publish_updates()
 
-        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-        await self.send_timestamp()
-        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        delete_hex = f"{CMD_TIMER_DELETE_BASE}{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
-        await self.send_command(UUID, bytes.fromhex(delete_hex))
-        await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
-        await self.disconnect()
+        try:
+            await self.ensure_connected()
 
-        if timer_id in self.timers:
-            del self.timers[timer_id]
-            await self.async_save_timer()
-            async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+            await self.send_timestamp()
+            await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
+            delete_hex = f"{CMD_TIMER_DELETE_BASE}{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
+            await self.send_command(UUID, bytes.fromhex(delete_hex))
+            await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
+
+            if timer_id in self.timers:
+                del self.timers[timer_id]
+                await self.async_save_timer()
+                async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+        finally:
+            self._locked = False
             self.publish_updates()
+            await self.disconnect()
 
 
 
     async def delete_all_timers(self) -> None:
         """Delete all timers from the blind."""
         _LOGGER.debug("%s: Attempting to delete all timers.", self.name)
-        # Connect to the blind first
-        await self.ensure_connected()
+        if self._locked:
+            _LOGGER.debug("%s: Device is busy — cannot delete all timers", self.name)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={"name": self.name},
+            )
+        self._locked = True
+        self.publish_updates()
 
-        await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-        await self.send_timestamp()
-        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex(CMD_TIMER_RESET)) # reset command
+        try:
+            # Connect to the blind first
+            await self.ensure_connected()
 
-        await self.disconnect()
+            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
+            await self.send_timestamp()
+            await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
+            await self.send_command(UUID, bytes.fromhex(CMD_TIMER_RESET)) # reset command
 
-        # Reconnect to the blind to ensure it's back online after reset
-        await self.attempt_connection()
-        await self.send_command(UUID, bytes.fromhex(CMD_BLIND_REACTIVATE)) # reactivate blind
-        await self.disconnect()
+            # Disconnect underlying client directly to reactivate while holding _locked
+            if self._client:
+                await self._client.disconnect()
+                self._client = None
 
-        #remove any timer entities
-        if self.timers:
-            timer_ids = list(self.timers.keys())
-            for timer_id in timer_ids:
-                async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+            # Reconnect to the blind to ensure it's back online after reset
+            await self.attempt_connection()
+            await self.send_command(UUID, bytes.fromhex(CMD_BLIND_REACTIVATE)) # reactivate blind
 
-            self.timers.clear()
-            await self.async_save_timer()
+            # Remove any timer entities
+            if self.timers:
+                timer_ids = list(self.timers.keys())
+                for timer_id in timer_ids:
+                    async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
+
+                self.timers.clear()
+                await self.async_save_timer()
+        finally:
+            self._locked = False
             self.publish_updates()
+            await self.disconnect()
 
 
 
@@ -866,19 +945,9 @@ class TuissBlind:
     ##################################################################################################
 
     async def battery_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
-        """Wait for response from the blind and updates entity status.
-
-        NOTE: Same duplicate-packet behaviour as position_callback — two identical
-        packets arrive within ~60ms. Second fire is benign for the same reasons.
-        """
+        """Wait for response from the blind and updates entity status."""
         decimals = self.split_data(data)
         _LOGGER.debug("%s: battery_callback raw decimals (len=%d): %s", self.name, len(decimals), decimals)
-
-        # Only 210 (0xD2) is the real battery-status response — a generic ack (seen
-        # with decimals[4]=2) arrives first on this shared characteristic. Matching
-        # on it too resolves the wait before the real packet has a chance to arrive,
-        # so the reported battery level ends up permanently stuck on whatever the
-        # ack's fixed bytes happen to decode to, regardless of actual charge state.
         matched = len(decimals) > 4 and decimals[4] == 210
 
         if matched:
@@ -896,15 +965,9 @@ class TuissBlind:
                 self._last_battery_check = dt_util.now()
             except Exception:
                 self._last_battery_check = None
-            # Every other state-mutating callback in this file publishes right after
-            # changing something — this one didn't, so a battery reading only ever
-            # reached the binary_sensor entity when some unrelated later call to
-            # publish_updates() happened to flush the already-mutated value. The
-            # post-move battery check (T+15s) is the last step of its background
-            # task with nothing after it, so that path silently never updated HA at
-            # all.
+            
             self.publish_updates()
-            self._stopped_event.set()
+            self._read_response_event.set()
         else:
             _LOGGER.debug(
                 "%s: battery_callback — decimals[4]=%s is not 210; skipping parse",
@@ -913,23 +976,13 @@ class TuissBlind:
             )
 
     async def position_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
-        """Wait for response from the blind and updates entity status.
-
-        NOTE: Tuiss firmware sends duplicate BLE notify packets for the same read —
-        two identical packets arrive within ~60ms of each other. This is normal firmware
-        behaviour and results in this callback firing twice per position query. The second
-        fire is benign: _current_cover_position is overwritten with the same value,
-        _stopped_event.set() is a no-op (already set), and publish_updates() fires once
-        more. Not worth deduplicating given the negligible cost.
-        """
+        """Wait for response from the blind and updates entity status."""
         _LOGGER.debug("%s: Attempting to get position", self.name)
 
         decimals = self.split_data(data)
 
         if len(decimals) < 9:
-            # Short packets (e.g. battery notifications) can arrive on the shared
-            # characteristic while this callback is registered. Don't crash — just
-            # wait; the 10s timeout in get_from_blind is the safety net.
+            
             _LOGGER.debug(
                 "%s: position_callback — packet too short (len=%d): %s — waiting for position packet",
                 self.name, len(decimals), decimals,
@@ -939,19 +992,8 @@ class TuissBlind:
         blindPos = (decimals[7] + (256 * decimals[8])) / 10
         _LOGGER.debug("%s: Blind position is %s", self.name, blindPos)
         self._current_cover_position = blindPos
-        if self._moving != 0:
-            # A concurrent position read arrived while the blind is moving (e.g. a
-            # dashboard poll queued behind the movement). Update position but don't
-            # signal stop — movement continues until set_position_callback fires near
-            # the target. Without this guard the stop event fires prematurely and
-            # wait_for_stop() returns while the blind is still physically moving.
-            _LOGGER.debug(
-                "%s: position_callback during movement — position updated, stop not signalled",
-                self.name,
-            )
-            return
-        self._moving = 0
-        self._stopped_event.set()
+        self.publish_updates()
+        self._read_response_event.set()
 
     async def set_position_callback(
         self, sender: BleakGATTCharacteristic, data: bytearray
@@ -1075,7 +1117,7 @@ class TuissBlind:
                     self._battery_check_days,
                 )
                 try:
-                    await self.get_battery_status()
+                    await self.get_battery_status(from_move=True)
                 except Exception as e:
                     _LOGGER.debug("%s: Battery check failed: %s", self.name, e)
         except Exception:
@@ -1127,24 +1169,67 @@ class TuissBlind:
                 translation_placeholders={"name": self.name},
             )
 
-        # Cancel any background position task from previous move
-        await self._cancel_post_move_task()
-
-        await self.attempt_connection()
-        if not (self._client and self._client.is_connected):
-            return
-
+        # Acquire lock and set moving state immediately before any awaitable call.
+        # This provides instant UI feedback and locks out duplicate or stacked commands.
         self._locked = True
         _LOGGER.debug("%s: Lock acquired.", self.name)
         self._is_stopping = False
+        self._moving = movement_direction
+        if self._current_cover_position is None:
+            self._current_cover_position = 0.0
         start_position = self._current_cover_position
         corrected_target_position = 100 - target_position
-        self._moving = movement_direction
         self.publish_updates()
 
-        if not skip_battery_check:
-            await self._async_check_battery_if_due()
+        try:
+            # Cancel any background position task from previous move
+            await self._cancel_post_move_task()
 
+            await self.attempt_connection()
+            if not (self._client and self._client.is_connected):
+                self._moving = 0
+                self._locked = False
+                self.publish_updates()
+                return
+
+            if self._is_stopping or not self._locked:
+                _LOGGER.debug(
+                    "%s: Movement aborted before start (is_stopping=%s, locked=%s)",
+                    self.name,
+                    self._is_stopping,
+                    self._locked,
+                )
+                self._is_stopping = False
+                self._moving = 0
+                self._locked = False
+                self.publish_updates()
+                await self.disconnect()
+                return
+
+            if not skip_battery_check:
+                await self._async_check_battery_if_due()
+
+            if self._is_stopping or not self._locked:
+                _LOGGER.debug(
+                    "%s: Movement aborted before start (is_stopping=%s, locked=%s)",
+                    self.name,
+                    self._is_stopping,
+                    self._locked,
+                )
+                self._is_stopping = False
+                self._moving = 0
+                self._locked = False
+                self.publish_updates()
+                await self.disconnect()
+                return
+        except Exception:
+            self._moving = 0
+            self._locked = False
+            self.publish_updates()
+            await self.disconnect()
+            raise
+
+        self._stopped_event.clear()
         move_sent = False
         for attempt in range(2):
             try:

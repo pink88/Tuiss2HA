@@ -284,6 +284,16 @@ class Tuiss(CoverEntity, RestoreEntity):
         else:
             self._state = STATE_CLOSED
         return self._state
+
+    @property
+    def is_opening(self) -> bool:
+        """Return if the cover is opening or not."""
+        return self._blind._moving > 0
+
+    @property
+    def is_closing(self) -> bool:
+        """Return if the cover is closing or not."""
+        return self._blind._moving < 0
         
     @property
     def should_poll(self):

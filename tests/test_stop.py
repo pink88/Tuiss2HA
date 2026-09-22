@@ -4,8 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.tuiss2ha.const import CMD_STOP, UUID
-from custom_components.tuiss2ha.cover import Tuiss
+from custom_components.tuiss2ha.const import CMD_STOP, UUID, ConnectionTimeout
+from custom_components.tuiss2ha.cover import (
+    Tuiss,
+    HomeAssistantError,
+    STATE_OPENING,
+    STATE_CLOSING,
+)
 from custom_components.tuiss2ha.hub import TuissBlind
 
 
@@ -153,3 +158,124 @@ async def test_stop_when_not_moving_is_noop(mock_blind, fake_ble_client):
     assert tb._is_stopping is False
     # No write command should have been sent
     fake_ble_client.write_gatt_char.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_rapid_move_commands_rejected_with_locked_error(mock_blind, fake_ble_client):
+    """Test that rapid button clicks while connection or movement is starting are locked out."""
+    tb = mock_blind
+
+    connection_started = asyncio.Event()
+    allow_connection = asyncio.Event()
+
+    async def slow_attempt_connection():
+        connection_started.set()
+        await allow_connection.wait()
+
+    tb.attempt_connection = AsyncMock(side_effect=slow_attempt_connection)
+
+    # Launch first command (e.g. Open)
+    first_task = asyncio.create_task(
+        tb.async_move_cover(movement_direction=1, target_position=0, skip_battery_check=True)
+    )
+
+    await connection_started.wait()
+
+    # The blind should already be locked and moving up, even before connection completes
+    assert tb._locked is True
+    assert tb._moving == 1
+
+    # Attempt a second command (e.g. Close) while first is still connecting
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await tb.async_move_cover(movement_direction=-1, target_position=100, skip_battery_check=True)
+
+    assert exc_info.value.translation_key == "device_locked"
+    # Moving state and direction must NOT have been overwritten by second command
+    assert tb._moving == 1
+    assert tb._locked is True
+
+    # Allow first task to proceed and then stop it
+    allow_connection.set()
+    await tb.stop()
+    await asyncio.wait_for(first_task, timeout=2.0)
+    await tb._cancel_post_move_task()
+
+
+@pytest.mark.asyncio
+async def test_move_updates_state_and_locks_immediately_before_connection(mock_blind, fake_ble_client):
+    """Test that UI state reflects opening/closing immediately before BLE connection."""
+    tb = mock_blind
+    config = MagicMock()
+    config.options = {}
+    cover = Tuiss(tb, config)
+
+    allow_connection = asyncio.Event()
+
+    async def slow_attempt_connection():
+        await allow_connection.wait()
+
+    tb.attempt_connection = AsyncMock(side_effect=slow_attempt_connection)
+
+    # Launch move task
+    move_task = asyncio.create_task(
+        tb.async_move_cover(movement_direction=1, target_position=0, skip_battery_check=True)
+    )
+
+    # Immediately (without waiting for connection to finish), verify entity state
+    await asyncio.sleep(0)
+
+    assert tb._locked is True
+    assert tb._moving == 1
+    assert cover.state == STATE_OPENING
+    assert cover.is_opening is True
+    assert cover.is_closing is False
+
+    allow_connection.set()
+    await tb.stop()
+    await asyncio.wait_for(move_task, timeout=2.0)
+    await tb._cancel_post_move_task()
+
+
+@pytest.mark.asyncio
+async def test_stop_during_connection_aborts_move_without_sending_position(mock_blind, fake_ble_client):
+    """Test that pressing stop while connection is in progress aborts cleanly without sending move."""
+    tb = mock_blind
+    tb.set_position = AsyncMock()
+
+    allow_connection = asyncio.Event()
+
+    async def slow_attempt_connection():
+        await allow_connection.wait()
+
+    tb.attempt_connection = AsyncMock(side_effect=slow_attempt_connection)
+
+    move_task = asyncio.create_task(
+        tb.async_move_cover(movement_direction=1, target_position=0, skip_battery_check=True)
+    )
+
+    await asyncio.sleep(0)
+    assert tb._moving == 1
+
+    # User clicks stop before connection completes
+    await tb.stop()
+    allow_connection.set()
+
+    await asyncio.wait_for(move_task, timeout=2.0)
+
+    # set_position should NOT have been called
+    tb.set_position.assert_not_called()
+    assert tb._locked is False
+    assert tb._moving == 0
+
+
+@pytest.mark.asyncio
+async def test_connection_failure_restores_unlocked_and_idle_state(mock_blind, fake_ble_client):
+    """Test that if connection fails or raises, locked and moving states are restored to idle."""
+    tb = mock_blind
+    tb.attempt_connection = AsyncMock(side_effect=ConnectionTimeout("device unreachable"))
+
+    with pytest.raises(ConnectionTimeout):
+        await tb.async_move_cover(movement_direction=1, target_position=0, skip_battery_check=True)
+
+    assert tb._locked is False
+    assert tb._moving == 0
