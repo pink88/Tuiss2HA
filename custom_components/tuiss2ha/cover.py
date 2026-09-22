@@ -173,14 +173,34 @@ async def async_setup_entry(
             _LOGGER.error("No valid entities found for parallel blind position setting.")
             return
 
+        # Check if any target entity is currently busy/locked
+        locked_blinds = [
+            str(getattr(entity, "name", None) or getattr(entity, "_attr_name", None) or "Blind")
+            for entity in target_entities
+            if entity._blind._locked
+        ]
+        if locked_blinds:
+            _LOGGER.warning("Cannot run simultaneous positioning: %s is busy", locked_blinds)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="device_locked",
+                translation_placeholders={"name": ", ".join(locked_blinds)},
+            )
+
         # Try to connect to all blinds in parallel, but continue on individual failures
         connect_tasks = [asyncio.create_task(entity._blind.attempt_connection()) for entity in target_entities]
         connect_results = await asyncio.gather(*connect_tasks, return_exceptions=True)
 
         connected_entities: list[Tuiss] = []
         for entity, res in zip(target_entities, connect_results):
-            if isinstance(res, Exception):
-                _LOGGER.warning("Failed to connect to %s: %s", entity.entity_id, res)
+            if isinstance(res, Exception) or not (
+                entity._blind._client and entity._blind._client.is_connected
+            ):
+                _LOGGER.warning(
+                    "Failed to connect to %s: %s",
+                    entity.entity_id,
+                    res if isinstance(res, Exception) else "Client not connected",
+                )
             else:
                 connected_entities.append(entity)
 
@@ -196,12 +216,12 @@ async def async_setup_entry(
                     OPT_FAVORITE_POSITION, DEFAULT_FAVORITE_POSITION
                 )
                 set_position_tasks.append(
-                    entity.async_set_cover_position(**{ATTR_POSITION: fav_pos, "skip_battery_check": True})
+                    entity.async_set_cover_position(position=fav_pos, skip_battery_check=True)
                 )
         else:
             for entity in connected_entities:
                 set_position_tasks.append(
-                    entity.async_set_cover_position(**{ATTR_POSITION: position, "skip_battery_check": True})
+                    entity.async_set_cover_position(position=position, skip_battery_check=True)
                 )
 
         results = await asyncio.gather(*set_position_tasks, return_exceptions=True)
@@ -422,10 +442,14 @@ class Tuiss(CoverEntity, RestoreEntity):
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
+        pos = kwargs.get(ATTR_POSITION)
+        if pos is None:
+            pos = kwargs.get("position")
+
         if self._blind._current_cover_position is None:
             self._blind._current_cover_position = 0
 
-        if self._blind._current_cover_position <= kwargs[ATTR_POSITION]:
+        if self._blind._current_cover_position <= pos:
             movement_direction = 1
         else:
             movement_direction = -1
@@ -435,7 +459,7 @@ class Tuiss(CoverEntity, RestoreEntity):
         try:
             await self._blind.async_move_cover(
                 movement_direction=movement_direction,
-                target_position= 100 - kwargs[ATTR_POSITION],
+                target_position=100 - pos,
                 skip_battery_check=skip_battery_check,
             )
         except (ConnectionTimeout, DeviceNotFound) as e:

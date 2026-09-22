@@ -33,24 +33,21 @@ from .const import (
     ConnectionTimeout,
     NoConnectableBluetoothAdapter,
     TIMEOUT_SECONDS,
-    CMD_HEARTBEAT,
     CMD_STOP,
     CMD_BATTERY_STATUS,
     CMD_SPEED_STANDARD,
     CMD_SPEED_COMFORT,
     CMD_SPEED_SLOW,
-    CMD_LIMITS_INIT_2,
-    CMD_LIMITS_STEP_UP,
-    CMD_LIMITS_STEP_DOWN,
-    CMD_LIMITS_MOVE_UP,
-    CMD_LIMITS_MOVE_DOWN,
-    CMD_LIMITS_SET,
-    CMD_TIMER_REQUEST,
-    CMD_TIMER_DELETE_BASE,
-    CMD_TIMER_RESET,
-    CMD_BLIND_REACTIVATE,
-    CMD_TIMESTAMP_BASE,
 )
+from .limits import TuissLimitsMixin
+from .presets import TuissPresetsMixin
+from .protocol import (
+    build_timestamp_command,
+    create_timer_command,
+    hex_convert,
+    split_data,
+)
+from .timers import TuissTimersMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,7 +81,7 @@ class Hub:
         return self._name
 
 
-class TuissBlind:
+class TuissBlind(TuissLimitsMixin, TuissTimersMixin, TuissPresetsMixin):
     """Tuiss Blind object."""
 
     def __init__(self, host: str, name: str, hub: Hub) -> None:
@@ -180,6 +177,9 @@ class TuissBlind:
     # Attempt Connections
     async def attempt_connection(self):
         """Attempt to connect to the blind."""
+        if self._client and self._client.is_connected:
+            _LOGGER.debug("%s: Already connected.", self.name)
+            return
 
         #Set restart attempts if not set in options
         rediscover_attempts = 0
@@ -523,424 +523,6 @@ class TuissBlind:
             await self.disconnect()
 
     ##################################################################################################
-    ## LIMIT CONFIGURATION METHODS ##################################################################
-    ##################################################################################################
-
-    def limits_heartbeat_start(self, move_command: str) -> None:
-        """Start the heartbeat task for limits."""
-        self.limits_heartbeat_stop()
-        self._limits_heartbeat_task = self.hub._hass.async_create_task(
-            self.limits_heartbeat_loop(move_command)
-        )
-
-
-    def limits_heartbeat_stop(self) -> None:
-        """Stop the heartbeat task for limits."""
-        if self._limits_heartbeat_task:
-            self._limits_heartbeat_task.cancel()
-            self._limits_heartbeat_task = None
-
-
-    async def limits_heartbeat_loop(self, move_command_str: str) -> None:
-        """Send heartbeat every 4 seconds while moving."""
-        heartbeat_command = bytes.fromhex(CMD_HEARTBEAT)
-        move_command = bytes.fromhex(move_command_str)
-        while True:
-            try:
-                await asyncio.sleep(2)
-                if self._client and self._client.is_connected:
-                    await self.send_command(UUID, heartbeat_command)
-                    await self.send_command(UUID, move_command)
-                else:
-                    break
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                _LOGGER.debug("%s: Moving heartbeat failed: %s", self.name, e)
-                break
-
-
-    async def limits_initialise(self) -> None:
-        """Initialise the limit configuration by connecting to the blind."""
-        self.limits_heartbeat_stop()
-        # Connect to the blind first
-        _LOGGER.debug("Starting Limits Config. Attempting Connection")
-        await self.ensure_connected()
-
-        # Set the initialisation commands
-        _LOGGER.debug("Sending initialisation commands")
-        await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_INIT_2))
-
-
-    async def _async_send_limit_command(self, command_hex: str, start_heartbeat: bool = False) -> None:
-        """Send a limit setup command and manage the motion heartbeat."""
-        if not start_heartbeat:
-            self.limits_heartbeat_stop()
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits command failed")
-            return
-        await self.send_command(UUID, bytes.fromhex(command_hex))
-        if start_heartbeat:
-            self.limits_heartbeat_start(command_hex)
-
-    async def limits_step_up(self) -> None:
-        """Move the blind up incrementally for manual positioning."""
-        _LOGGER.debug("Stepping up")
-        await self._async_send_limit_command(CMD_LIMITS_STEP_UP)
-
-    async def limits_step_down(self) -> None:
-        """Move the blind down incrementally for manual positioning."""
-        _LOGGER.debug("Stepping down")
-        await self._async_send_limit_command(CMD_LIMITS_STEP_DOWN)
-
-    async def limits_move_up(self) -> None:
-        """Move the blind up continuously for manual positioning (stubbed for now)."""
-        _LOGGER.debug("Moving up")
-        await self._async_send_limit_command(CMD_LIMITS_MOVE_UP, start_heartbeat=True)
-
-    async def limits_move_down(self) -> None:
-        """Move the blind down continuously for manual positioning (stubbed for now)."""
-        _LOGGER.debug("Moving down")
-        await self._async_send_limit_command(CMD_LIMITS_MOVE_DOWN, start_heartbeat=True)
-
-    async def limits_stop(self) -> None:
-        """Stop the blind movement."""
-        _LOGGER.debug("Stopping movement")
-        await self._async_send_limit_command(CMD_STOP)
-
-    async def limits_set(self) -> None:
-        """Sets the limit."""
-        self.limits_heartbeat_stop()
-        if not self._client or not self._client.is_connected:
-            _LOGGER.debug("Connection lost, limits set up failed")
-            return
-        _LOGGER.debug("Setting the limit")
-        await self.send_command(UUID, bytes.fromhex(CMD_STOP))
-        await self.send_command(UUID, bytes.fromhex(CMD_LIMITS_SET))
-
-    ##################################################################################################
-    ## TIMER METHODS #################################################################################
-    ##################################################################################################
-
-    async def async_load_timers(self) -> None:
-        """Load stored schedules."""
-        stored = await self._store.async_load()
-        if stored:
-            self.timers = stored
-        else:
-            self.timers = {}
-
-    async def async_save_timer(self) -> None:
-        """Save schedules to storage."""
-        await self._store.async_save(self.timers)
-
-
-    async def async_load_presets(self) -> None:
-        """Load stored position presets; fall back to empty on corruption."""
-        try:
-            stored = await self._presets_store.async_load()
-        except Exception as exc:  # noqa: BLE001
-            _LOGGER.warning(
-                "%s: Failed to load presets from storage (%s); starting empty",
-                self.name, exc,
-            )
-            self.presets = {}
-            return
-        if stored and isinstance(stored, dict):
-            clean: dict[str, float] = {}
-            for name, position in stored.items():
-                if not isinstance(name, str) or not name.strip():
-                    _LOGGER.warning(
-                        "%s: Dropping preset with invalid name %r",
-                        self.name, name,
-                    )
-                    continue
-                try:
-                    pos_f = float(position)
-                except (TypeError, ValueError):
-                    _LOGGER.warning(
-                        "%s: Dropping preset %r with invalid position %r",
-                        self.name, name, position,
-                    )
-                    continue
-                if not 0 <= pos_f <= 100:
-                    _LOGGER.warning(
-                        "%s: Dropping preset %r with out-of-range position %s",
-                        self.name, name, pos_f,
-                    )
-                    continue
-                clean[name] = pos_f
-            self.presets = clean
-            # Re-persist if we dropped anything so the next restart is clean.
-            if len(clean) != len(stored):
-                await self._presets_store.async_save(clean)
-        else:
-            self.presets = {}
-
-    async def async_save_presets(self) -> None:
-        """Persist position presets to storage."""
-        await self._presets_store.async_save(self.presets)
-
-    async def async_apply_preset(self, name: str) -> None:
-        """Move the blind to the position stored under ``name``.
-
-        Dispatches directly to ``async_move_cover`` to bypass HA's
-        ``cover.set_cover_position`` int-coercion and preserve 0.1%
-        precision end-to-end. Refuses when the live position is unknown
-        rather than guessing a direction.
-        """
-        if name not in self.presets:
-            raise HomeAssistantError(
-                f"{self.name}: preset {name!r} not found"
-            )
-        position = float(self.presets[name])
-        current = self._current_cover_position
-        if current is None:
-            raise HomeAssistantError(
-                f"{self.name}: preset {name!r} cannot apply — current "
-                "position is unknown. Move the blind once so its "
-                "position is read, then try again."
-            )
-        movement_direction = 1 if current <= position else -1
-        try:
-            await self.async_move_cover(
-                movement_direction=movement_direction,
-                target_position=100 - position,
-            )
-        except (ConnectionTimeout, DeviceNotFound, HomeAssistantError) as e:
-            raise HomeAssistantError(
-                f"{self.name}: preset {name!r} failed to apply: {e}"
-            ) from e
-        _LOGGER.info(
-            "%s: Applied preset %r -> %s%%", self.name, name, position
-        )
-
-    async def async_save_current_as_preset(self, name: str) -> float | None:
-        """Save the live cover position under ``name``.
-
-        Returns the stored float, or None if position has never been read.
-        Raises ValueError on empty/non-string names.
-        """
-        if not isinstance(name, str):
-            raise ValueError("preset name must be a string")
-        name = name.strip()
-        if not name:
-            raise ValueError("preset name cannot be empty or whitespace only")
-        current = self._current_cover_position
-        if current is None:
-            _LOGGER.warning(
-                "%s: Cannot save preset %r — current position is unknown",
-                self.name, name,
-            )
-            return None
-        # Clamp against transient out-of-range frames.
-        position = max(0.0, min(100.0, float(current)))
-        self.presets[name] = position
-        await self.async_save_presets()
-        self.publish_updates()
-        _LOGGER.info(
-            "%s: Saved preset %r at current position %s%%",
-            self.name, name, position,
-        )
-        return position
-
-
-    async def async_add_timer(self, days: list[str], time_str: str, position: float) -> str:
-        """Add a new schedule."""
-        if self._locked:
-            _LOGGER.debug("%s: Device is busy — cannot add timer", self.name)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="device_locked",
-                translation_placeholders={"name": self.name},
-            )
-        self._locked = True
-        self.publish_updates()
-
-        try:
-            await self.ensure_connected()
-
-            new_timer_id = None
-            timer_id_event = asyncio.Event()
-
-            async def timer_id_callback(sender, data):
-                nonlocal new_timer_id
-                decimals = self.split_data(data)
-                # Filter for the correct response: 7 bytes long, where the 5th byte is 0xd6 (214)
-                if len(decimals) >= 7 and decimals[4] == 214:
-                    new_timer_id = str(decimals[6])
-                    timer_id_event.set()
-
-            await self._async_start_notify(timer_id_callback)
-
-            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-            await self.send_timestamp()
-            await self.send_command(UUID, bytes.fromhex(CMD_TIMER_REQUEST))
-
-            try:
-                await asyncio.wait_for(timer_id_event.wait(), timeout=10.0)
-            except asyncio.TimeoutError:
-                await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-                raise HomeAssistantError("Timeout waiting for timer ID from blind.")
-
-            await self._client.stop_notify(BLIND_NOTIFY_CHARACTERISTIC)
-
-            _LOGGER.debug("Received timer ID from blind: %s", new_timer_id)
-
-            if not new_timer_id:
-                _LOGGER.debug("Failed to obtain timer ID from the blind.")
-                raise HomeAssistantError("Failed to obtain timer ID from the blind.")
-
-            if int(new_timer_id) >= 17:
-                _LOGGER.debug("Maximum number of timers reached.")
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="max_timers_reached",
-                    translation_placeholders={"max_timers": "16"}
-                )
-
-            timer_id = new_timer_id
-            timer_command = self.create_timer_command(timer_id, days, time_str, position)
-
-            await self.send_command(UUID, bytes.fromhex(timer_command))
-            await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
-
-            existing_ha_indices = {t.get("ha_index") for t in self.timers.values() if "ha_index" in t}
-            available_indices = set(range(1, 17)) - existing_ha_indices
-            ha_index = min(available_indices) if available_indices else len(self.timers) + 1
-
-            self.timers[timer_id] = {
-                "timer_id": timer_id,
-                "ha_index": ha_index,
-                "days": days,
-                "time": time_str,
-                "position": position
-            }
-
-            await self.async_save_timer()
-            async_dispatcher_send(self.hub._hass, f"{DOMAIN}_add_timer_{self.blind_id}", timer_id)
-            return timer_id
-        finally:
-            self._locked = False
-            self.publish_updates()
-            await self.disconnect()
-
-
-    async def async_delete_timer(self, timer_id: str) -> None:
-        """Remove an existing schedule."""
-        if self._locked:
-            _LOGGER.debug("%s: Device is busy — cannot delete timer", self.name)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="device_locked",
-                translation_placeholders={"name": self.name},
-            )
-        self._locked = True
-        self.publish_updates()
-
-        try:
-            await self.ensure_connected()
-
-            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-            await self.send_timestamp()
-            await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-            delete_hex = f"{CMD_TIMER_DELETE_BASE}{int(timer_id):02x}" #schedule index in hex, convert from string to int to hex
-            await self.send_command(UUID, bytes.fromhex(delete_hex))
-            await self.send_command(UUID, bytes.fromhex(CMD_BATTERY_STATUS))
-
-            if timer_id in self.timers:
-                del self.timers[timer_id]
-                await self.async_save_timer()
-                async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
-        finally:
-            self._locked = False
-            self.publish_updates()
-            await self.disconnect()
-
-
-
-    async def delete_all_timers(self) -> None:
-        """Delete all timers from the blind."""
-        _LOGGER.debug("%s: Attempting to delete all timers.", self.name)
-        if self._locked:
-            _LOGGER.debug("%s: Device is busy — cannot delete all timers", self.name)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="device_locked",
-                translation_placeholders={"name": self.name},
-            )
-        self._locked = True
-        self.publish_updates()
-
-        try:
-            # Connect to the blind first
-            await self.ensure_connected()
-
-            await self.send_command(UUID, bytes.fromhex(CONNECTION_MESSAGE))
-            await self.send_timestamp()
-            await self.send_command(UUID, bytes.fromhex(INITIALIZATION_MESSAGE))
-            await self.send_command(UUID, bytes.fromhex(CMD_TIMER_RESET)) # reset command
-
-            # Disconnect underlying client directly to reactivate while holding _locked
-            if self._client:
-                await self._client.disconnect()
-                self._client = None
-
-            # Reconnect to the blind to ensure it's back online after reset
-            await self.attempt_connection()
-            await self.send_command(UUID, bytes.fromhex(CMD_BLIND_REACTIVATE)) # reactivate blind
-
-            # Remove any timer entities
-            if self.timers:
-                timer_ids = list(self.timers.keys())
-                for timer_id in timer_ids:
-                    async_dispatcher_send(self.hub._hass, f"{DOMAIN}_delete_timer_{self.blind_id}_{timer_id}")
-
-                self.timers.clear()
-                await self.async_save_timer()
-        finally:
-            self._locked = False
-            self.publish_updates()
-            await self.disconnect()
-
-
-
-
-    def create_timer_command(self, index: str, days: list[str], time: str, position: float) -> str:
-        # Convert days to bitmask
-        day_map = {"sun": 1, "mon": 2, "tue": 4, "wed": 8, "thu": 16, "fri": 32, "sat": 64}
-        day_bits = sum(day_map[day] for day in days if day in day_map)
-
-        # Convert time to minutes since midnight
-        time_parts = time.split(":")
-        hours = int(time_parts[0])
-        minutes = int(time_parts[1])
-
-        # Convert position to fixed-point (e.g., multiply by 10)
-        target_position_value = int(float(position) * 10)
-        position_byte_1 = target_position_value % 256
-        position_byte_2 = target_position_value // 256
-
-
-        # Construct the command (example format)
-        cmd_hex = "ff78ea410300"
-        cmd_hex += f"{int(index):02x}"   # Timer index converted to hex
-        cmd_hex += "b2"   # not sure
-        cmd_hex += "3f"   # not sure
-        cmd_hex += f"{day_bits:02x}" # Days bitmask
-        cmd_hex += f"{hours:02x}" # Time hours
-        cmd_hex += f"{minutes:02x}" # Time minutes
-        cmd_hex += "00"  # Padding
-        cmd_hex += f"{position_byte_1:02x}" # Position byte
-        cmd_hex += f"{position_byte_2:02x}" # Position byte
-
-        return cmd_hex
-
-
-
-
-    ##################################################################################################
     ## CALLBACK METHODS ##############################################################################
     ##################################################################################################
 
@@ -1035,36 +617,15 @@ class TuissBlind:
 
     async def send_timestamp(self) -> None:
         """Send the current timestamp command to the blind."""
-        now = dt_util.now()
-        timestamp_command = f"{CMD_TIMESTAMP_BASE}{now.year - 2000:02x}{now.month:02x}{now.day:02x}{now.hour:02x}{now.minute:02x}{now.second:02x}"
-        await self.send_command(UUID, bytes.fromhex(timestamp_command))
+        await self.send_command(UUID, build_timestamp_command(dt_util.now()))
 
-    # Creates the % open/closed hex command
     def hex_convert(self, user_percent: float) -> str:
         """Convert the Home Assistant position percentage (0-100) to the Tuiss hex command."""
-        # Tuiss uses an inverted percentage (0=open, 100=closed)
-        tuiss_percent = 100 - user_percent
-
-        # Calculate the absolute position value (0-1000)
-        total_val = int(round(tuiss_percent * 10))
-
-        # Extract lower byte (position) and upper byte (group)
-        position_value = total_val % 256
-        group_value = total_val // 256
-
-        # Format the position value as a two-character hex (e.g., 0A, FF)
-        hex_val = f"{position_value:02x}"
-        group_str = f"{group_value:02x}"
-
-        # Build the final command
-        command_prefix = "ff78ea41bf03"
-        return f"{command_prefix}{hex_val}{group_str}"
+        return hex_convert(user_percent)
 
     def split_data(self, data: bytearray) -> list[int]:
         """Convert the byte response into a list of decimals."""
-        decimals = list(data)
-        _LOGGER.debug("%s: Received data decimals: %s", self.name, decimals)
-        return decimals
+        return split_data(data)
 
 
     async def _cancel_post_move_task(self) -> None:
