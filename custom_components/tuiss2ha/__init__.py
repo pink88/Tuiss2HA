@@ -178,6 +178,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Defer to after HA has started and run in the background so the
             # entry loads immediately (cover restores its last state) instead of
             # raising ConfigEntryNotReady and leaving entities unavailable.
+            # Must be @callback: async_at_started wraps it in a HassJob, and an
+            # undecorated function would run in the executor (off the event loop).
+            @callback
             def _schedule_position_fetch(_hass: HomeAssistant, blind=blind) -> None:
                 entry.async_create_background_task(
                     hass,
