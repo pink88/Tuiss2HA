@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
     BluetoothCallbackMatcher,
@@ -17,6 +17,7 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
+from homeassistant.helpers.start import async_at_started
 
 from .hub import Hub
 from .const import (
@@ -31,8 +32,6 @@ from .const import (
     DEFAULT_BLIND_SPEED,
     OPT_BATTERY_CHECK_DAYS,
     DEFAULT_BATTERY_CHECK_DAYS,
-    DeviceNotFound,
-    ConnectionTimeout,
     SPEED_CONTROL_SUPPORTED_MODELS,
 )
 
@@ -45,6 +44,15 @@ SERVICE_SAVE_PRESET = "save_preset"
 SERVICE_SAVE_CURRENT_AS_PRESET = "save_current_position_as_preset"
 SERVICE_DELETE_PRESET = "delete_preset"
 SERVICE_APPLY_PRESET = "apply_preset"
+
+# Startup position fetch: never block HA startup / config entry setup on BLE,
+# and never fire one connection per blind at once (2 ESPHome proxies x 3 slots
+# is easily exhausted by 11 blinds). Fetches run after HA has started, at most
+# STARTUP_MAX_CONCURRENT at a time.
+STARTUP_MAX_CONCURRENT = 2
+STARTUP_FETCH_TIMEOUT = 45.0
+STARTUP_FETCH_ATTEMPTS = 5
+_STARTUP_SEMAPHORE = f"{DOMAIN}_startup_semaphore"
 
 def _normalize_preset_name(value) -> str:
     """Strip and reject empty/blank preset names."""
@@ -167,17 +175,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         if blind._position_on_restart:
-            try:
-                # Add a timeout to prevent hanging indefinitely waiting for bluetooth response
-                await asyncio.wait_for(blind.get_blind_position(), timeout=15.0)
-            except asyncio.TimeoutError:
-                _LOGGER.warning("%s: Timeout getting blind position on startup. Retrying later.", blind.name)
-                raise ConfigEntryNotReady("Timeout getting blind position - retrying later") from None
-            except (DeviceNotFound, ConnectionTimeout) as e:
-                raise ConfigEntryNotReady("Cannot connect to blind") from e
-            except Exception as e:
-                _LOGGER.warning("%s: Error getting blind position on startup: %s. Retrying later.", blind.name, e)
-                raise ConfigEntryNotReady(f"Error getting blind position: {e}") from e
+            # Defer to after HA has started and run in the background so the
+            # entry loads immediately (cover restores its last state) instead of
+            # raising ConfigEntryNotReady and leaving entities unavailable.
+            def _schedule_position_fetch(_hass: HomeAssistant, blind=blind) -> None:
+                entry.async_create_background_task(
+                    hass,
+                    _async_fetch_position_on_start(hass, blind),
+                    f"{DOMAIN} startup position {blind.host}",
+                )
+
+            entry.async_on_unload(async_at_started(hass, _schedule_position_fetch))
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -210,6 +218,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
     return True
+
+
+async def _async_fetch_position_on_start(hass: HomeAssistant, blind) -> None:
+    """Fetch the real blind position after startup, rate-limited and retried."""
+    semaphore: asyncio.Semaphore = hass.data.setdefault(
+        _STARTUP_SEMAPHORE, asyncio.Semaphore(STARTUP_MAX_CONCURRENT)
+    )
+    for attempt in range(1, STARTUP_FETCH_ATTEMPTS + 1):
+        # Wait until a connectable scanner (ESPHome proxy) has actually seen the
+        # blind; proxies can attach to HA tens of seconds after boot.
+        if bluetooth.async_ble_device_from_address(hass, blind.host, connectable=True) is None:
+            _LOGGER.debug("%s: not yet seen by a connectable scanner (attempt %s)", blind.name, attempt)
+        else:
+            async with semaphore:
+                try:
+                    await asyncio.wait_for(blind.get_blind_position(), timeout=STARTUP_FETCH_TIMEOUT)
+                    _LOGGER.debug("%s: startup position fetched on attempt %s", blind.name, attempt)
+                    return
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:  # noqa: BLE001 - timeout/DeviceNotFound/ConnectionTimeout/locked
+                    _LOGGER.debug("%s: startup position attempt %s failed: %s", blind.name, attempt, err)
+        await asyncio.sleep(min(60, 5 * 2 ** attempt))
+    _LOGGER.warning(
+        "%s: could not read position after %s attempts; using last known state",
+        blind.name,
+        STARTUP_FETCH_ATTEMPTS,
+    )
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
