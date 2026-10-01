@@ -123,6 +123,7 @@ def pytest_sessionstart(session):
         "homeassistant.helpers.entity_platform",
         "homeassistant.helpers.storage",
         "homeassistant.helpers.dispatcher",
+        "homeassistant.helpers.start",
     ]
     for module_name in other_modules:
         if module_name in sys.modules:
