@@ -54,7 +54,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Tuiss2HA."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_ASSUMED
 
     @staticmethod
     @callback
