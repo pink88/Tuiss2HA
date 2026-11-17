@@ -792,7 +792,7 @@ class TuissBlind(TuissLimitsMixin, TuissTimersMixin, TuissPresetsMixin):
                 self.publish_updates()
                 await self.disconnect()
                 return
-        except Exception:
+        except BaseException:
             self._moving = 0
             self._locked = False
             self.publish_updates()
@@ -819,6 +819,12 @@ class TuissBlind(TuissLimitsMixin, TuissTimersMixin, TuissPresetsMixin):
                     continue
                 _LOGGER.error("%s: Failed to send move command: %s. Unsticking blind.", self.name, e)
                 break
+            except BaseException:
+                self._moving = 0
+                self._locked = False
+                self.publish_updates()
+                await self.disconnect()
+                raise
 
         if not move_sent:
             self._moving = 0
@@ -860,8 +866,10 @@ class TuissBlind(TuissLimitsMixin, TuissTimersMixin, TuissPresetsMixin):
             return
         finally:
             update_task.cancel()
+            self._moving = 0
             self._locked = False
             await self.disconnect()
+            self.publish_updates()
             _LOGGER.debug("%s: Lock released in async_move_cover.", self.name)
 
         _LOGGER.debug(

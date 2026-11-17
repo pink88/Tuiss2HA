@@ -136,6 +136,7 @@ async def async_setup_entry(
             if not entity:
                 _LOGGER.error("Entity %s not found for force unlock", entity_id)
                 continue
+            entity._blind._moving = 0
             entity._blind._locked = False
             entity._blind.publish_updates()  # Notify sensors of the lock status change
             _LOGGER.info("Force unlocked blind %s", entity_id)

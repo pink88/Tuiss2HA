@@ -177,7 +177,8 @@ Timers allow the blind to store a position, time of day and day or week locally 
 - If adding a blind fails, some users have reported issues with Shelly Bluetooth proxies. If you have a Shelly proxy, try removing it to see if discovery improves.
 - If a blind is stuck in a locked state and not actively moving, you can either restart Home Assistant or call the `tuiss2ha.force_unlock` action (Developer Tools → Actions) or from an automation.
 
+## AI Usage & Contributing
 
-## Contributing
+AI coding assistance has been used on this project, however it is built on human foundations and there is always human oversight. If you submit a PR which has been supported by AI, please be diligent in reviewing the output, checking for unnecessary layering of methods/overcomplication and ask your agents to review their own work. 
 
-Contributions, bug reports, new model numbers and feature requests are welcome. Please open an issue or a pull request on GitHub.
+All contributions, bug reports, new model numbers and feature requests are welcome. Please open an issue or a pull request on GitHub.

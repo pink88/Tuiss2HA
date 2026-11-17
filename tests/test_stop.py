@@ -279,3 +279,57 @@ async def test_connection_failure_restores_unlocked_and_idle_state(mock_blind, f
 
     assert tb._locked is False
     assert tb._moving == 0
+
+
+@pytest.mark.asyncio
+async def test_cancellation_during_connection_restores_unlocked_and_idle_state(mock_blind, fake_ble_client):
+    """Test that cancelling async_move_cover during connection clears _locked and _moving."""
+    tb = mock_blind
+    connection_started = asyncio.Event()
+    never_finish = asyncio.Event()
+
+    async def hanging_connection():
+        connection_started.set()
+        await never_finish.wait()
+
+    tb.attempt_connection = AsyncMock(side_effect=hanging_connection)
+
+    move_task = asyncio.create_task(
+        tb.async_move_cover(movement_direction=-1, target_position=100, skip_battery_check=True)
+    )
+    await connection_started.wait()
+    assert tb._locked is True
+    assert tb._moving == -1
+
+    move_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await move_task
+
+    assert tb._locked is False
+    assert tb._moving == 0
+
+
+@pytest.mark.asyncio
+async def test_cancellation_during_wait_for_stop_restores_unlocked_and_idle_state(mock_blind, fake_ble_client):
+    """Test that cancelling async_move_cover while waiting for stop clears _locked and _moving."""
+    tb = mock_blind
+    tb.attempt_connection = AsyncMock()
+    tb.set_position = AsyncMock()
+
+    move_task = asyncio.create_task(
+        tb.async_move_cover(movement_direction=-1, target_position=100, skip_battery_check=True)
+    )
+    for _ in range(50):
+        if tb.set_position.called:
+            break
+        await asyncio.sleep(0.01)
+
+    assert tb._locked is True
+    assert tb._moving == -1
+
+    move_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await move_task
+
+    assert tb._locked is False
+    assert tb._moving == 0
