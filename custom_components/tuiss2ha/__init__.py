@@ -33,6 +33,9 @@ from .const import (
     OPT_BATTERY_CHECK_DAYS,
     DEFAULT_BATTERY_CHECK_DAYS,
     SPEED_CONTROL_SUPPORTED_MODELS,
+    STARTUP_MAX_CONCURRENT,
+    STARTUP_FETCH_TIMEOUT,
+    STARTUP_FETCH_ATTEMPTS,
 )
 
 
@@ -45,13 +48,7 @@ SERVICE_SAVE_CURRENT_AS_PRESET = "save_current_position_as_preset"
 SERVICE_DELETE_PRESET = "delete_preset"
 SERVICE_APPLY_PRESET = "apply_preset"
 
-# Startup position fetch: never block HA startup / config entry setup on BLE,
-# and never fire one connection per blind at once (2 ESPHome proxies x 3 slots
-# is easily exhausted by 11 blinds). Fetches run after HA has started, at most
-# STARTUP_MAX_CONCURRENT at a time.
-STARTUP_MAX_CONCURRENT = 2
-STARTUP_FETCH_TIMEOUT = 45.0
-STARTUP_FETCH_ATTEMPTS = 5
+# Never block HA startup / config entry setup when requiring blind positioning. Now dynamically connects to free proxies at startup and at retry.
 _STARTUP_SEMAPHORE = f"{DOMAIN}_startup_semaphore"
 
 def _normalize_preset_name(value) -> str:
